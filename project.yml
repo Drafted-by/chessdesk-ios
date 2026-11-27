@@ -90,6 +90,11 @@ targets:
       - path: Fixtures
         type: folder
         buildPhase: resources
+    entitlements:
+      path: ChessDesk/ChessDesk.entitlements
+      properties:
+        com.apple.developer.applesignin:
+          - Default
     dependencies:
       - package: ChessCore
       - package: StockfishEngine

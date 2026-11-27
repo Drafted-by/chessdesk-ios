@@ -7,6 +7,14 @@ import Foundation
 /// `token` is nil for a guest. Guest-open routes answer without it.
 nonisolated protocol ChessDeskAPI: Sendable {
     func login(email: String, password: String) async throws -> AuthSession
+    /// A player account. Coaches sign up on the site.
+    func signup(firstName: String, lastName: String, email: String, password: String) async throws -> AuthSession
+    /// Signs in, or creates the account, from a Sign in with Apple identity token.
+    func signInWithApple(identityToken: String, firstName: String?, lastName: String?) async throws -> AuthSession
+    func resendVerification(token: String) async throws
+    /// Deletes the account for good. The password when it has one; an Apple
+    /// authorisation code when there is one, so Apple is told too.
+    func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws
     func refresh(token: String) async throws -> AuthSession
     func me(token: String) async throws -> Me
 
@@ -55,6 +63,31 @@ nonisolated struct LiveAPI: ChessDeskAPI {
 
     func login(email: String, password: String) async throws -> AuthSession {
         try await send("POST", "auth/login", body: LoginRequest(email: email, password: password))
+    }
+
+    func signup(firstName: String, lastName: String, email: String, password: String) async throws -> AuthSession {
+        try await send(
+            "POST", "auth/signup",
+            body: SignupRequest(firstName: firstName, lastName: lastName, email: email, password: password)
+        )
+    }
+
+    func signInWithApple(identityToken: String, firstName: String?, lastName: String?) async throws -> AuthSession {
+        try await send(
+            "POST", "auth/apple",
+            body: AppleSignInRequest(identityToken: identityToken, firstName: firstName, lastName: lastName)
+        )
+    }
+
+    func resendVerification(token: String) async throws {
+        let _: OkResponse = try await send("POST", "auth/verification", token: token)
+    }
+
+    func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws {
+        let _: OkResponse = try await send(
+            "DELETE", "me", token: token,
+            body: DeleteAccountRequest(currentPassword: currentPassword, appleAuthorizationCode: appleAuthorizationCode)
+        )
     }
 
     func refresh(token: String) async throws -> AuthSession {

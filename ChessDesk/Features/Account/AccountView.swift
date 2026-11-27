@@ -3,7 +3,8 @@ import SwiftUI
 /// "You": the account, the plan, and what the app is made of.
 struct AccountView: View {
     @Environment(AppModel.self) private var app
-    @State private var showsSignIn = false
+    @State private var signIn: SignInView.Mode?
+    @State private var showsDeletion = false
 
     var body: some View {
         ScrollView {
@@ -13,9 +14,9 @@ struct AccountView: View {
                     .foregroundStyle(CD.ink)
                     .accessibilityAddTraits(.isHeader)
                 if let me = app.me {
-                    SignedInCard(me: me) { app.signOut() }
+                    SignedInCard(me: me, signOut: { app.signOut() }, delete: { showsDeletion = true })
                 } else {
-                    GuestCard { showsSignIn = true }
+                    GuestCard { signIn = $0 }
                 }
                 #if DEBUG
                     DeveloperSection()
@@ -31,15 +32,20 @@ struct AccountView: View {
         .navigationTitle("You")
         .toolbar(.hidden, for: .navigationBar)
         .cdPage()
-        .sheet(isPresented: $showsSignIn) { SignInView() }
+        .sheet(item: $signIn) { SignInView(mode: $0) }
+        .sheet(isPresented: $showsDeletion) { DeleteAccountView() }
         #if DEBUG
-            .onAppear { if DebugLaunch.opensSignIn { showsSignIn = true } }
+            .onAppear {
+                if DebugLaunch.opensSignIn { signIn = .signIn }
+                if DebugLaunch.opensSignUp { signIn = .createAccount }
+                if DebugLaunch.opensDeletion { showsDeletion = true }
+            }
         #endif
     }
 }
 
 private struct GuestCard: View {
-    let signIn: () -> Void
+    let open: (SignInView.Mode) -> Void
 
     @Environment(AppModel.self) private var app
 
@@ -53,13 +59,11 @@ private struct GuestCard: View {
                     .cdFont(.lede)
                     .foregroundStyle(CD.ink2)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Sign in", action: signIn)
+                Button("Create an account") { open(.createAccount) }
                     .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
                     .padding(.top, CD.Space.s4)
-                Text("Use your ChessDesk email and password. Accounts are created on chessdesk.app for now.")
-                    .cdFont(.meta)
-                    .foregroundStyle(CD.ink3)
-                    .fixedSize(horizontal: false, vertical: true)
+                Button("Sign in") { open(.signIn) }
+                    .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
             }
         }
     }
@@ -67,18 +71,20 @@ private struct GuestCard: View {
     private var summary: String {
         let learned = app.guestProgress.grades.values.reduce(0) { $0 + $1.count { $0.grade == .good } }
         if learned > 0 {
-            return "You have learned \(CDFormat.plural(learned, "move")) on this device. Sign in and they move to your account, with reviews on every device."
+            return "You have learned \(CDFormat.plural(learned, "move")) on this device. Create an account and they move to it, with reviews on every device."
         }
-        return "You can learn without an account: your progress stays on this device. Sign in to keep it on every device and get your reviews."
+        return "You can learn without an account: your progress stays on this device. An account keeps it on every device and brings your reviews."
     }
 }
 
 private struct SignedInCard: View {
     let me: Me
     let signOut: () -> Void
+    let delete: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s16) {
+            if !me.user.emailVerified { VerifyEmailNotice(email: me.user.email) }
             CDCard(padding: CD.Space.s20) {
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
                     VStack(alignment: .leading, spacing: CD.Space.s4) {
@@ -113,6 +119,8 @@ private struct SignedInCard: View {
             }
             Button("Sign out", action: signOut)
                 .buttonStyle(.cd(.secondary, fullWidth: true))
+            Button("Delete account", action: delete)
+                .buttonStyle(.cd(.ghost, fullWidth: true))
         }
     }
 
@@ -123,6 +131,62 @@ private struct SignedInCard: View {
         if me.access.viaCoachPlan { return "Included with your coach's plan." }
         if !me.access.premium { return "The first line of every course is free." }
         return nil
+    }
+}
+
+/// Shown until the address is verified: the server gives a new player 24
+/// hours, then asks for the click before anything else.
+private struct VerifyEmailNotice: View {
+    let email: String
+
+    @Environment(AppModel.self) private var app
+    @State private var note: String?
+    @State private var failed = false
+    @State private var isWorking = false
+
+    var body: some View {
+        CDCard(tone: .raised, padding: CD.Space.s20) {
+            VStack(alignment: .leading, spacing: CD.Space.s12) {
+                Text("Verify your email")
+                    .cdFont(.plateTitle)
+                    .foregroundStyle(CD.ink)
+                Text("We sent a link to \(email). Open it within 24 hours to keep your account open.")
+                    .cdFont(.ledeSmall)
+                    .foregroundStyle(CD.ink2)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button(action: resend) {
+                    if isWorking { ProgressView().tint(CD.ink) } else { Text("Send the link again") }
+                }
+                .buttonStyle(.cd(.secondary, fullWidth: true))
+                .disabled(isWorking)
+                if let note {
+                    Text(note)
+                        .cdFont(.small)
+                        .foregroundStyle(failed ? CD.loss : CD.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        // The link is opened in Mail or a browser: look again on return.
+        .task { await app.reloadAccount() }
+    }
+
+    private func resend() {
+        isWorking = true
+        Task {
+            defer { isWorking = false }
+            do {
+                try await app.resendVerification()
+                failed = false
+                note = "Sent. Look in your inbox, and in spam."
+            } catch let failure as APIError {
+                failed = true
+                note = failure.message
+            } catch {
+                failed = true
+                note = APIError.unreadable.message
+            }
+        }
     }
 }
 
@@ -212,107 +276,3 @@ private struct AboutSection: View {
         }
     }
 #endif
-
-/// Email and password sign-in. Sign in with Apple and Google come with the
-/// account-creation milestone.
-struct SignInView: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.dismiss) private var dismiss
-    @State private var email = ""
-    @State private var password = ""
-    @State private var error: String?
-    @State private var isWorking = false
-    @FocusState private var focus: Field?
-
-    private enum Field { case email, password }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: CD.Space.s20) {
-            VStack(alignment: .leading, spacing: CD.Space.s8) {
-                Wordmark(size: 20)
-                    .padding(.bottom, CD.Space.s12)
-                Text("Sign in")
-                    .cdFont(.pageTitle)
-                    .foregroundStyle(CD.ink)
-            }
-
-            VStack(alignment: .leading, spacing: CD.Space.s16) {
-                field("Email") {
-                    TextField("", text: $email, prompt: Text("you@example.com").foregroundStyle(CD.ink4))
-                        .textContentType(.username)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .submitLabel(.next)
-                        .focused($focus, equals: .email)
-                        .onSubmit { focus = .password }
-                }
-                field("Password") {
-                    SecureField("", text: $password)
-                        .textContentType(.password)
-                        .submitLabel(.go)
-                        .focused($focus, equals: .password)
-                        .onSubmit(submit)
-                }
-            }
-
-            if let error {
-                Label(error, systemImage: "exclamationmark.circle")
-                    .cdFont(.small)
-                    .foregroundStyle(CD.loss)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            Button(action: submit) {
-                if isWorking {
-                    ProgressView().tint(CD.accentInk)
-                } else {
-                    Text("Sign in")
-                }
-            }
-            .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
-            .disabled(isWorking || email.isEmpty || password.isEmpty)
-
-        }
-        .plate()
-        .padding(.horizontal, CD.Space.s16)
-        .padding(.top, CD.Space.s32)
-        .frame(maxWidth: 480)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(CD.canvas.ignoresSafeArea())
-        .presentationDragIndicator(.visible)
-        .onAppear { focus = .email }
-    }
-
-    private func field(_ label: String, @ViewBuilder input: () -> some View) -> some View {
-        VStack(alignment: .leading, spacing: CD.Space.s6) {
-            Text(label)
-                .cdFont(.small)
-                .foregroundStyle(CD.ink2)
-            input()
-                .cdFont(.body)
-                .foregroundStyle(CD.ink)
-                .padding(.horizontal, CD.Space.s12)
-                .frame(minHeight: 48)
-                .background(CD.surface2, in: RoundedRectangle(cornerRadius: CD.Radius.md, style: .continuous))
-                .hairline(CD.lineStrong, radius: CD.Radius.md)
-        }
-    }
-
-    private func submit() {
-        guard !isWorking, !email.isEmpty, !password.isEmpty else { return }
-        isWorking = true
-        error = nil
-        Task {
-            defer { isWorking = false }
-            do {
-                try await app.signIn(email: email.trimmingCharacters(in: .whitespaces), password: password)
-                dismiss()
-            } catch let failure as APIError {
-                error = failure.message
-            } catch {
-                self.error = APIError.unreadable.message
-            }
-        }
-    }
-}

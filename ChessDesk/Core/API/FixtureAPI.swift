@@ -37,6 +37,29 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
         )
     }
 
+    private var noAccounts: APIError {
+        .server(
+            status: 422,
+            code: "request_failed",
+            message: "Sample data has no accounts. Switch to a server in Developer settings to create one."
+        )
+    }
+
+    func signup(firstName: String, lastName: String, email: String, password: String) async throws -> AuthSession {
+        try await Task.sleep(for: delay)
+        throw noAccounts
+    }
+
+    func signInWithApple(identityToken: String, firstName: String?, lastName: String?) async throws -> AuthSession {
+        try await Task.sleep(for: delay)
+        throw noAccounts
+    }
+
+    func resendVerification(token: String) async throws { throw signInNeeded }
+    func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws {
+        throw signInNeeded
+    }
+
     func refresh(token: String) async throws -> AuthSession { throw signInNeeded }
     func me(token: String) async throws -> Me { throw signInNeeded }
 

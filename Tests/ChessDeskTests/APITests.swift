@@ -167,11 +167,36 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         let paths = try #require(contract["paths"] as? [String: Any])
         let used = [
             "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/me",
+            "/api/v1/auth/signup", "/api/v1/auth/apple", "/api/v1/auth/verification",
             "/api/v1/courses", "/api/v1/courses/{slug}", "/api/v1/courses/{slug}/session",
             "/api/v1/courses/{slug}/enrollment", "/api/v1/courses/{slug}/local-progress",
             "/api/v1/training/grades", "/api/v1/training/due",
         ]
         for path in used { #expect(paths[path] != nil, "\(path) is in the contract") }
+    }
+
+    /// The request bodies the app sends hold every field the contract requires.
+    @Test func accountRequestsCarryWhatTheContractRequires() throws {
+        let contract = try Self.contract()
+        let components = try #require(contract["components"] as? [String: Any])
+        let schemas = try #require(components["schemas"] as? [String: Any])
+        func keys(_ body: some Encodable) throws -> Set<String> {
+            let object = try JSONSerialization.jsonObject(with: APICoding.encoder.encode(body))
+            return Set(try #require(object as? [String: Any]).keys)
+        }
+        func required(_ name: String) throws -> Set<String> {
+            let schema = try #require(schemas[name] as? [String: Any], "schema \(name) is in the contract")
+            return Set(schema["required"] as? [String] ?? [])
+        }
+        let signup = SignupRequest(firstName: "Ana", lastName: "Silva", email: "ana@example.com", password: "longenough")
+        #expect(try keys(signup) == required("SignupRequest"))
+        let apple = AppleSignInRequest(identityToken: "jwt", firstName: nil, lastName: nil)
+        #expect(try required("AppleSignInRequest").isSubset(of: keys(apple)))
+        // Nothing is required to delete a passwordless account.
+        #expect(try required("DeleteAccountRequest").isEmpty)
+        let paths = try #require(contract["paths"] as? [String: Any])
+        let me = try #require(paths["/api/v1/me"] as? [String: Any])
+        #expect(me["delete"] != nil, "DELETE /api/v1/me is in the contract")
     }
 
     @Test func requestsAreBuiltAsTheContractSays() throws {

@@ -76,6 +76,10 @@ struct RootView: View {
         static var opensPremium: Bool { route?.first == "premium" }
         /// With `-CDRoute account/signin`: You opens the sign-in sheet.
         static var opensSignIn: Bool { route == ["account", "signin"] }
+        /// With `-CDRoute account/signup`: You opens the account creation sheet.
+        static var opensSignUp: Bool { route == ["account", "signup"] }
+        /// With `-CDRoute account/delete`: the account deletion sheet, as a preview.
+        static var opensDeletion: Bool { route == ["account", "delete"] }
         /// `-CDExercise 2` starts the stage at its second exercise.
         static var exercise: Int { max(1, UserDefaults.standard.integer(forKey: "CDExercise")) - 1 }
         /// `-CDTrainerSteps 5` plays the first moves of the guided pass.

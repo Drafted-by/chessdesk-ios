@@ -8,9 +8,9 @@ import SwiftUI
 
 /// `primary` is brass and there is one per view. `lead` is the same action
 /// on the screen's plate, with the moving edge. `secondary` is the neutral
-/// action, `ghost` the quiet one.
+/// action, `ghost` the quiet one, `danger` the one that cannot be undone.
 struct CDButtonStyle: ButtonStyle {
-    enum Variant { case primary, lead, secondary, ghost }
+    enum Variant { case primary, lead, secondary, ghost, danger }
     enum Size { case small, medium, large }
 
     var variant: Variant = .secondary
@@ -52,6 +52,7 @@ struct CDButtonStyle: ButtonStyle {
         case .primary, .lead: CD.accentInk
         case .secondary: CD.ink
         case .ghost: CD.ink2
+        case .danger: CD.loss
         }
     }
 
@@ -62,7 +63,7 @@ struct CDButtonStyle: ButtonStyle {
             pressed
                 ? AnyShapeStyle(CD.accentStrong)
                 : AnyShapeStyle(LinearGradient(colors: [CD.accent, CD.accentStrong], startPoint: .top, endPoint: .bottom))
-        case .secondary: AnyShapeStyle(pressed ? CD.surface3 : CD.surface2)
+        case .secondary, .danger: AnyShapeStyle(pressed ? CD.surface3 : CD.surface2)
         case .ghost: AnyShapeStyle(pressed ? CD.surface2 : Color.clear)
         }
     }
@@ -72,6 +73,7 @@ struct CDButtonStyle: ButtonStyle {
         case .primary, .ghost: .clear
         case .lead: CD.accentLine
         case .secondary: CD.lineStrong
+        case .danger: CD.loss.opacity(0.45)
         }
     }
 }

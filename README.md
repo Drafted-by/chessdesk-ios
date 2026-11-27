@@ -39,9 +39,10 @@ with Stockfish 19 running on the device.
   the course is voiced, then play it from memory with hints.
 - **Guest first.** No account is needed to start. What a guest learns stays on the device
   and moves to their account when they sign in.
+- **Accounts.** Create a player account in the app, with Sign in with Apple or an email and
+  a password, and delete it there too.
 
-Not built yet: buying Premium in the app, Sign in with Apple and Google, and reviewing your
-own games with the engine.
+Not built yet: buying Premium in the app, and reviewing your own games with the engine.
 
 ## How it is built
 
@@ -104,6 +105,8 @@ scripts/sim.sh iphone -CDRoute path
 scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
 scripts/sim.sh iphone -CDRoute premium
 scripts/sim.sh iphone -CDRoute account/signin
+scripts/sim.sh iphone -CDRoute account/signup
+scripts/sim.sh iphone -CDRoute account/delete
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES

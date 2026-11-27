@@ -100,13 +100,14 @@ final class AppModel {
 
     init(
         backend: Backend = .initial,
+        api: (any ChessDeskAPI)? = nil,
         guestStore: GuestProgressStore = .standard,
         makeTokenStore: @escaping @Sendable (Backend) -> any TokenStoring = {
             KeychainTokenStore(account: $0.tokenAccount)
         }
     ) {
         self.backend = backend
-        api = backend.api
+        self.api = api ?? backend.api
         self.guestStore = guestStore
         self.makeTokenStore = makeTokenStore
         tokens = makeTokenStore(backend)
@@ -141,16 +142,72 @@ final class AppModel {
     }
 
     func signIn(email: String, password: String) async throws {
-        let session = try await api.login(email: email, password: password)
+        try await open(api.login(email: email, password: password), withApple: false)
+    }
+
+    /// Creates a player account and signs in. What the guest learned on this
+    /// device moves to the new account.
+    func signUp(firstName: String, lastName: String, email: String, password: String) async throws {
+        let session = try await api.signup(firstName: firstName, lastName: lastName, email: email, password: password)
+        try await open(session, withApple: false)
+    }
+
+    /// Signs in, or creates the account, with what the Apple sheet returned.
+    func signIn(with apple: AppleCredential) async throws {
+        let session = try await api.signInWithApple(
+            identityToken: apple.identityToken, firstName: apple.firstName, lastName: apple.lastName
+        )
+        try await open(session, withApple: true)
+    }
+
+    private func open(_ session: AuthSession, withApple: Bool) async throws {
         tokens.write(session.token)
-        let me = try await api.me(token: session.token)
-        setAccount(.signedIn(me))
+        do {
+            let me = try await api.me(token: session.token)
+            usedAppleSignIn = withApple
+            setAccount(.signedIn(me))
+        } catch {
+            tokens.write(nil)
+            throw error
+        }
         await uploadGuestProgress(token: session.token)
     }
 
     func signOut() {
         tokens.write(nil)
+        usedAppleSignIn = false
         setAccount(.guest)
+    }
+
+    /// Whether this device signed in with Apple: deleting the account then
+    /// asks Apple once more, so the authorisation can be revoked.
+    private(set) var usedAppleSignIn: Bool {
+        get { UserDefaults.standard.bool(forKey: appleKey) }
+        set { UserDefaults.standard.set(newValue, forKey: appleKey) }
+    }
+
+    private var appleKey: String { "cd.session.apple.\(backend.tokenAccount)" }
+
+    /// Asks for the verification email again and re-reads the account, in
+    /// case the link was opened in the meantime.
+    func resendVerification() async throws {
+        guard let token else { return }
+        try await api.resendVerification(token: token)
+        await reloadAccount()
+    }
+
+    func reloadAccount() async {
+        guard let token, isSignedIn, let me = try? await api.me(token: token) else { return }
+        setAccount(.signedIn(me))
+    }
+
+    /// Deletes the account on the server, then forgets the session here.
+    func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?) async throws {
+        guard let token else { return }
+        try await api.deleteAccount(
+            currentPassword: currentPassword, appleAuthorizationCode: appleAuthorizationCode, token: token
+        )
+        signOut()
     }
 
     /// A call answered `unauthorized`: the token was revoked or expired.

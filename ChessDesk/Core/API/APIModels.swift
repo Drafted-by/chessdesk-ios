@@ -40,6 +40,9 @@ nonisolated struct Me: Codable, Hashable, Sendable {
     }
 
     let user: APIUser
+    /// False for an account created with Apple or Google. Nil from a server
+    /// older than account creation in the app.
+    let hasPassword: Bool?
     let access: Access
     let freeLimits: FreeLimits
 }
@@ -257,6 +260,25 @@ nonisolated struct LoginRequest: Codable, Sendable {
     let password: String
 }
 
+nonisolated struct SignupRequest: Codable, Sendable {
+    let firstName: String
+    let lastName: String
+    let email: String
+    let password: String
+}
+
+nonisolated struct AppleSignInRequest: Codable, Sendable {
+    let identityToken: String
+    /// Apple gives the name once, at the first authorisation.
+    let firstName: String?
+    let lastName: String?
+}
+
+nonisolated struct DeleteAccountRequest: Codable, Sendable {
+    let currentPassword: String?
+    let appleAuthorizationCode: String?
+}
+
 nonisolated struct GradesRequest: Codable, Sendable {
     let deck: String
     let grades: [MoveGrade]
@@ -297,6 +319,7 @@ nonisolated enum APIError: Error, Equatable, Sendable {
 
     var isUnauthorized: Bool { code == "unauthorized" }
     var isPremiumRequired: Bool { code == "premium_required" }
+    var isEmailTaken: Bool { code == "email_taken" }
 
     /// A sentence for the player. Server messages are already written for them.
     var message: String {
