@@ -1,0 +1,50 @@
+name: Native CI
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+permissions:
+  contents: read
+jobs:
+  native-ci:
+    name: Check
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Install Xcode project generator
+        run: command -v xcodegen >/dev/null || brew install xcodegen
+      - name: Verify toolchain
+        run: |
+          xcodebuild -version
+          swift --version
+          xcodegen --version
+      - name: Test the chess rules (ChessCore)
+        run: swift test --package-path Packages/ChessCore
+      - name: Generate the Xcode project
+        run: |
+          xcodegen generate
+          xcodebuild -list -project ChessDesk.xcodeproj
+      - name: Select an available simulator
+        id: simulator
+        run: echo "destination=$(scripts/ci/simulator-destination.sh)" >> "$GITHUB_OUTPUT"
+      - name: Build and test ChessDesk
+        run: |
+          xcodebuild test \
+            -project ChessDesk.xcodeproj \
+            -scheme ChessDesk \
+            -destination "${{ steps.simulator.outputs.destination }}" \
+            -derivedDataPath "$RUNNER_TEMP/ChessDeskDerivedData" \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO
+env:
+  DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+concurrency:
+  group: chessdesk-ios-${{ github.ref }}
+  cancel-in-progress: true

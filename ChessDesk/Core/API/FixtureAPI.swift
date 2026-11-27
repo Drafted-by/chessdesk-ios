@@ -1,0 +1,78 @@
+import Foundation
+
+/// Answers from the captured files in `Fixtures/api-v1` (real answers of the
+/// site's dev server, guest viewer). It is what Debug builds use until the API
+/// is served in production, and what previews and tests always use.
+///
+/// It plays a guest: routes that need an account answer `unauthorized`, and a
+/// Premium line answers `premium_required`, as the server does.
+nonisolated struct FixtureAPI: ChessDeskAPI {
+    /// Simulated latency, so loading states are visible while developing.
+    var delay: Duration = .milliseconds(250)
+
+    private static let detailedSlugs = ["practical-caro-kann", "aggressive-1e4", "practical-london-system"]
+
+    static func data(_ name: String) throws -> Data {
+        let bundle = Bundle(for: BundleToken.self)
+        guard let url = bundle.url(forResource: name, withExtension: "json", subdirectory: "Fixtures/api-v1")
+        else { throw APIError.unreadable }
+        return try Data(contentsOf: url)
+    }
+
+    private func load<Response: Decodable>(_ name: String) async throws -> Response {
+        try await Task.sleep(for: delay)
+        return try LiveAPI.decode(status: 200, data: Self.data(name))
+    }
+
+    private var signInNeeded: APIError {
+        .server(status: 401, code: "unauthorized", message: "Sign in to continue.")
+    }
+
+    func login(email: String, password: String) async throws -> AuthSession {
+        try await Task.sleep(for: delay)
+        throw APIError.server(
+            status: 401,
+            code: "invalid_credentials",
+            message: "Sample data has no accounts. Switch to a server in Developer settings to sign in."
+        )
+    }
+
+    func refresh(token: String) async throws -> AuthSession { throw signInNeeded }
+    func me(token: String) async throws -> Me { throw signInNeeded }
+
+    func courses(token: String?) async throws -> [CourseCard] {
+        let response: CoursesResponse = try await load("courses")
+        return response.courses
+    }
+
+    func course(slug: String, token: String?) async throws -> CourseDetail {
+        guard Self.detailedSlugs.contains(slug) else {
+            try await Task.sleep(for: delay)
+            throw APIError.server(
+                status: 404,
+                code: "not_found",
+                message: "Sample data holds three courses: the Caro-Kann Bunker, the Buccaneer 1.e4 and the Big Ben London."
+            )
+        }
+        return try await load("course-\(slug)")
+    }
+
+    func courseSession(slug: String, mode: SessionMode, line: String?, token: String?) async throws -> CourseSession {
+        guard mode == .learn else {
+            try await Task.sleep(for: delay)
+            throw APIError.server(status: 401, code: "unauthorized", message: "Sign in to review your lines.")
+        }
+        let session: CourseSession = try await load("session-learn-\(slug)")
+        if let line, !session.lines.contains(where: { $0.id == line }) {
+            throw APIError.server(status: 403, code: "premium_required", message: "This line is part of Premium.")
+        }
+        return session
+    }
+
+    func setEnrollment(slug: String, status: EnrollmentStatus, token: String) async throws { throw signInNeeded }
+    func importLocalProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { throw signInNeeded }
+    func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws { throw signInNeeded }
+    func due(token: String) async throws -> DueSummary { throw signInNeeded }
+}
+
+private final class BundleToken {}

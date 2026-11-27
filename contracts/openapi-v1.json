@@ -1,0 +1,3488 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ChessDesk app API",
+    "version": "1",
+    "description": "API of the ChessDesk native app. Generated from apps/web/lib/api/v1; do not edit by hand."
+  },
+  "servers": [
+    {
+      "url": "https://chessdesk.app"
+    }
+  ],
+  "paths": {
+    "/api/v1/auth/login": {
+      "post": {
+        "operationId": "login",
+        "summary": "Sign in with email and password; returns a bearer token.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "operationId": "refreshSession",
+        "summary": "Exchange a valid bearer token for a fresh one (call on app launch).",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "operationId": "getMe",
+        "summary": "The signed-in user, what they may use, and the free allowances.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts": {
+      "get": {
+        "operationId": "listAccounts",
+        "summary": "The chess.com and Lichess accounts linked to the player.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedAccounts"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{provider}": {
+      "put": {
+        "operationId": "linkAccount",
+        "summary": "Link (or replace) the player's account on a game site, by username.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chesscom",
+                "lichess"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkAccountRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LinkedAccount"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "unlinkAccount",
+        "summary": "Unlink an account. Imported games are kept.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chesscom",
+                "lichess"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/accounts/{provider}/import": {
+      "post": {
+        "operationId": "importGames",
+        "summary": "Import one chunk of games; repeat with nextCursor until done.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "provider",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "chesscom",
+                "lichess"
+              ]
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportChunk"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "The game site is rate limiting; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games": {
+      "get": {
+        "operationId": "listGames",
+        "summary": "The player's games, newest first, one page at a time.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "source",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "CHESSCOM",
+                "LICHESS",
+                "BOT"
+              ]
+            }
+          },
+          {
+            "name": "timeClass",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "BULLET",
+                "BLITZ",
+                "RAPID",
+                "CLASSICAL",
+                "CORRESPONDENCE"
+              ]
+            }
+          },
+          {
+            "name": "rated",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "rated",
+                "casual"
+              ]
+            }
+          },
+          {
+            "name": "starred",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "starred"
+              ]
+            }
+          },
+          {
+            "name": "short",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "1"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GamesPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{gameId}": {
+      "get": {
+        "operationId": "getGame",
+        "summary": "One game with its PGN and stored review.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{gameId}/star": {
+      "put": {
+        "operationId": "setGameStar",
+        "summary": "Star or unstar a game.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StarRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/games/{gameId}/review": {
+      "put": {
+        "operationId": "saveGameReview",
+        "summary": "Store the engine review computed on the device; queues the game's mistakes for practice.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "gameId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveReviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mistakes": {
+      "get": {
+        "operationId": "getMistakeQueue",
+        "summary": "Today's session of the player's own mistakes, and the counts.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MistakeQueue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/mistakes/{mistakeId}/attempts": {
+      "post": {
+        "operationId": "recordMistakeAttempt",
+        "summary": "Record one attempt at a mistake position; schedules its next review.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "mistakeId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MistakeAttemptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MistakeAttempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses": {
+      "get": {
+        "operationId": "listCourses",
+        "summary": "The opening course catalogue; with a session, the player's enrollment and progress in each.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Courses"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{slug}": {
+      "get": {
+        "operationId": "getCourse",
+        "summary": "One course: chapters, lines and their state for the viewer (a visitor sees it fresh).",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{slug}/session": {
+      "get": {
+        "operationId": "getCourseSession",
+        "summary": "The lines of a Learn or Review session. 403 premium_required is the paywall; a review needs a session.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "mode",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "learn",
+                "review"
+              ]
+            }
+          },
+          {
+            "name": "line",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{slug}/enrollment": {
+      "put": {
+        "operationId": "setCourseEnrollment",
+        "summary": "Archive a followed course, or restore an archived one.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "removeCourse",
+        "summary": "Stop following a course and forget its progress (moves shared with another deck are kept).",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CourseRemoved"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/courses/{slug}/local-progress": {
+      "post": {
+        "operationId": "importLocalCourseProgress",
+        "summary": "Hand the free line learned as a guest over to the account.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalProgressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/grades": {
+      "post": {
+        "operationId": "gradeMoves",
+        "summary": "Record the grades of a Learn or Review session of a deck (course or own repertoire).",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/due": {
+      "get": {
+        "operationId": "getDueSummary",
+        "summary": "What is due today across the player's decks, and the course to learn next.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DueSummary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/training/preferences": {
+      "put": {
+        "operationId": "setTrainingPreferences",
+        "summary": "Set the number of new lines a Learn session offers per day (1, 3, 5 or 10).",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TrainingPreferencesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearer": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "invalid_request",
+                  "invalid_credentials",
+                  "email_unverified",
+                  "unauthorized",
+                  "rate_limited",
+                  "not_found",
+                  "request_failed",
+                  "provider_busy",
+                  "premium_required"
+                ]
+              },
+              "message": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "STUDENT",
+              "COACH",
+              "ADMIN"
+            ]
+          },
+          "emailVerified": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "emailVerified"
+        ]
+      },
+      "LoginRequest": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "maxLength": 254,
+            "format": "email",
+            "pattern": "^(?:[A-Za-z0-9_'+\\-]+\\.)*[A-Za-z0-9_'+\\-]*[A-Za-z0-9_+-]@(?:[A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "AuthSession": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        },
+        "required": [
+          "token",
+          "expiresAt",
+          "user"
+        ]
+      },
+      "Access": {
+        "type": "object",
+        "properties": {
+          "premium": {
+            "type": "boolean"
+          },
+          "paid": {
+            "type": "boolean"
+          },
+          "viaCoachPlan": {
+            "type": "boolean"
+          },
+          "trial": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ineligible",
+                  "available",
+                  "active",
+                  "ended"
+                ]
+              },
+              "endsAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "daysLeft": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 366
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "endsAt",
+              "daysLeft"
+            ]
+          }
+        },
+        "required": [
+          "premium",
+          "paid",
+          "viaCoachPlan",
+          "trial"
+        ]
+      },
+      "FreeLimits": {
+        "type": "object",
+        "properties": {
+          "repertoireLines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "explorerGames": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "repertoireLines",
+          "explorerGames"
+        ]
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "access": {
+            "$ref": "#/components/schemas/Access"
+          },
+          "freeLimits": {
+            "$ref": "#/components/schemas/FreeLimits"
+          }
+        },
+        "required": [
+          "user",
+          "access",
+          "freeLimits"
+        ]
+      },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "const": true
+          }
+        },
+        "required": [
+          "ok"
+        ]
+      },
+      "LinkedAccount": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "CHESSCOM",
+              "LICHESS"
+            ]
+          },
+          "username": {
+            "type": "string"
+          },
+          "lastSyncedAt": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "historyComplete": {
+            "type": "boolean"
+          },
+          "ratings": {
+            "type": "object",
+            "propertyNames": {
+              "type": "string"
+            },
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5000
+            }
+          }
+        },
+        "required": [
+          "provider",
+          "username",
+          "lastSyncedAt",
+          "historyComplete",
+          "ratings"
+        ]
+      },
+      "LinkedAccounts": {
+        "type": "object",
+        "properties": {
+          "accounts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LinkedAccount"
+            }
+          }
+        },
+        "required": [
+          "accounts"
+        ]
+      },
+      "LinkAccountRequest": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
+      "ImportRequest": {
+        "type": "object",
+        "properties": {
+          "cursor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 300
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "full",
+              "sync",
+              "history"
+            ]
+          }
+        }
+      },
+      "ImportChunk": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "totalSoFar": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "done": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "imported",
+          "totalSoFar",
+          "nextCursor",
+          "done"
+        ]
+      },
+      "GameSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "CHESSCOM",
+              "LICHESS",
+              "MANUAL",
+              "BOT"
+            ]
+          },
+          "white": {
+            "type": "string"
+          },
+          "black": {
+            "type": "string"
+          },
+          "whiteElo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blackElo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "type": "string"
+          },
+          "timeClass": {
+            "type": "string",
+            "enum": [
+              "BULLET",
+              "BLITZ",
+              "RAPID",
+              "CLASSICAL",
+              "CORRESPONDENCE",
+              "UNKNOWN"
+            ]
+          },
+          "timeControl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eco": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opening": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "userColor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "white",
+                  "black"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ply": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "starred": {
+            "type": "boolean"
+          },
+          "reviewed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "white",
+          "black",
+          "whiteElo",
+          "blackElo",
+          "result",
+          "timeClass",
+          "timeControl",
+          "eco",
+          "opening",
+          "userColor",
+          "playedAt",
+          "ply",
+          "rated",
+          "starred",
+          "reviewed"
+        ]
+      },
+      "GamesPage": {
+        "type": "object",
+        "properties": {
+          "games": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/GameSummary"
+            }
+          },
+          "nextCursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "games",
+          "nextCursor"
+        ]
+      },
+      "ReviewedMove": {
+        "type": "object",
+        "properties": {
+          "ply": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000
+          },
+          "san": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "w",
+              "b"
+            ]
+          },
+          "evalCp": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": -1000000,
+                "maximum": 1000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "mate": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -1000,
+                "maximum": 1000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "bestSan": {
+            "type": "string",
+            "maxLength": 16
+          },
+          "cpl": {
+            "type": "number",
+            "minimum": -1000000,
+            "maximum": 1000000
+          },
+          "winLoss": {
+            "type": "number",
+            "minimum": -100,
+            "maximum": 100
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "BRILLIANT",
+              "GREAT",
+              "BEST",
+              "GOOD",
+              "INACCURACY",
+              "MISTAKE",
+              "BLUNDER",
+              "BOOK"
+            ]
+          }
+        },
+        "required": [
+          "ply",
+          "san",
+          "color",
+          "evalCp",
+          "mate",
+          "bestSan",
+          "cpl",
+          "winLoss",
+          "classification"
+        ]
+      },
+      "GameReview": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number",
+            "const": 1
+          },
+          "depth": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 99
+          },
+          "computedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "whiteAccuracy": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "blackAccuracy": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100
+          },
+          "moves": {
+            "maxItems": 2000,
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewedMove"
+            }
+          }
+        },
+        "required": [
+          "version",
+          "depth",
+          "computedAt",
+          "whiteAccuracy",
+          "blackAccuracy",
+          "moves"
+        ]
+      },
+      "GameDetail": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "CHESSCOM",
+              "LICHESS",
+              "MANUAL",
+              "BOT"
+            ]
+          },
+          "white": {
+            "type": "string"
+          },
+          "black": {
+            "type": "string"
+          },
+          "whiteElo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "blackElo": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "result": {
+            "type": "string"
+          },
+          "timeClass": {
+            "type": "string",
+            "enum": [
+              "BULLET",
+              "BLITZ",
+              "RAPID",
+              "CLASSICAL",
+              "CORRESPONDENCE",
+              "UNKNOWN"
+            ]
+          },
+          "timeControl": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "eco": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "opening": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "userColor": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "white",
+                  "black"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "playedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ply": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "rated": {
+            "type": "boolean"
+          },
+          "starred": {
+            "type": "boolean"
+          },
+          "reviewed": {
+            "type": "boolean"
+          },
+          "pgn": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "review": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/GameReview"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "source",
+          "white",
+          "black",
+          "whiteElo",
+          "blackElo",
+          "result",
+          "timeClass",
+          "timeControl",
+          "eco",
+          "opening",
+          "userColor",
+          "playedAt",
+          "ply",
+          "rated",
+          "starred",
+          "reviewed",
+          "pgn",
+          "url",
+          "review"
+        ]
+      },
+      "StarRequest": {
+        "type": "object",
+        "properties": {
+          "starred": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "starred"
+        ]
+      },
+      "SaveReviewRequest": {
+        "type": "object",
+        "properties": {
+          "review": {
+            "$ref": "#/components/schemas/GameReview"
+          }
+        },
+        "required": [
+          "review"
+        ]
+      },
+      "Mistake": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "bestUci": {
+            "type": "string"
+          },
+          "bestSan": {
+            "type": "string"
+          },
+          "playedSan": {
+            "type": "string"
+          },
+          "classification": {
+            "type": "string",
+            "enum": [
+              "MISTAKE",
+              "BLUNDER"
+            ]
+          },
+          "winLoss": {
+            "type": "number"
+          },
+          "moveLabel": {
+            "type": "string"
+          },
+          "gameId": {
+            "type": "string"
+          },
+          "opponent": {
+            "type": "string"
+          },
+          "streak": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "firstTime": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "fen",
+          "bestUci",
+          "bestSan",
+          "playedSan",
+          "classification",
+          "winLoss",
+          "moveLabel",
+          "gameId",
+          "opponent",
+          "streak",
+          "firstTime"
+        ]
+      },
+      "MistakeQueue": {
+        "type": "object",
+        "properties": {
+          "counts": {
+            "type": "object",
+            "properties": {
+              "due": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "total": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "mastered": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "nextDueAt": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "due",
+              "total",
+              "mastered",
+              "nextDueAt"
+            ]
+          },
+          "due": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mistake"
+            }
+          }
+        },
+        "required": [
+          "counts",
+          "due"
+        ]
+      },
+      "MistakeAttemptRequest": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "string",
+            "enum": [
+              "solved",
+              "missed",
+              "revealed"
+            ]
+          }
+        },
+        "required": [
+          "result"
+        ]
+      },
+      "MistakeAttempt": {
+        "type": "object",
+        "properties": {
+          "intervalDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000
+          }
+        },
+        "required": [
+          "intervalDays"
+        ]
+      },
+      "DeckProgress": {
+        "type": "object",
+        "properties": {
+          "lines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "learned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "newLines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "dueLines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "solidLines": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "dueMoves": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "moves": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "lines",
+          "learned",
+          "newLines",
+          "dueLines",
+          "solidLines",
+          "dueMoves",
+          "moves"
+        ]
+      },
+      "CourseCard": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "style": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "chapters": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "moves": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "chapters",
+              "lines",
+              "moves"
+            ]
+          },
+          "previewFen": {
+            "type": "string"
+          },
+          "previewMove": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freeLineId": {
+            "type": "string"
+          },
+          "voiced": {
+            "type": "boolean"
+          },
+          "enrollment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "progress": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DeckProgress"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "color",
+          "style",
+          "level",
+          "description",
+          "totals",
+          "previewFen",
+          "previewMove",
+          "freeLineId",
+          "voiced",
+          "enrollment",
+          "progress"
+        ]
+      },
+      "Courses": {
+        "type": "object",
+        "properties": {
+          "courses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CourseCard"
+            }
+          }
+        },
+        "required": [
+          "courses"
+        ]
+      },
+      "Narration": {
+        "type": "object",
+        "properties": {
+          "base": {
+            "type": "string"
+          },
+          "keys": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "base",
+          "keys"
+        ]
+      },
+      "CourseDetail": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "style": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "level": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "chapters": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "lines": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "moves": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "chapters",
+              "lines",
+              "moves"
+            ]
+          },
+          "previewFen": {
+            "type": "string"
+          },
+          "previewMove": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string"
+                  },
+                  "to": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "freeLineId": {
+            "type": "string"
+          },
+          "voiced": {
+            "type": "boolean"
+          },
+          "enrollment": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "archived"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "intro": {
+            "type": "string"
+          },
+          "deck": {
+            "type": "string"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/DeckProgress"
+          },
+          "chapters": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "intro": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "lines": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "label": {
+                        "type": "string"
+                      },
+                      "moves": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 10000000
+                      },
+                      "state": {
+                        "type": "string",
+                        "enum": [
+                          "new",
+                          "learning",
+                          "due",
+                          "solid",
+                          "locked"
+                        ]
+                      },
+                      "free": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "label",
+                      "moves",
+                      "state",
+                      "free"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "title",
+                "intro",
+                "lines"
+              ]
+            }
+          },
+          "pace": {
+            "type": "object",
+            "properties": {
+              "perDay": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "newLeft": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "perDay",
+              "newLeft"
+            ]
+          },
+          "freeLearned": {
+            "type": "boolean"
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Narration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "color",
+          "style",
+          "level",
+          "description",
+          "totals",
+          "previewFen",
+          "previewMove",
+          "freeLineId",
+          "voiced",
+          "enrollment",
+          "intro",
+          "deck",
+          "progress",
+          "chapters",
+          "pace",
+          "freeLearned",
+          "narration"
+        ]
+      },
+      "LineStep": {
+        "type": "object",
+        "properties": {
+          "san": {
+            "type": "string"
+          },
+          "uci": {
+            "type": "string"
+          },
+          "fenBefore": {
+            "type": "string"
+          },
+          "fenAfter": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "mine": {
+            "type": "boolean"
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "shapes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "brush": {
+                  "type": "string",
+                  "enum": [
+                    "green",
+                    "red",
+                    "blue",
+                    "yellow"
+                  ]
+                },
+                "orig": {
+                  "type": "string"
+                },
+                "dest": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "brush",
+                "orig"
+              ]
+            }
+          },
+          "ply": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 2000
+          }
+        },
+        "required": [
+          "san",
+          "uci",
+          "fenBefore",
+          "fenAfter",
+          "key",
+          "mine",
+          "comments",
+          "shapes",
+          "ply"
+        ]
+      },
+      "TrainingLine": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "chapter": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "index": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "startFen": {
+            "type": "string"
+          },
+          "steps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LineStep"
+            }
+          },
+          "side": {
+            "type": "string",
+            "enum": [
+              "WHITE",
+              "BLACK"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "chapter",
+          "index",
+          "startFen",
+          "steps"
+        ]
+      },
+      "CourseSession": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "learn",
+              "review"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "WHITE",
+              "BLACK"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingLine"
+            }
+          },
+          "learn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "lineId": {
+                  "type": "string"
+                },
+                "test": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  }
+                }
+              },
+              "required": [
+                "lineId",
+                "test"
+              ]
+            }
+          },
+          "known": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "lineId": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "lineId",
+                  "locked"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "chapterTitles": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Narration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "deck",
+          "mode",
+          "color",
+          "lines",
+          "learn",
+          "review",
+          "known",
+          "next",
+          "chapterTitles",
+          "narration"
+        ]
+      },
+      "GradesRequest": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "grades": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fen": {
+                  "type": "string",
+                  "minLength": 10,
+                  "maxLength": 120
+                },
+                "uci": {
+                  "type": "string",
+                  "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$"
+                },
+                "grade": {
+                  "type": "string",
+                  "enum": [
+                    "again",
+                    "good"
+                  ]
+                }
+              },
+              "required": [
+                "fen",
+                "uci",
+                "grade"
+              ]
+            }
+          }
+        },
+        "required": [
+          "deck",
+          "grades"
+        ]
+      },
+      "LocalProgressRequest": {
+        "type": "object",
+        "properties": {
+          "grades": {
+            "minItems": 1,
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "fen": {
+                  "type": "string",
+                  "minLength": 10,
+                  "maxLength": 120
+                },
+                "uci": {
+                  "type": "string",
+                  "pattern": "^[a-h][1-8][a-h][1-8][qrbn]?$"
+                },
+                "grade": {
+                  "type": "string",
+                  "enum": [
+                    "again",
+                    "good"
+                  ]
+                }
+              },
+              "required": [
+                "fen",
+                "uci",
+                "grade"
+              ]
+            }
+          }
+        },
+        "required": [
+          "grades"
+        ]
+      },
+      "LocalProgress": {
+        "type": "object",
+        "properties": {
+          "imported": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "imported"
+        ]
+      },
+      "EnrollmentRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "archived"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CourseRemoved": {
+        "type": "object",
+        "properties": {
+          "forgotten": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "forgotten"
+        ]
+      },
+      "DueSummary": {
+        "type": "object",
+        "properties": {
+          "totalDue": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "decks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "deck": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "repertoire",
+                    "course"
+                  ]
+                },
+                "name": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string",
+                  "enum": [
+                    "WHITE",
+                    "BLACK"
+                  ]
+                },
+                "progress": {
+                  "$ref": "#/components/schemas/DeckProgress"
+                }
+              },
+              "required": [
+                "deck",
+                "kind",
+                "name",
+                "color",
+                "progress"
+              ]
+            }
+          },
+          "top": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "learnNext": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "deck": {
+                    "type": "string"
+                  },
+                  "newLeftToday": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  }
+                },
+                "required": [
+                  "deck",
+                  "newLeftToday"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "totalDue",
+          "decks",
+          "top",
+          "learnNext"
+        ]
+      },
+      "TrainingPreferencesRequest": {
+        "type": "object",
+        "properties": {
+          "newLinesPerDay": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "newLinesPerDay"
+        ]
+      }
+    }
+  }
+}
