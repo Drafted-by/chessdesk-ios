@@ -145,6 +145,9 @@ It embeds [Stockfish](https://stockfishchess.org) 19, also GPL-3.0. Its source i
 - The course content in `Fixtures/api-v1` (lines, explanations, exercises): © Drafted-by,
   all rights reserved. It is here so the app builds and its tests run.
 - The board texture, an asset of Drafted-by.
+- The two board sounds (move, capture). They come from Lichess and are licensed to
+  Drafted-by for ChessDesk only, so they are **not in this repository**. Without them the
+  app builds and runs silently; official builds add them with `scripts/fetch-sounds.sh`.
 - The ChessDesk backend, which is not part of this repository.
 
 Third-party assets keep their own licences:
@@ -152,7 +155,6 @@ Third-party assets keep their own licences:
 - Chess pieces: the CBurnett set by Colin M.L. Burnett, BSD licence.
 - Typefaces: Newsreader (Production Type) and Geist (Vercel), SIL Open Font License 1.1;
   the licence texts are in `ChessDesk/Resources/Fonts`.
-- Board sounds: from [Lichess](https://lichess.org), used under their licence.
 
 ## Contributing
 

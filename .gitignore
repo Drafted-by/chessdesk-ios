@@ -20,3 +20,7 @@ secrets.xcconfig
 # Stockfish network: 98 MB, fetched by scripts/fetch-nnue.sh
 ChessDesk/Resources/Engine/*.nnue
 ChessDesk/Resources/Engine/*.part
+
+# Board sounds: licensed to Drafted-by, not redistributed here (scripts/fetch-sounds.sh)
+ChessDesk/Resources/Sounds/*.mp3
+ChessDesk/Resources/Sounds/*.part

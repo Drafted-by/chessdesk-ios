@@ -3,7 +3,9 @@ import Observation
 import UIKit
 
 /// Move and capture sounds, the same two files as the site, with a light
-/// haptic. Sounds respect the silent switch (ambient session).
+/// haptic. Sounds respect the silent switch (ambient session). The files are
+/// not in the repository (`scripts/fetch-sounds.sh`); without them the board
+/// is silent and only the haptic plays.
 final class BoardSounds {
     static let shared = BoardSounds()
 
