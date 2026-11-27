@@ -52,6 +52,10 @@ final class LineTrainerModel {
     private(set) var noteRevealed = false
     private(set) var isBoardLocked = false
     private(set) var grades: [MoveGrade] = []
+    /// Solve: the engine is checking a move that is not the course's.
+    private(set) var isJudging = false
+    /// Solve: the learner found another move that is as good as the course's.
+    private(set) var solvedAnotherWay = false
 
     private var missed: Set<Int> = []
     private var pending: Task<Void, Never>?
@@ -59,14 +63,23 @@ final class LineTrainerModel {
     /// grades every move of ours, which is what learning a line does.
     private let gradedSteps: Set<Int>?
 
+    /// How the line is worked. Opening courses use `.learn`; a learning path
+    /// names `.lesson` (the guided pass is the whole exercise) and `.solve`
+    /// (no guided pass: the learner finds the moves).
+    let flow: ExerciseFlow
+    /// Solve: decides whether a move that is not the course's is as good
+    /// (the engine). Nil means only the course's move is accepted.
+    var judge: (any MoveJudging)?
+
     /// - Parameter review: the due steps of a line being reviewed. A review
     ///   starts in the memory pass; there is no guided pass first.
-    init(line: TrainingLine, side: Side, review gradedSteps: [Int]? = nil) {
+    init(line: TrainingLine, side: Side, review gradedSteps: [Int]? = nil, flow: ExerciseFlow = .learn) {
         self.line = line
         self.side = side
+        self.flow = flow
         self.gradedSteps = gradedSteps.map(Set.init)
         position = Position(fen: line.startFen) ?? .start
-        if gradedSteps != nil { phase = .play }
+        if gradedSteps != nil || flow == .solve { phase = .play }
     }
 
     var isReview: Bool { gradedSteps != nil }
@@ -81,6 +94,12 @@ final class LineTrainerModel {
     var ourMoveCount: Int { steps.count { $0.mine } }
     var ourMovesPlayed: Int { steps.prefix(cursor).count { $0.mine } }
     var missedCount: Int { missed.count }
+
+    /// Solve: the last move of ours that was found, whose note says why it works.
+    var solvedStep: LineStep? {
+        guard flow == .solve, phase != .guided else { return nil }
+        return steps.prefix(min(cursor, steps.count)).last { $0.mine }
+    }
 
     /// 0…1 along the current pass.
     var progress: Double {
@@ -157,11 +176,14 @@ final class LineTrainerModel {
         phase = .play
         missed = []
         grades = []
+        solvedAnotherWay = false
+        isJudging = false
         rewind(to: 0)
         settle(first: true)
     }
 
     func learnAgain() {
+        guard flow != .solve else { return startMemoryPass() }
         stop()
         phase = .guided
         rewind(to: 0)
@@ -180,10 +202,59 @@ final class LineTrainerModel {
             advance()
             if phase == .play { verdict = BoardVerdict(square: square, kind: .right) }
             settle()
+        } else if let judge, flow == .solve, let question = judgeQuestion(attempt, expected: step) {
+            ask(judge, question, attempt: attempt)
         } else {
             holdWrong(attempt)
         }
         return true
+    }
+
+    /// When a different move may still be right while solving: a move that
+    /// mates on the spot always is; otherwise the engine is asked, for an
+    /// exercise that ends in mate (does this mate as fast?) and for the last
+    /// move of any other exercise (is it as good?). Earlier moves must follow
+    /// the course, whose replies are the only ones the trainer can play.
+    private func judgeQuestion(_ attempt: Move, expected step: LineStep) -> JudgeQuestion? {
+        guard let played = position.playing(attempt) else { return nil }
+        let movesLeft = steps.dropFirst(cursor + 1).count { $0.mine }
+        if steps.last?.san.hasSuffix("#") == true {
+            if played.isCheckmate { return .accepted }
+            return .mate(fenAfterPlayed: played.fen, within: movesLeft)
+        }
+        guard movesLeft == 0 else { return nil }
+        return .equal(fenAfterPlayed: played.fen, fenAfterExpected: step.fenAfter)
+    }
+
+    private func ask(_ judge: any MoveJudging, _ question: JudgeQuestion, attempt: Move) {
+        guard let shown = position.playing(attempt) else { return }
+        stop()
+        let home = position
+        let homeLastMove = lastMove
+        let tried = home.normalized(attempt)
+        isBoardLocked = true
+        isJudging = true
+        feedback = nil
+        position = shown
+        lastMove = tried
+        onMovePlayed(home.isCapture(tried))
+        pending = Task { [weak self] in
+            let accepted = await judge.accepts(question)
+            guard !Task.isCancelled, let self else { return }
+            self.isJudging = false
+            if accepted {
+                // As good as the course's move: the exercise is solved here.
+                self.solvedAnotherWay = true
+                self.verdict = BoardVerdict(square: tried.to, kind: .right)
+                self.cursor = self.steps.count
+                self.finishMemoryPass()
+            } else {
+                self.position = home
+                self.lastMove = homeLastMove
+                self.isBoardLocked = false
+                self.holdWrong(attempt)
+            }
+        }
     }
 
     /// Guided pass shortcut: plays the next move for the learner, or brings
@@ -253,7 +324,8 @@ final class LineTrainerModel {
     private func settle(first: Bool = false) {
         stop()
         guard let step = currentStep else {
-            if phase == .play { finishMemoryPass() }
+            // A lesson is done once it has been played through.
+            if phase == .play || flow == .lesson { finishMemoryPass() }
             return
         }
         guard !step.mine else { return }
@@ -273,7 +345,8 @@ final class LineTrainerModel {
         let homeLastMove = lastMove
         if phase == .play {
             missed.insert(cursor)
-            noteRevealed = true
+            // While solving, the note explains the answer: it waits for the move.
+            noteRevealed = flow != .solve
             feedback = .missed
         } else {
             feedback = .notThisOne

@@ -1467,6 +1467,317 @@
         }
       }
     },
+    "/api/v1/paths": {
+      "get": {
+        "operationId": "listPaths",
+        "summary": "The learning paths (Learn chess, Reach 1000 Elo), with how far the viewer is and the stage that comes next.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Paths"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/paths/{slug}": {
+      "get": {
+        "operationId": "getPath",
+        "summary": "One learning path: its modules and stages, the state of each for the viewer.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathDetail"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/paths/{slug}/session": {
+      "get": {
+        "operationId": "getPathSession",
+        "summary": "The exercises of one stage, or of the next stage to do. 403 premium_required is the paywall; 404 when nothing is left.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          },
+          {
+            "name": "stage",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PathSession"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/paths/{slug}/local-progress": {
+      "post": {
+        "operationId": "importLocalPathProgress",
+        "summary": "Hand the free stages worked as a guest over to the account.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 80
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocalProgressRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/training/grades": {
       "post": {
         "operationId": "gradeMoves",
@@ -3258,6 +3569,551 @@
           "known",
           "next",
           "chapterTitles",
+          "narration"
+        ]
+      },
+      "PathStage": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "free": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "locked",
+              "new",
+              "started",
+              "done"
+            ]
+          },
+          "exercises": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "learned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closing": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "free",
+          "state",
+          "exercises",
+          "learned",
+          "courses",
+          "closing"
+        ]
+      },
+      "PathModule": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "free": {
+            "type": "boolean"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "board": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "exercises": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "learned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "stages": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PathStage"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "summary",
+          "free",
+          "locked",
+          "board",
+          "exercises",
+          "learned",
+          "stages"
+        ]
+      },
+      "PathCard": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "previewFen": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "modules": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "stages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "exercises": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "modules",
+              "stages",
+              "exercises"
+            ]
+          },
+          "learned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "voiced": {
+            "type": "boolean"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "stage",
+                  "title",
+                  "locked"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "level",
+          "description",
+          "color",
+          "previewFen",
+          "totals",
+          "learned",
+          "voiced",
+          "next"
+        ]
+      },
+      "Paths": {
+        "type": "object",
+        "properties": {
+          "paths": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PathCard"
+            }
+          }
+        },
+        "required": [
+          "paths"
+        ]
+      },
+      "PathDetail": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "level": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "previewFen": {
+            "type": "string"
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "modules": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "stages": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "exercises": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "modules",
+              "stages",
+              "exercises"
+            ]
+          },
+          "learned": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "voiced": {
+            "type": "boolean"
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "stage",
+                  "title",
+                  "locked"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "intro": {
+            "type": "string"
+          },
+          "deck": {
+            "type": "string"
+          },
+          "modules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PathModule"
+            }
+          },
+          "introduction": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "summary": {
+                    "type": "string"
+                  },
+                  "segments": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "required": [
+                  "title",
+                  "summary",
+                  "segments"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Narration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "level",
+          "description",
+          "color",
+          "previewFen",
+          "totals",
+          "learned",
+          "voiced",
+          "next",
+          "intro",
+          "deck",
+          "modules",
+          "introduction",
+          "narration"
+        ]
+      },
+      "PathSession": {
+        "type": "object",
+        "properties": {
+          "deck": {
+            "type": "string"
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "WHITE",
+              "BLACK"
+            ]
+          },
+          "stage": {
+            "type": "object",
+            "properties": {
+              "slug": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "module": {
+                "type": "string"
+              },
+              "number": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "of": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "slug",
+              "title",
+              "module",
+              "number",
+              "of"
+            ]
+          },
+          "lines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TrainingLine"
+            }
+          },
+          "learn": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "replay": {
+            "type": "boolean"
+          },
+          "known": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exercises": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "lineId": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "flow": {
+                  "type": "string",
+                  "enum": [
+                    "learn",
+                    "lesson",
+                    "solve"
+                  ]
+                },
+                "task": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "aid": {
+                  "anyOf": [
+                    {
+                      "type": "string",
+                      "enum": [
+                        "piece-values"
+                      ]
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "lineId",
+                "title",
+                "flow",
+                "task",
+                "aid"
+              ]
+            }
+          },
+          "next": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "string"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "locked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "stage",
+                  "title",
+                  "locked"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "courses": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "closing": {
+            "type": "boolean"
+          },
+          "narration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Narration"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "deck",
+          "color",
+          "stage",
+          "lines",
+          "learn",
+          "replay",
+          "known",
+          "exercises",
+          "next",
+          "courses",
+          "closing",
           "narration"
         ]
       },

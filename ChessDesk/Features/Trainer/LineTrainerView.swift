@@ -9,8 +9,12 @@ struct LineTrainerView: View {
 
     let label: String
     let chapter: String?
+    /// Learning paths: what the learner is asked in this exercise.
+    let task: String?
     let narration: Narration?
     let following: Following
+    /// What the button that leads on says: "Next line", "Next exercise"…
+    let followTitle: String
     let onGrades: ([MoveGrade]) -> Void
     let onFollow: () -> Void
     let close: () -> Void
@@ -23,22 +27,30 @@ struct LineTrainerView: View {
         line: TrainingLine,
         side: Side,
         review: [Int]?,
+        flow: ExerciseFlow = .learn,
+        task: String? = nil,
+        judge: (any MoveJudging)? = nil,
         label: String,
         chapter: String?,
         narration: Narration?,
         following: Following,
+        followTitle: String = "Next line",
         onGrades: @escaping ([MoveGrade]) -> Void,
         onFollow: @escaping () -> Void,
         close: @escaping () -> Void
     ) {
         self.label = label
         self.chapter = chapter
+        self.task = task
         self.narration = narration
         self.following = following
+        self.followTitle = followTitle
         self.onGrades = onGrades
         self.onFollow = onFollow
         self.close = close
-        _model = State(initialValue: LineTrainerModel(line: line, side: side, review: review))
+        let model = LineTrainerModel(line: line, side: side, review: review, flow: flow)
+        model.judge = judge
+        _model = State(initialValue: model)
     }
 
     var body: some View {
@@ -83,12 +95,24 @@ struct LineTrainerView: View {
         }
     }
 
+    /// What is read aloud now: the task when an exercise opens, the note of
+    /// the move about to be played, or why the move just found works.
     private func speakLead() {
-        guard let step = model.leadStep else {
-            voice.stop()
-            return
+        var texts: [String] = []
+        let opening = model.cursor == 0 || (model.flow == .solve && model.solvedStep == nil)
+        if let task, opening, model.phase != .finished { texts.append(task) }
+        if model.flow == .solve {
+            if model.phase == .play, model.feedback == nil, let solved = model.solvedStep {
+                texts = solved.comments
+            }
+        } else if let step = model.leadStep {
+            texts += step.comments
         }
-        voice.speak(step.comments, narration: narration)
+        if texts.isEmpty {
+            voice.stop()
+        } else {
+            voice.speak(texts, narration: narration)
+        }
     }
 
     // MARK: Header
@@ -171,8 +195,19 @@ struct LineTrainerView: View {
                     text: "Now play it from memory. The other side replies by itself, and a move you hesitate on comes back sooner."
                 )
             } else if let step = model.currentStep {
-                ReadingPlate(step: step, trailing: model.trailingStep, side: model.side)
+                VStack(alignment: .leading, spacing: CD.Space.s20) {
+                    if let task, model.cursor == 0 {
+                        Text(task)
+                            .cdFont(.lede)
+                            .foregroundStyle(CD.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                        CDHairline()
+                    }
+                    ReadingPlate(step: step, trailing: model.trailingStep, side: model.side)
+                }
             }
+        case .play where model.flow == .solve:
+            SolvePlate(model: model, task: task)
         case .play:
             if let step = model.leadStep {
                 VStack(alignment: .leading, spacing: CD.Space.s16) {
@@ -239,9 +274,14 @@ struct LineTrainerView: View {
             return model.currentStep?.mine == true
                 ? "Play it on the board. \(other) replies by itself."
                 : "\(other) is playing."
+        case .play where model.flow == .solve:
+            if model.isJudging { return "Checking your move." }
+            return model.isOurTurn ? "Stuck? A hint shows the piece, then the move." : "Wait for the reply."
         case .play:
             return model.isOurTurn ? "Hinted moves come back sooner." : "Wait for the reply."
         case .finished:
+            if model.flow == .lesson { return "Played through." }
+            if model.flow == .solve { return model.missedCount == 0 ? "Found at the first try." : "Found." }
             return model.missedCount == 0 ? "Every move from memory." : "Missed moves come back sooner."
         }
     }
@@ -252,6 +292,14 @@ struct LineTrainerView: View {
             "Step \(min(model.cursor + 1, model.steps.count)) of \(model.steps.count)"
         case .play, .finished:
             "Move \(min(model.ourMovesPlayed + 1, model.ourMoveCount)) of \(model.ourMoveCount)"
+        }
+    }
+
+    private var again: String {
+        switch model.flow {
+        case .learn: "Learn it again"
+        case .lesson: "Play it again"
+        case .solve: "Solve it again"
         }
     }
 
@@ -279,28 +327,32 @@ struct LineTrainerView: View {
                     .buttonStyle(.cd(.secondary, fullWidth: true))
                     .disabled(model.isBoardLocked)
 
-                Button("Skip to practice") { model.startMemoryPass() }
-                    .buttonStyle(.cd(.ghost))
-                    .fixedSize()
+                if model.flow != .lesson {
+                    Button("Skip to practice") { model.startMemoryPass() }
+                        .buttonStyle(.cd(.ghost))
+                        .fixedSize()
+                }
             }
         case .play:
             HStack(spacing: CD.Space.s8) {
                 Button(model.hintLevel == 0 ? "Hint" : "Show the move") { model.hint() }
                     .buttonStyle(.cd(.secondary, fullWidth: true))
                     .disabled(!model.isOurTurn || model.hintLevel >= 2)
-                Button("Read the note") { model.revealNote() }
-                    .buttonStyle(.cd(.secondary, fullWidth: true))
-                    .disabled(!model.isOurTurn || model.noteRevealed)
+                if model.flow != .solve {
+                    Button("Read the note") { model.revealNote() }
+                        .buttonStyle(.cd(.secondary, fullWidth: true))
+                        .disabled(!model.isOurTurn || model.noteRevealed)
+                }
             }
         case .finished:
             VStack(spacing: CD.Space.s8) {
                 switch following {
                 case .nextInSession, .nextLine:
-                    Button("Next line", action: onFollow)
+                    Button(followTitle, action: onFollow)
                         .buttonStyle(.cd(.primary, fullWidth: true))
                 case .locked:
                     Button(action: onFollow) {
-                        Label("Next line", systemImage: "lock")
+                        Label(followTitle, systemImage: "lock")
                     }
                     .buttonStyle(.cd(.secondary, fullWidth: true))
                 case .none:
@@ -309,7 +361,7 @@ struct LineTrainerView: View {
                 }
                 HStack(spacing: CD.Space.s8) {
                     if !model.isReview {
-                        Button("Learn it again") { model.learnAgain() }
+                        Button(again) { model.learnAgain() }
                             .buttonStyle(.cd(.ghost, fullWidth: true))
                     }
                     if following != .none {
@@ -417,10 +469,24 @@ private struct FinishedPlate: View {
         let total = model.grades.count
         let good = model.grades.count { $0.grade == .good }
         VStack(alignment: .leading, spacing: CD.Space.s16) {
-            Text(model.isReview ? "Line reviewed" : "Line learned")
+            Text(title)
                 .cdFont(.plateTitle)
                 .foregroundStyle(CD.ink)
                 .accessibilityAddTraits(.isHeader)
+            if model.flow != .learn {
+                // A path exercise is done once: no score to beat, the idea to keep.
+                if model.solvedAnotherWay {
+                    Text("Your move works just as well as the one in the course.")
+                        .cdFont(.small)
+                        .foregroundStyle(CD.win)
+                }
+                if let takeaway = model.steps.last(where: { !$0.comments.isEmpty })?.note {
+                    Text(takeaway)
+                        .cdFont(.lede)
+                        .foregroundStyle(CD.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
             HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
                 Text("\(good)")
                     .cdFont(.metric)
@@ -441,6 +507,59 @@ private struct FinishedPlate: View {
             .cdFont(.lede)
             .foregroundStyle(CD.ink2)
             .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var title: String {
+        switch model.flow {
+        case .lesson: "Lesson done"
+        case .solve: "Solved"
+        case .learn: model.isReview ? "Line reviewed" : "Line learned"
+        }
+    }
+}
+
+/// A position to solve: the task, then why the move works once it is found.
+private struct SolvePlate: View {
+    let model: LineTrainerModel
+    let task: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: CD.Space.s16) {
+            if model.isJudging {
+                Label("Checking your move with the engine", systemImage: "cpu")
+                    .cdFont(.small)
+                    .foregroundStyle(CD.ink3)
+            } else if model.feedback == .missed {
+                Label("Not this move. Look again.", systemImage: "arrow.uturn.backward")
+                    .cdFont(.small)
+                    .foregroundStyle(CD.loss)
+            }
+            if let solved = model.solvedStep, model.feedback == nil, !solved.comments.isEmpty {
+                VStack(alignment: .leading, spacing: CD.Space.s8) {
+                    Text("Why \(solved.san) works")
+                        .cdFont(.cardTitle)
+                        .foregroundStyle(CD.win)
+                    Text(solved.note)
+                        .cdFont(.lede)
+                        .foregroundStyle(CD.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: CD.Space.s8) {
+                    HStack(spacing: CD.Space.s6) {
+                        SideSwatch(side: model.side)
+                        Text("\(model.side == .white ? "White" : "Black") to play")
+                            .cdFont(.meta)
+                            .foregroundStyle(CD.ink3)
+                    }
+                    Text(task ?? "Find the best move.")
+                        .cdFont(.lede)
+                        .foregroundStyle(CD.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
     }
 }

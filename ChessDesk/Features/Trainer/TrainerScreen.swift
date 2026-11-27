@@ -115,8 +115,9 @@ private struct SessionRunner: View {
             let item = items[min(index, items.count - 1)]
             LineTrainerView(
                 line: item.line,
-                side: session.side,
+                side: item.line.learnerSide(deck: session.side),
                 review: item.review,
+                judge: app.judge,
                 label: label(index: index, count: items.count),
                 chapter: chapterTitle(item.line),
                 narration: session.narration,

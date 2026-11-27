@@ -10,6 +10,8 @@ struct TodayView: View {
     private struct Content {
         let courses: [CourseCard]
         let due: DueSummary?
+        /// The path put forward. Nil when the server does not serve paths yet.
+        let path: PathCard?
     }
 
     /// Courses a newcomer can start with.
@@ -33,7 +35,9 @@ struct TodayView: View {
             // Reviews are a bonus on this screen: without them it still works.
             due = try? await app.api.due(token: token)
         }
-        return Content(courses: courses, due: due)
+        // The featured course leads the screen, but Today works without it.
+        let paths = try? await app.api.paths(token: app.token)
+        return Content(courses: courses, due: due, path: paths?.first { $0.slug == FeaturedPath.slug })
     }
 
     private func page(_ content: Content) -> some View {
@@ -55,6 +59,10 @@ struct TodayView: View {
                     DueCard(due: due, courses: content.courses)
                 }
 
+                if let path = content.path {
+                    FeaturedPathPlate(path: path, guest: app.isSignedIn ? nil : app.guestProgress)
+                }
+
                 if let current = currentCourse(content) {
                     VStack(alignment: .leading, spacing: CD.Space.s12) {
                         SectionHeader(title: "Continue")
@@ -63,13 +71,13 @@ struct TodayView: View {
                         }
                         .buttonStyle(CDPressStyle())
                     }
-                } else {
+                } else if content.path == nil {
                     WelcomePlate(course: starter(content))
                 }
 
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
                     SectionHeader(
-                        title: "Good places to start",
+                        title: content.path == nil ? "Good places to start" : "Then, an opening of your own",
                         detail: "Complete repertoires. The first line of each is free."
                     )
                     LazyVGrid(

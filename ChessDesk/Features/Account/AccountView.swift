@@ -138,6 +138,13 @@ private struct AboutSection: View {
                             .cdNumber()
                     }
                     CDHairline()
+                    Text("ChessDesk for iOS is free software under the GNU General Public License, version 3. It includes the Stockfish 19 chess engine (GPL-3.0), which checks your moves on this device.")
+                        .cdFont(.meta)
+                        .foregroundStyle(CD.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Link("Source code: github.com/Drafted-by/chessdesk-ios", destination: sourceURL)
+                        .cdFont(.meta)
+                        .tint(CD.ink2)
                     Text("Chess pieces by Colin M.L. Burnett, used under the BSD licence. Typefaces: Newsreader by Production Type and Geist by Vercel, SIL Open Font License 1.1.")
                         .cdFont(.meta)
                         .foregroundStyle(CD.ink3)
@@ -145,6 +152,10 @@ private struct AboutSection: View {
                 }
             }
         }
+    }
+
+    private var sourceURL: URL {
+        URL(string: "https://github.com/Drafted-by/chessdesk-ios").unsafelyUnwrapped
     }
 
     private var version: String {

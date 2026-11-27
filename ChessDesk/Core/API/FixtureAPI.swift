@@ -73,6 +73,37 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
     func importLocalProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { throw signInNeeded }
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws { throw signInNeeded }
     func due(token: String) async throws -> DueSummary { throw signInNeeded }
+
+    // MARK: Learning paths
+
+    /// The two free stages of Reach 1000 Elo are captured.
+    static let capturedStages = ["fight-for-the-centre", "back-rank-mate"]
+
+    func paths(token: String?) async throws -> [PathCard] {
+        let response: PathsResponse = try await load("paths")
+        return response.paths
+    }
+
+    func path(slug: String, token: String?) async throws -> PathDetail {
+        guard slug == "reach-1000-elo" else {
+            try await Task.sleep(for: delay)
+            throw APIError.server(status: 404, code: "not_found", message: "Sample data holds one path: Reach 1000 Elo.")
+        }
+        return try await load("path-\(slug)")
+    }
+
+    func pathSession(slug: String, stage: String?, token: String?) async throws -> PathSession {
+        let wanted = stage ?? Self.capturedStages[0]
+        guard slug == "reach-1000-elo", Self.capturedStages.contains(wanted) else {
+            try await Task.sleep(for: delay)
+            throw APIError.server(status: 403, code: "premium_required", message: "This stage is part of Premium.")
+        }
+        return try await load("path-session-\(wanted)")
+    }
+
+    func importLocalPathProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int {
+        throw signInNeeded
+    }
 }
 
 private final class BundleToken {}

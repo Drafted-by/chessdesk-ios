@@ -15,15 +15,19 @@ struct CoursesView: View {
         Loadable(
             id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)]),
             failureTitle: "Courses did not load",
-            load: { try await app.api.courses(token: app.token) },
-            content: { courses in catalogue(courses) }
+            load: {
+                let courses = try await app.api.courses(token: app.token)
+                let paths = try? await app.api.paths(token: app.token)
+                return (courses, paths?.first { $0.slug == FeaturedPath.slug })
+            },
+            content: { loaded in catalogue(loaded.0, path: loaded.1) }
         )
         .navigationTitle("Opening courses")
         .toolbar(.hidden, for: .navigationBar)
         .cdPage()
     }
 
-    private func catalogue(_ courses: [CourseCard]) -> some View {
+    private func catalogue(_ courses: [CourseCard], path: PathCard?) -> some View {
         let shown = courses.filter { course in
             switch filter {
             case .all: true
@@ -42,6 +46,10 @@ struct CoursesView: View {
                         .cdFont(.lede)
                         .foregroundStyle(CD.ink2)
                         .frame(maxWidth: CD.readingWidth, alignment: .leading)
+                }
+
+                if let path {
+                    PathBanner(path: path)
                 }
 
                 CDSegmented(
@@ -72,6 +80,40 @@ struct CoursesView: View {
             .frame(maxWidth: CD.pageMaxWidth)
             .frame(maxWidth: .infinity)
         }
+    }
+}
+
+/// The featured path above the catalogue: quiet here (Today leads with it),
+/// so the catalogue keeps a single brass element.
+private struct PathBanner: View {
+    let path: PathCard
+
+    var body: some View {
+        NavigationLink(value: CourseRoute.path(slug: path.slug)) {
+            CDCard(tone: .raised, padding: CD.Space.s12) {
+                HStack(spacing: CD.Space.s12) {
+                    StaticBoardView(fen: path.previewFen, orientation: path.color.side)
+                        .frame(width: 72, height: 72)
+                    VStack(alignment: .leading, spacing: CD.Space.s4) {
+                        Text("Rated under 1000? Start here")
+                            .cdFont(.meta)
+                            .foregroundStyle(CD.accentStrong)
+                        Text(path.title)
+                            .cdFont(.serifCard)
+                            .foregroundStyle(CD.ink)
+                        Text("\(CDFormat.plural(path.totals.stages, "stage")) · \(CDFormat.plural(path.totals.exercises, "exercise"))")
+                            .cdFont(.meta)
+                            .foregroundStyle(CD.ink3)
+                            .cdNumber()
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(CD.ink4)
+                }
+            }
+        }
+        .buttonStyle(CDPressStyle())
     }
 }
 

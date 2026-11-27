@@ -16,3 +16,7 @@ xcuserdata/
 # Secrets
 *.env
 secrets.xcconfig
+
+# Stockfish network: 98 MB, fetched by scripts/fetch-nnue.sh
+ChessDesk/Resources/Engine/*.nnue
+ChessDesk/Resources/Engine/*.part

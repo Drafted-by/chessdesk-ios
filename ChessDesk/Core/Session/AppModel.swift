@@ -89,6 +89,8 @@ final class AppModel {
     private(set) var api: any ChessDeskAPI
     private(set) var account: Account = .guest
     private(set) var guestProgress: GuestProgress
+    /// Stockfish on the device, for the trainers. Nil in previews and tests.
+    var judge: (any MoveJudging)?
     /// Bumped whenever the account changes, so screens reload their data.
     private(set) var accountRevision = 0
 
@@ -178,6 +180,11 @@ final class AppModel {
         guestStore.save(guestProgress)
     }
 
+    func recordGuestStage(_ stage: String, path: String) {
+        guestProgress.complete(stage: stage, path: path)
+        guestStore.save(guestProgress)
+    }
+
     func noteCourseOpened(_ slug: String) {
         guard guestProgress.lastCourse != slug else { return }
         guestProgress.lastCourse = slug
@@ -187,10 +194,17 @@ final class AppModel {
     /// Sends what the guest learned on this device to their account, course
     /// by course; a course that fails stays on the device for the next try.
     private func uploadGuestProgress(token: String) async {
-        for (slug, grades) in guestProgress.grades where !grades.isEmpty {
-            if (try? await api.importLocalProgress(slug: slug, grades: grades, token: token)) != nil {
-                guestProgress.grades[slug] = nil
+        let pathPrefix = GuestProgress.pathKey("")
+        for (key, grades) in guestProgress.grades where !grades.isEmpty {
+            let sent: Int?
+            if key.hasPrefix(pathPrefix) {
+                let slug = String(key.dropFirst(pathPrefix.count))
+                sent = try? await api.importLocalPathProgress(slug: slug, grades: grades, token: token)
+                if sent != nil { guestProgress.completedStages[slug] = nil }
+            } else {
+                sent = try? await api.importLocalProgress(slug: key, grades: grades, token: token)
             }
+            if sent != nil { guestProgress.grades[key] = nil }
         }
         guestStore.save(guestProgress)
     }

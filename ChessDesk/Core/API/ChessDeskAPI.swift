@@ -18,6 +18,12 @@ nonisolated protocol ChessDeskAPI: Sendable {
 
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws
     func due(token: String) async throws -> DueSummary
+
+    func paths(token: String?) async throws -> [PathCard]
+    func path(slug: String, token: String?) async throws -> PathDetail
+    /// The exercises of a stage; nil asks for the next stage to do.
+    func pathSession(slug: String, stage: String?, token: String?) async throws -> PathSession
+    func importLocalPathProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int
 }
 
 nonisolated enum APICoding {
@@ -95,6 +101,27 @@ nonisolated struct LiveAPI: ChessDeskAPI {
 
     func due(token: String) async throws -> DueSummary {
         try await send("GET", "training/due", token: token)
+    }
+
+    func paths(token: String?) async throws -> [PathCard] {
+        let response: PathsResponse = try await send("GET", "paths", token: token)
+        return response.paths
+    }
+
+    func path(slug: String, token: String?) async throws -> PathDetail {
+        try await send("GET", "paths/\(slug)", token: token)
+    }
+
+    func pathSession(slug: String, stage: String?, token: String?) async throws -> PathSession {
+        let query = stage.map { [URLQueryItem(name: "stage", value: $0)] } ?? []
+        return try await send("GET", "paths/\(slug)/session", query: query, token: token)
+    }
+
+    func importLocalPathProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int {
+        let result: LocalProgressResult = try await send(
+            "POST", "paths/\(slug)/local-progress", token: token, body: LocalProgressRequest(grades: grades)
+        )
+        return result.imported
     }
 
     // MARK: Transport

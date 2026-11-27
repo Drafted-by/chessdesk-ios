@@ -3,11 +3,14 @@ import UIKit
 
 @main
 struct ChessDeskApp: App {
-    @State private var app = AppModel()
+    @State private var app: AppModel
     @State private var narration = NarrationPlayer()
 
     init() {
         Appearance.apply()
+        let app = AppModel()
+        app.judge = EngineJudge()
+        _app = State(initialValue: app)
     }
 
     var body: some Scene {

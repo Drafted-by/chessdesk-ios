@@ -11,6 +11,8 @@ options:
 packages:
   ChessCore:
     path: Packages/ChessCore
+  StockfishEngine:
+    path: Packages/StockfishEngine
 
 settings:
   base:
@@ -27,6 +29,8 @@ settings:
     CODE_SIGN_STYLE: Automatic
     # Colours live in UI/Tokens.swift, generated names would collide.
     ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: NO
+    # Stockfish is built for arm64 (NEON): devices and Apple silicon simulators.
+    "EXCLUDED_ARCHS[sdk=iphonesimulator*]": x86_64
   configs:
     Debug:
       "CODE_SIGN_IDENTITY[sdk=iphonesimulator*]": "-"
@@ -88,6 +92,7 @@ targets:
         buildPhase: resources
     dependencies:
       - package: ChessCore
+      - package: StockfishEngine
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.chessdesk.ios
@@ -109,6 +114,7 @@ targets:
     dependencies:
       - target: ChessDesk
       - package: ChessCore
+      - package: StockfishEngine
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.chessdesk.ios.tests

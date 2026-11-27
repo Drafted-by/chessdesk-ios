@@ -39,7 +39,7 @@ struct RootView: View {
     }
 
     #if DEBUG
-        /// `-CDRoute courses | account | course/<slug> | trainer/<slug>` opens a
+        /// `-CDRoute courses | account | course/<slug> | trainer/<slug> | path | stage/<slug>` opens a
         /// screen directly: used to check screens in the simulator.
         private func openDebugRoute() {
             guard let route = DebugLaunch.route else { return }
@@ -50,6 +50,9 @@ struct RootView: View {
                 guard route.count > 1 else { return }
                 section = .courses
                 coursesPath.append(CourseRoute.course(slug: route[1]))
+            case "path", "stage":
+                section = .courses
+                coursesPath.append(CourseRoute.path(slug: FeaturedPath.slug))
             default: break
             }
         }
@@ -64,6 +67,13 @@ struct RootView: View {
 
         /// With `-CDRoute trainer/<slug>`: the course opens its free line.
         static var opensTrainer: Bool { route?.first == "trainer" }
+        /// With `-CDRoute stage/<stage slug>`: the featured path opens that stage.
+        static var opensStage: String? {
+            guard let route, route.first == "stage", route.count > 1 else { return nil }
+            return route[1]
+        }
+        /// `-CDExercise 2` starts the stage at its second exercise.
+        static var exercise: Int { max(1, UserDefaults.standard.integer(forKey: "CDExercise")) - 1 }
         /// `-CDTrainerSteps 5` plays the first moves of the guided pass.
         static var trainerSteps: Int { UserDefaults.standard.integer(forKey: "CDTrainerSteps") }
         /// `-CDTrainerMemory YES` starts in the memory pass.
@@ -74,6 +84,13 @@ struct RootView: View {
 /// Routes shared by every stack that can open a course.
 enum CourseRoute: Hashable {
     case course(slug: String)
+    case path(slug: String)
+}
+
+/// The path the app puts forward: most players who install a chess app are
+/// under 1000, and this is the course made for them.
+nonisolated enum FeaturedPath {
+    static let slug = "reach-1000-elo"
 }
 
 extension View {
@@ -81,6 +98,7 @@ extension View {
         navigationDestination(for: CourseRoute.self) { route in
             switch route {
             case let .course(slug): CourseDetailView(slug: slug)
+            case let .path(slug): PathView(slug: slug)
             }
         }
     }

@@ -9,6 +9,31 @@ nonisolated struct GuestProgress: Codable, Equatable, Sendable {
     var grades: [String: [MoveGrade]] = [:]
     /// The last course opened, to offer "Continue" on Today.
     var lastCourse: String?
+    /// Stages of a learning path finished on this device, by path slug.
+    var completedStages: [String: [String]] = [:]
+
+    init() {}
+
+    /// Files written by an earlier build have fewer keys: every key is optional.
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        grades = try container.decodeIfPresent([String: [MoveGrade]].self, forKey: .grades) ?? [:]
+        lastCourse = try container.decodeIfPresent(String.self, forKey: .lastCourse)
+        completedStages = try container.decodeIfPresent([String: [String]].self, forKey: .completedStages) ?? [:]
+    }
+
+    /// Grades of a learning path are kept apart from those of a course of the
+    /// same slug, and go to the account through the path's own route.
+    static func pathKey(_ slug: String) -> String { "path:\(slug)" }
+
+    func hasCompleted(stage: String, path: String) -> Bool {
+        completedStages[path]?.contains(stage) ?? false
+    }
+
+    mutating func complete(stage: String, path: String) {
+        guard !hasCompleted(stage: stage, path: path) else { return }
+        completedStages[path, default: []].append(stage)
+    }
 
     mutating func record(_ new: [MoveGrade], course: String) {
         var merged = grades[course] ?? []

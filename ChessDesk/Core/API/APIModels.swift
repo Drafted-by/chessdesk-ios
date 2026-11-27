@@ -171,6 +171,16 @@ nonisolated struct TrainingLine: Codable, Hashable, Identifiable, Sendable {
     let index: Int
     let startFen: String
     let steps: [LineStep]
+    /// The side the learner plays in this line, when it is not the deck's.
+    let side: String?
+
+    func learnerSide(deck: Side) -> Side {
+        switch side {
+        case "WHITE": .white
+        case "BLACK": .black
+        default: deck
+        }
+    }
 }
 
 nonisolated enum SessionMode: String, Codable, Hashable, Sendable {
@@ -296,4 +306,134 @@ nonisolated enum APIError: Error, Equatable, Sendable {
         case .unreadable: "ChessDesk sent an answer this version of the app cannot read."
         }
     }
+}
+
+// MARK: Learning paths
+
+nonisolated enum StageState: String, Codable, Hashable, Sendable {
+    case locked, new, started, done
+}
+
+nonisolated struct PathNext: Codable, Hashable, Sendable {
+    let stage: String
+    let title: String
+    let locked: Bool
+}
+
+nonisolated struct PathTotals: Codable, Hashable, Sendable {
+    let modules: Int
+    let stages: Int
+    let exercises: Int
+}
+
+nonisolated struct PathCard: Codable, Hashable, Identifiable, Sendable {
+    let slug: String
+    let title: String
+    let level: String
+    let description: String
+    let color: CourseColor
+    let previewFen: String
+    let totals: PathTotals
+    let learned: Int
+    let voiced: Bool
+    let next: PathNext?
+
+    var id: String { slug }
+}
+
+nonisolated struct PathsResponse: Codable, Hashable, Sendable {
+    let paths: [PathCard]
+}
+
+nonisolated struct PathDetail: Codable, Hashable, Sendable {
+    struct Stage: Codable, Hashable, Identifiable, Sendable {
+        let slug: String
+        let title: String
+        let free: Bool
+        let state: StageState
+        let exercises: Int
+        let learned: Int
+        let courses: [String]
+        let closing: Bool
+
+        var id: String { slug }
+    }
+
+    struct Module: Codable, Hashable, Identifiable, Sendable {
+        let slug: String
+        let title: String
+        let summary: String
+        let free: Bool
+        let locked: Bool
+        let board: String?
+        let exercises: Int
+        let learned: Int
+        let stages: [Stage]
+
+        var id: String { slug }
+    }
+
+    struct Introduction: Codable, Hashable, Sendable {
+        let title: String
+        let summary: String
+        let segments: [String]
+    }
+
+    let slug: String
+    let title: String
+    let level: String
+    let description: String
+    let color: CourseColor
+    let previewFen: String
+    let totals: PathTotals
+    let learned: Int
+    let voiced: Bool
+    let next: PathNext?
+    let intro: String
+    let deck: String
+    let modules: [Module]
+    let introduction: Introduction?
+    let narration: Narration?
+
+    var stages: [Stage] { modules.flatMap(\.stages) }
+}
+
+/// How an exercise of a path is worked. `lesson`: played once with the
+/// explanation of each move. `solve`: a position where the learner finds the
+/// moves. `learn`: the way of the opening courses, guided then from memory.
+nonisolated enum ExerciseFlow: String, Codable, Hashable, Sendable {
+    case learn, lesson, solve
+}
+
+nonisolated struct PathSession: Codable, Hashable, Sendable {
+    struct Stage: Codable, Hashable, Sendable {
+        let slug: String
+        let title: String
+        let module: String
+        let number: Int
+        let of: Int
+    }
+
+    struct Exercise: Codable, Hashable, Sendable {
+        let lineId: String
+        let title: String
+        let flow: ExerciseFlow
+        let task: String?
+        let aid: String?
+    }
+
+    let deck: String
+    let color: String
+    let stage: Stage
+    let lines: [TrainingLine]
+    let learn: [String]
+    let replay: Bool
+    let known: [String]
+    let exercises: [Exercise]
+    let next: PathNext?
+    let courses: [String]
+    let closing: Bool
+    let narration: Narration?
+
+    var side: Side { color == "BLACK" ? .black : .white }
 }

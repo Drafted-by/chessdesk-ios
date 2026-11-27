@@ -27,6 +27,15 @@ jobs:
           xcodegen --version
       - name: Test the chess rules (ChessCore)
         run: swift test --package-path Packages/ChessCore
+      - name: Restore the Stockfish network
+        uses: actions/cache@v4
+        with:
+          path: ChessDesk/Resources/Engine/nn-1a298aa575a0.nnue
+          key: stockfish-nn-1a298aa575a0
+      - name: Fetch the Stockfish network
+        run: scripts/fetch-nnue.sh
+      - name: Test the engine (Stockfish)
+        run: swift test --package-path Packages/StockfishEngine
       - name: Generate the Xcode project
         run: |
           xcodegen generate
