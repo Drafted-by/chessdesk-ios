@@ -585,10 +585,24 @@ private struct MoveStrip: View {
                         }
                         chip(step, index: index).id(index)
                     }
-                    if model.phase == .play, model.currentStep != nil {
-                        RoundedRectangle(cornerRadius: CD.Radius.xs, style: .continuous)
-                            .strokeBorder(CD.accentLine, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                    if model.phase == .play, let wanted = model.currentStep {
+                        // The move to find keeps its number, so the row never reads as empty.
+                        if wanted.ply % 2 == 1 || visible.isEmpty {
+                            Text(wanted.ply % 2 == 0 ? "\((wanted.ply + 1) / 2)…" : "\((wanted.ply + 1) / 2).")
+                                .cdFont(.meta)
+                                .foregroundStyle(CD.ink4)
+                                .cdNumber()
+                                .padding(.leading, visible.isEmpty ? 0 : CD.Space.s8)
+                                .accessibilityHidden(true)
+                        }
+                        Text("?")
+                            .font(.custom("Geist-SemiBold", size: 14.5, relativeTo: .subheadline))
+                            .foregroundStyle(CD.accentStrong)
                             .frame(width: 34, height: 26)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: CD.Radius.xs, style: .continuous)
+                                    .strokeBorder(CD.accentLine, style: StrokeStyle(lineWidth: 1, dash: [3, 3]))
+                            )
                             .id(-1)
                             .accessibilityLabel("Move to find")
                     }
