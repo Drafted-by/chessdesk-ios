@@ -76,8 +76,8 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
 
     // MARK: Learning paths
 
-    /// The two free stages of Reach 1000 Elo are captured.
-    static let capturedStages = ["fight-for-the-centre", "back-rank-mate"]
+    /// The three free stages of Reach 1000 Elo are captured.
+    static let capturedStages = ["fight-for-the-centre", "develop-your-pieces", "castle-early"]
 
     func paths(token: String?) async throws -> [PathCard] {
         let response: PathsResponse = try await load("paths")

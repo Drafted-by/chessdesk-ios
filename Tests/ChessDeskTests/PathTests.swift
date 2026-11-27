@@ -8,7 +8,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
     try LiveAPI.decode(status: 200, data: FixtureAPI.data(name))
 }
 
-nonisolated private let capturedStages = ["fight-for-the-centre", "back-rank-mate"]
+nonisolated private let capturedStages = ["fight-for-the-centre", "develop-your-pieces", "castle-early"]
 
 @Suite struct PathFixtureTests {
     @Test func pathsAndDetailDecode() throws {
@@ -62,7 +62,7 @@ nonisolated private let capturedStages = ["fight-for-the-centre", "back-rank-mat
         #expect(progress.learned == path.stages[0].exercises)
 
         // With every free stage done, the next stage is the paywall.
-        guest.complete(stage: capturedStages[1], path: path.slug)
+        for stage in capturedStages.dropFirst() { guest.complete(stage: stage, path: path.slug) }
         progress = PathProgress(path: path, guest: guest)
         #expect(progress.next?.state == .locked)
         // A locked stage stays locked whatever the device says.
@@ -244,10 +244,10 @@ private func settle(until done: () -> Bool) async {
         #expect(!model.solvedAnotherWay)
     }
 
-    /// "Back-rank mate: remove the guard" ends in mate, with two moves of ours.
+    /// "Castling: a night at the opera" ends in mate, with two moves of ours.
     @Test func inAMatingExerciseTheEngineIsAskedForTheSchedule() async throws {
         let judge = FixedJudge(false)
-        let model = try model("back-rank-mate", 2, judge: judge)
+        let model = try model("castle-early", 3, judge: judge)
         #expect(model.steps.last?.san.hasSuffix("#") == true)
         model.start()
         await settle { model.isOurTurn }

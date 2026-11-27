@@ -19,7 +19,7 @@ with Stockfish 19 running on the device.
 <p align="center">
   <img src="docs/screenshots/today.png" width="24%" alt="Today: Reach 1000 Elo put forward">
   <img src="docs/screenshots/path.png" width="24%" alt="The Reach 1000 Elo course page">
-  <img src="docs/screenshots/stage.png" width="24%" alt="A position to solve: back-rank mate">
+  <img src="docs/screenshots/stage.png" width="24%" alt="A position to solve: mate in two">
   <img src="docs/screenshots/trainer.png" width="24%" alt="The opening trainer, move by move">
 </p>
 
@@ -101,7 +101,7 @@ Debug launch arguments also open a screen directly:
 
 ```bash
 scripts/sim.sh iphone -CDRoute path
-scripts/sim.sh iphone -CDRoute stage/back-rank-mate -CDExercise 3
+scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES
