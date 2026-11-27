@@ -102,6 +102,8 @@ Debug launch arguments also open a screen directly:
 ```bash
 scripts/sim.sh iphone -CDRoute path
 scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
+scripts/sim.sh iphone -CDRoute premium
+scripts/sim.sh iphone -CDRoute account/signin
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES

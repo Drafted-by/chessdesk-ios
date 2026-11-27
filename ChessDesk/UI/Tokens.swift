@@ -44,6 +44,8 @@ nonisolated enum CD {
     static let accentInk = Color(hex: 0x23190A)
     static let accentSoft = Color(hex: 0xE0B676, opacity: 0.12)
     static let accentLine = Color(hex: 0xE0B676, opacity: 0.38)
+    /// The light on the moving edge of the lead action.
+    static let glint = Color(hex: 0xFFF4DE, opacity: 0.95)
 
     // MARK: Outcomes
 

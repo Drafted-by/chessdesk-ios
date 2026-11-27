@@ -358,53 +358,83 @@ struct PremiumSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        VStack(alignment: .leading, spacing: CD.Space.s20) {
-            VStack(alignment: .leading, spacing: CD.Space.s8) {
-                CDBadge(text: "Premium", tone: .premium)
-                Text("Every line of every course")
-                    .cdFont(.plateTitle)
-                    .foregroundStyle(CD.ink)
-                Text("The first line of each course is free. Premium opens the rest, with reviews timed so the lines stay in memory.")
-                    .cdFont(.lede)
-                    .foregroundStyle(CD.ink2)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            VStack(alignment: .leading, spacing: CD.Space.s12) {
-                included("Every line of every opening course")
-                included("Reviews timed so the lines stay in memory")
-                included("One account: the same Premium as on chessdesk.app")
-            }
-            CDCard(tone: .inset) {
-                VStack(alignment: .leading, spacing: CD.Space.s4) {
-                    Text("$6.99 a month, or $49 a year")
-                        .cdFont(.cardTitle)
-                        .foregroundStyle(CD.ink)
-                        .cdNumber()
+        ScrollView {
+            VStack(alignment: .leading, spacing: CD.Space.s20) {
+                VStack(alignment: .leading, spacing: CD.Space.s20) {
+                    VStack(alignment: .leading, spacing: CD.Space.s12) {
+                        HStack(alignment: .center, spacing: CD.Space.s12) {
+                            Emblem(kind: .premium, size: 48)
+                            CDBadge(text: "Premium", tone: .premium)
+                        }
+                        Text("Every line of every course")
+                            .cdFont(.pageTitle)
+                            .foregroundStyle(CD.ink)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                        Text("The first line of each course is free. Premium opens the rest, with reviews timed so the lines stay in memory.")
+                            .cdFont(.lede)
+                            .foregroundStyle(CD.ink2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    OrnamentRule()
+                    VStack(alignment: .leading, spacing: CD.Space.s12) {
+                        included("Every line of every opening course")
+                        included("Reviews timed so the lines stay in memory")
+                        included("One account: the same Premium as on chessdesk.app")
+                    }
+                    // The price is a ledger: label left, tabular amount right.
+                    VStack(spacing: 0) {
+                        CDHairline(color: CD.lineStrong)
+                        price("Yearly", "$49")
+                        CDHairline()
+                        price("Monthly", "$6.99")
+                        CDHairline(color: CD.lineStrong)
+                    }
                     Text("3-day free trial. Subscribing from the app arrives in a coming build; a Premium account from chessdesk.app already works here.")
                         .cdFont(.small)
                         .foregroundStyle(CD.ink3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .plate(.premium)
+
+                Button("Close") { dismiss() }
+                    .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
             }
-            Spacer(minLength: 0)
-            Button("Close") { dismiss() }
-                .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
+            .padding(.horizontal, CD.Space.s16)
+            .padding(.top, CD.Space.s32)
+            .padding(.bottom, CD.Space.s24)
         }
-        .padding(CD.Space.s24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(CD.surface1.ignoresSafeArea())
-        .presentationDetents([.medium, .large])
+        .scrollBounceBehavior(.basedOnSize)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(CD.canvas.ignoresSafeArea())
+        .presentationDetents([.large])
         .presentationDragIndicator(.visible)
     }
 
     private func included(_ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-            Image(systemName: "checkmark")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundStyle(CD.accent)
+        HStack(alignment: .center, spacing: CD.Space.s12) {
+            IncludedMark()
             Text(text)
                 .cdFont(.body)
                 .foregroundStyle(CD.ink2)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Included: \(text)")
+    }
+
+    private func price(_ label: String, _ amount: String) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .cdFont(.body)
+                .foregroundStyle(CD.ink2)
+            Spacer()
+            Text(amount)
+                .font(.custom("Newsreader72pt-Medium", size: 24, relativeTo: .title2))
+                .foregroundStyle(CD.accentStrong)
+                .cdNumber()
+        }
+        .frame(minHeight: 48)
+        .accessibilityElement(children: .combine)
     }
 }

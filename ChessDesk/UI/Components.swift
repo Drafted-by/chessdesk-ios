@@ -6,10 +6,11 @@ import SwiftUI
 
 // MARK: Buttons
 
-/// `primary` is brass and there is one per view. `secondary` is the neutral
+/// `primary` is brass and there is one per view. `lead` is the same action
+/// on the screen's plate, with the moving edge. `secondary` is the neutral
 /// action, `ghost` the quiet one.
 struct CDButtonStyle: ButtonStyle {
-    enum Variant { case primary, secondary, ghost }
+    enum Variant { case primary, lead, secondary, ghost }
     enum Size { case small, medium, large }
 
     var variant: Variant = .secondary
@@ -32,35 +33,44 @@ struct CDButtonStyle: ButtonStyle {
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: height)
             .background(background(pressed: configuration.isPressed), in: shape)
             .overlay(shape.strokeBorder(border, lineWidth: 1))
+            .overlay { if variant == .lead { MovingEdge(radius: radius) } }
+            .shadow(color: variant == .lead ? CD.accent.opacity(0.22) : .clear, radius: 10, y: 6)
             .opacity(isEnabled ? 1 : 0.45)
             .scaleEffect(configuration.isPressed ? 0.985 : 1)
             .animation(CD.Motion.press, value: configuration.isPressed)
             .contentShape(shape)
     }
 
+    private var radius: CGFloat { size == .large ? 10 : CD.Radius.md }
+
     private var shape: RoundedRectangle {
-        RoundedRectangle(cornerRadius: size == .large ? 10 : CD.Radius.md, style: .continuous)
+        RoundedRectangle(cornerRadius: radius, style: .continuous)
     }
 
     private var foreground: Color {
         switch variant {
-        case .primary: CD.accentInk
+        case .primary, .lead: CD.accentInk
         case .secondary: CD.ink
         case .ghost: CD.ink2
         }
     }
 
-    private func background(pressed: Bool) -> Color {
+    private func background(pressed: Bool) -> AnyShapeStyle {
         switch variant {
-        case .primary: pressed ? CD.accentStrong : CD.accent
-        case .secondary: pressed ? CD.surface3 : CD.surface2
-        case .ghost: pressed ? CD.surface2 : .clear
+        case .primary: AnyShapeStyle(pressed ? CD.accentStrong : CD.accent)
+        case .lead:
+            pressed
+                ? AnyShapeStyle(CD.accentStrong)
+                : AnyShapeStyle(LinearGradient(colors: [CD.accent, CD.accentStrong], startPoint: .top, endPoint: .bottom))
+        case .secondary: AnyShapeStyle(pressed ? CD.surface3 : CD.surface2)
+        case .ghost: AnyShapeStyle(pressed ? CD.surface2 : Color.clear)
         }
     }
 
     private var border: Color {
         switch variant {
         case .primary, .ghost: .clear
+        case .lead: CD.accentLine
         case .secondary: CD.lineStrong
         }
     }
@@ -116,21 +126,6 @@ struct CDHairline: View {
 
     var body: some View {
         Rectangle().fill(color).frame(height: 1)
-    }
-}
-
-/// The ornament rule between sections: a hairline with a small brass lozenge.
-struct OrnamentRule: View {
-    var body: some View {
-        HStack(spacing: CD.Space.s12) {
-            CDHairline()
-            Rectangle()
-                .fill(CD.accent.opacity(0.7))
-                .frame(width: 5, height: 5)
-                .rotationEffect(.degrees(45))
-            CDHairline()
-        }
-        .accessibilityHidden(true)
     }
 }
 

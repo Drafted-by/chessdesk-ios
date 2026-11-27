@@ -32,6 +32,9 @@ struct AccountView: View {
         .toolbar(.hidden, for: .navigationBar)
         .cdPage()
         .sheet(isPresented: $showsSignIn) { SignInView() }
+        #if DEBUG
+            .onAppear { if DebugLaunch.opensSignIn { showsSignIn = true } }
+        #endif
     }
 }
 
@@ -227,11 +230,11 @@ struct SignInView: View {
         VStack(alignment: .leading, spacing: CD.Space.s20) {
             VStack(alignment: .leading, spacing: CD.Space.s8) {
                 Wordmark(size: 20)
+                    .padding(.bottom, CD.Space.s12)
                 Text("Sign in")
                     .cdFont(.pageTitle)
                     .foregroundStyle(CD.ink)
             }
-            .padding(.top, CD.Space.s8)
 
             VStack(alignment: .leading, spacing: CD.Space.s16) {
                 field("Email") {
@@ -270,12 +273,13 @@ struct SignInView: View {
             .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
             .disabled(isWorking || email.isEmpty || password.isEmpty)
 
-            Spacer(minLength: 0)
         }
-        .padding(CD.Space.s24)
+        .plate()
+        .padding(.horizontal, CD.Space.s16)
+        .padding(.top, CD.Space.s32)
         .frame(maxWidth: 480)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(CD.surface1.ignoresSafeArea())
+        .background(CD.canvas.ignoresSafeArea())
         .presentationDragIndicator(.visible)
         .onAppear { focus = .email }
     }

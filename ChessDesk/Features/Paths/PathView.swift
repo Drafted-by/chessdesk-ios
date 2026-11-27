@@ -24,6 +24,7 @@ struct PathView: View {
                         if let wanted = DebugLaunch.opensStage, stage == nil, reload == 0 {
                             stage = StageRequest(path: path.slug, pathTitle: path.title, stage: wanted)
                         }
+                        if DebugLaunch.opensPremium, reload == 0 { showsPremium = true }
                     }
                 #endif
             }
@@ -118,6 +119,8 @@ private struct PathHero: View {
         layout {
             VStack(alignment: .leading, spacing: CD.Space.s16) {
                 VStack(alignment: .leading, spacing: CD.Space.s8) {
+                    Emblem(kind: .rating, size: 48)
+                        .padding(.bottom, CD.Space.s4)
                     Text("Course · \(progress.path.level)")
                         .cdFont(.small)
                         .foregroundStyle(CD.ink3)
@@ -138,7 +141,7 @@ private struct PathHero: View {
                             Text(leadTitle)
                         }
                     }
-                    .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
+                    .buttonStyle(.cd(.lead, size: .large, fullWidth: true))
                     Text(caption)
                         .cdFont(.meta)
                         .foregroundStyle(CD.ink3)
@@ -150,8 +153,8 @@ private struct PathHero: View {
 
             StaticBoardView(fen: progress.path.previewFen, orientation: progress.path.color.side, cornerRadius: CD.Radius.md)
                 .frame(maxWidth: sizeClass == .regular ? 300 : .infinity)
-                .shadow(color: .black.opacity(0.45), radius: 18, y: 10)
         }
+        .plate()
     }
 
     private var leadTitle: String {
@@ -360,18 +363,23 @@ struct FeaturedPathPlate: View {
     @Environment(\.horizontalSizeClass) private var sizeClass
 
     var body: some View {
-        CDCard(tone: .raised, padding: CD.Space.s20) {
+        Group {
             let layout = sizeClass == .regular
                 ? AnyLayout(HStackLayout(alignment: .center, spacing: CD.Space.s24))
                 : AnyLayout(VStackLayout(alignment: .leading, spacing: CD.Space.s20))
             layout {
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
-                    Text(started ? "Your course" : "Start here")
-                        .cdFont(.small)
-                        .foregroundStyle(CD.accentStrong)
-                    Text(path.title)
-                        .cdFont(.pageTitle)
-                        .foregroundStyle(CD.ink)
+                    HStack(alignment: .center, spacing: CD.Space.s12) {
+                        Emblem(kind: .rating, size: 44)
+                        VStack(alignment: .leading, spacing: CD.Space.s2) {
+                            Text(started ? "Your course" : "Start here")
+                                .cdFont(.small)
+                                .foregroundStyle(CD.ink3)
+                            Text(path.title)
+                                .cdFont(.pageTitle)
+                                .foregroundStyle(CD.ink)
+                        }
+                    }
                     Text("Under 1000, games are lost to a hanging piece or a checkmate nobody saw. This course trains you to see them, one position at a time.")
                         .cdFont(.lede)
                         .foregroundStyle(CD.ink2)
@@ -393,7 +401,7 @@ struct FeaturedPathPlate: View {
                     NavigationLink(value: CourseRoute.path(slug: path.slug)) {
                         Text(started ? "Continue the course" : "Start Reach 1000 Elo")
                     }
-                    .buttonStyle(.cd(.primary, size: .large, fullWidth: sizeClass != .regular))
+                    .buttonStyle(.cd(.lead, size: .large, fullWidth: sizeClass != .regular))
                     .padding(.top, CD.Space.s4)
                     if !started {
                         Text("The first stages are free, no account needed.")
@@ -406,6 +414,7 @@ struct FeaturedPathPlate: View {
                     .frame(maxWidth: sizeClass == .regular ? 260 : .infinity)
             }
         }
+        .plate()
     }
 
     /// Stages a guest finished on this device (the server does not know them).

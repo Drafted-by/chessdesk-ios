@@ -39,7 +39,7 @@ struct RootView: View {
     }
 
     #if DEBUG
-        /// `-CDRoute courses | account | course/<slug> | trainer/<slug> | path | stage/<slug>` opens a
+        /// `-CDRoute courses | account | account/signin | course/<slug> | trainer/<slug> | path | stage/<slug> | premium` opens a
         /// screen directly: used to check screens in the simulator.
         private func openDebugRoute() {
             guard let route = DebugLaunch.route else { return }
@@ -50,7 +50,7 @@ struct RootView: View {
                 guard route.count > 1 else { return }
                 section = .courses
                 coursesPath.append(CourseRoute.course(slug: route[1]))
-            case "path", "stage":
+            case "path", "stage", "premium":
                 section = .courses
                 coursesPath.append(CourseRoute.path(slug: FeaturedPath.slug))
             default: break
@@ -72,6 +72,10 @@ struct RootView: View {
             guard let route, route.first == "stage", route.count > 1 else { return nil }
             return route[1]
         }
+        /// With `-CDRoute premium`: the featured path opens the Premium sheet.
+        static var opensPremium: Bool { route?.first == "premium" }
+        /// With `-CDRoute account/signin`: You opens the sign-in sheet.
+        static var opensSignIn: Bool { route == ["account", "signin"] }
         /// `-CDExercise 2` starts the stage at its second exercise.
         static var exercise: Int { max(1, UserDefaults.standard.integer(forKey: "CDExercise")) - 1 }
         /// `-CDTrainerSteps 5` plays the first moves of the guided pass.
