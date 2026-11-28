@@ -68,7 +68,9 @@ struct BotGameScreen: View {
                                         Text("Resign")
                                     }
                                 }
-                                .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
+                                // A quiet line, not an invitation: resigning is the way out, never the next step.
+                                .buttonStyle(.cd(.ghost))
+                                .padding(.leading, -10)
                                 .confirmationDialog("Resign this game?", isPresented: $confirmsResigning, titleVisibility: .visible) {
                                     Button("Resign", role: .destructive) { model.resign() }
                                     Button("Keep playing", role: .cancel) {}
