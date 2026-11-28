@@ -23,6 +23,7 @@ struct RootView: View {
                 CoursesView()
                     .courseDestinations()
                     .repertoiresEntry()
+                    .explorerEntry()
             }
             .tabItem { Label("Courses", systemImage: "book.closed") }
             .tag(AppSection.courses)
@@ -61,7 +62,7 @@ struct RootView: View {
             case "path", "stage", "premium":
                 section = .courses
                 coursesPath.append(CourseRoute.path(slug: FeaturedPath.slug))
-            case "repertoires": section = .courses
+            case "repertoires", "explorer": section = .courses
             default: break
             }
         }
