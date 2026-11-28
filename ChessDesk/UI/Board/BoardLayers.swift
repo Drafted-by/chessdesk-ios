@@ -9,27 +9,47 @@ struct BoardSquaresLayer: View {
     let orientation: Side
     var showsCoordinates = false
 
+    private var preferences: BoardPreferences { .shared }
+
     var body: some View {
+        let light = preferences.lightSquare
+        let dark = preferences.darkSquare
         ZStack {
-            Image("board-linen")
-                .resizable()
-                .interpolation(.medium)
-            Canvas { context, size in
-                let geometry = BoardGeometry(side: size.width, orientation: orientation)
-                for square in Square.all {
-                    context.fill(
-                        Path(geometry.rect(of: square)),
-                        with: .color(square.isLight ? CD.Board.light : CD.Board.dark)
-                    )
-                }
+            switch preferences.texture {
+            case .plain:
+                checker(light: light, dark: dark)
+            case .fabric:
+                // The fabric only lightly over the squares, so they stay clear.
+                checker(light: light, dark: dark)
+                texture("board-canvas")
+                    .blendMode(.softLight)
+                    .opacity(0.45)
+            case .linen, .wood:
+                texture(preferences.texture.imageName ?? "board-linen")
+                checker(light: light, dark: dark)
+                    .blendMode(.multiply)
             }
-            .blendMode(.multiply)
             if showsCoordinates {
                 BoardCoordinatesLayer(orientation: orientation)
             }
         }
         .compositingGroup()
         .accessibilityHidden(true)
+    }
+
+    private func texture(_ name: String) -> some View {
+        Image(name)
+            .resizable()
+            .interpolation(.medium)
+    }
+
+    private func checker(light: Color, dark: Color) -> some View {
+        Canvas { context, size in
+            let geometry = BoardGeometry(side: size.width, orientation: orientation)
+            for square in Square.all {
+                context.fill(Path(geometry.rect(of: square)), with: .color(square.isLight ? light : dark))
+            }
+        }
     }
 }
 
@@ -39,7 +59,9 @@ private struct BoardCoordinatesLayer: View {
     let orientation: Side
 
     var body: some View {
-        Canvas { context, size in
+        let light = BoardPreferences.shared.lightSquare
+        let dark = BoardPreferences.shared.darkSquare
+        return Canvas { context, size in
             let geometry = BoardGeometry(side: size.width, orientation: orientation)
             let fontSize = max(8, geometry.squareSize * 0.2)
             let inset = geometry.squareSize * 0.07
@@ -50,7 +72,7 @@ private struct BoardCoordinatesLayer: View {
                 context.resolve(
                     Text(text)
                         .font(.custom("Geist-SemiBold", fixedSize: fontSize))
-                        .foregroundStyle(square.isLight ? CD.Board.dark : CD.Board.light)
+                        .foregroundStyle(square.isLight ? dark : light)
                 )
             }
 
