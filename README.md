@@ -49,6 +49,12 @@ with Stockfish 19 running on the device.
   better move drawn where one was missed. Same arithmetic as the site.
 - **Your mistakes.** The positions where your reviewed games went wrong come back to solve,
   spaced over time.
+- **Tools that need no server.** An analysis board (both sides, side lines, PGN and FEN in and
+  out, the opening named, Stockfish's best lines live with an evaluation bar), the best move
+  of a pasted position, a coordinates trainer and an Elo calculator. Any game in Games opens
+  on the analysis board at its current move.
+- **Your board.** Piece sets, board textures, square colours and move sounds, as on the site,
+  in You › Board and sound. Every board in the app follows them.
 
 ## How it is built
 
@@ -117,6 +123,12 @@ scripts/sim.sh iphone -CDRoute account/delete
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES
+scripts/sim.sh iphone -CDRoute tools
+scripts/sim.sh iphone -CDRoute analysis -CDAnalysisPGN "1. e4 c5 (1... e5) 2. Nf3" -CDAnalysisPly 3
+scripts/sim.sh iphone -CDRoute analysis -CDCanvas 1180x820    # the iPad layout, shrunk to fit
+scripts/sim.sh iphone -CDRoute bestmove
+scripts/sim.sh iphone -CDRoute coordinates
+scripts/sim.sh iphone -CDRoute elo
 ```
 
 ## Tests
@@ -164,7 +176,13 @@ It embeds [Stockfish](https://stockfishchess.org) 19, also GPL-3.0. Its source i
 
 Third-party assets keep their own licences:
 
-- Chess pieces: the CBurnett set by Colin M.L. Burnett, BSD licence.
+- Chess pieces: the CBurnett set by Colin M.L. Burnett, BSD licence. The other sets, as the
+  site ships them: Kaneo and Kaneo Midnight by Kadagaden, and Kiwen Suwi by neverRare,
+  CC BY 4.0 (Kiwen Suwi's clip path is removed so iOS draws it); Fantasy and Spatial by
+  Maurizio Monge, MIT; Chessnut by Alexis Luengas, Apache 2.0.
+- The Fabric board texture: ambientCG Fabric030, CC0. The Wood texture, like the linen one,
+  is an asset of Drafted-by.
+- Opening names: the Lichess chess-openings list, public domain (CC0).
 - Typefaces: Newsreader (Production Type) and Geist (Vercel), SIL Open Font License 1.1;
   the licence texts are in `ChessDesk/Resources/Fonts`.
 

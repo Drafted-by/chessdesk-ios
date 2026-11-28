@@ -40,8 +40,8 @@ public actor StockfishEngine {
     /// The network file this build of the engine expects.
     public static let networkName = "nn-1a298aa575a0.nnue"
 
-    private let mailbox = LineMailbox.shared
-    private var isReady = false
+    let mailbox = LineMailbox.shared
+    private(set) var isReady = false
     private var isBusy = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
 
@@ -162,7 +162,7 @@ public actor StockfishEngine {
 
     // MARK: Plumbing
 
-    private func send(_ command: String) {
+    func send(_ command: String) {
         command.withCString { sf_send($0) }
     }
 
@@ -170,7 +170,7 @@ public actor StockfishEngine {
         while await mailbox.next() != answer {}
     }
 
-    private func acquire() async {
+    func acquire() async {
         if isBusy {
             await withCheckedContinuation { waiters.append($0) }
         } else {
@@ -178,7 +178,7 @@ public actor StockfishEngine {
         }
     }
 
-    private func release() {
+    func release() {
         if waiters.isEmpty {
             isBusy = false
         } else {

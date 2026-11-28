@@ -87,6 +87,14 @@ private struct GameReplay: View {
         }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    AnalysisBoardScreen(game: line, ply: ply, orientation: orientation)
+                } label: {
+                    Image(systemName: "magnifyingglass").foregroundStyle(CD.ink2)
+                }
+                .accessibilityLabel("Analyse from this move")
+            }
+            ToolbarItem(placement: .topBarTrailing) {
                 Button(action: toggleStar) {
                     Image(systemName: starred ? "star.fill" : "star")
                         .foregroundStyle(starred ? CD.accent : CD.ink2)

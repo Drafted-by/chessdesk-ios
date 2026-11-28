@@ -112,9 +112,10 @@ enum PieceLayout {
 }
 
 extension Piece {
-    /// Asset name of the CBurnett drawing, e.g. "piece-wN".
+    /// Asset name of the drawing in the player's piece set, e.g. "piece-wN"
+    /// for CBurnett. Read in a view's body, a change of set redraws the view.
     var assetName: String {
-        "piece-\(side == .white ? "w" : "b")\(String(kind.rawValue).uppercased())"
+        BoardPreferences.shared.pieceSet.assetName(self)
     }
 
     var spokenName: String {

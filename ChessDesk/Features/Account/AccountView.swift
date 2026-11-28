@@ -27,6 +27,7 @@ struct AccountView: View {
                 } else {
                     GuestCard { signIn = $0 }
                 }
+                BoardSettingsSection()
                 #if DEBUG
                     DeveloperSection()
                 #endif

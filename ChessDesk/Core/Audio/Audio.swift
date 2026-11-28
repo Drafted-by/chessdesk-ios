@@ -3,9 +3,10 @@ import Observation
 import UIKit
 
 /// Move and capture sounds, the same two files as the site, with a light
-/// haptic. Sounds respect the silent switch (ambient session). The files are
-/// not in the repository (`scripts/fetch-sounds.sh`); without them the board
-/// is silent and only the haptic plays.
+/// haptic. Sounds respect the silent switch (ambient session) and the
+/// player's choice in You › Board and sound (on or off, and a volume). The
+/// files are not in the repository (`scripts/fetch-sounds.sh`); without them
+/// the board is silent and only the haptic plays.
 final class BoardSounds {
     static let shared = BoardSounds()
 
@@ -24,10 +25,19 @@ final class BoardSounds {
     }
 
     func play(capture: Bool) {
-        let player = players[capture ? "capture" : "move"]
-        player?.currentTime = 0
-        player?.play()
+        let sound = BoardPreferences.shared.sound
+        if sound.enabled, let player = players[capture ? "capture" : "move"] {
+            player.volume = Self.playerVolume(for: sound.volume)
+            player.currentTime = 0
+            player.play()
+        }
         haptic.impactOccurred(intensity: capture ? 0.9 : 0.6)
+    }
+
+    /// The site's volume (0…1, 0.35 by default) to the player's: the default
+    /// plays at 0.6, the level the board had before the setting existed.
+    nonisolated static func playerVolume(for volume: Double) -> Float {
+        Float(min(1, max(0, volume) * 0.6 / BoardPreferences.Sound.standard.volume))
     }
 }
 
