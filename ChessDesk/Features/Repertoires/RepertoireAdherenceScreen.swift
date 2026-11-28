@@ -12,6 +12,7 @@ struct RepertoireAdherenceScreen: View {
     @Environment(AppModel.self) private var app
     @State private var phase: Phase = .loading
     @State private var showsPremium = false
+    @State private var opened: GameRoute?
 
     private enum Phase {
         case loading
@@ -40,7 +41,16 @@ struct RepertoireAdherenceScreen: View {
         .toolbar(.hidden, for: .tabBar)
         .cdPage()
         .sheet(isPresented: $showsPremium) { PremiumSheet() }
-        .task { await load() }
+        .navigationDestination(item: $opened) { route in
+            switch route {
+            case let .game(id): GameScreen(id: id)
+            }
+        }
+        .task {
+            // Not again on the way back from a game.
+            if case .loaded = phase { return }
+            await load()
+        }
     }
 
     private func load() async {
@@ -102,7 +112,9 @@ struct RepertoireAdherenceScreen: View {
                     VStack(spacing: 0) {
                         ForEach(Array(check.games.enumerated()), id: \.element.id) { index, game in
                             if index > 0 { CDHairline() }
-                            NavigationLink(value: GameRoute.game(id: game.gameId)) {
+                            Button {
+                                opened = .game(id: game.gameId)
+                            } label: {
                                 AdherenceRow(game: game)
                             }
                             .buttonStyle(CDPressStyle())

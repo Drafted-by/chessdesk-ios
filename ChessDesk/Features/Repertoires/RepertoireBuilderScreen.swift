@@ -112,9 +112,6 @@ private struct RepertoireBuilder: View {
         .fullScreenCover(item: $training, onDismiss: { Task { await model.refresh() } }) {
             RepertoireTrainerScreen(request: $0)
         }
-        .confirmationDialog(removalTitle, isPresented: $confirmsRemoval, titleVisibility: .visible) {
-            Button("Remove", role: .destructive) { Task { await model.removeCurrentMove() } }
-        }
         .confirmationDialog(
             "Replace the moves of this repertoire with the openings you play as \(sideName)?",
             isPresented: $confirmsSeed, titleVisibility: .visible
@@ -177,6 +174,10 @@ private struct RepertoireBuilder: View {
         }
         .padding(.horizontal, CD.Space.s8)
         .background(CD.surface1)
+        // Asked where the thumb already is.
+        .confirmationDialog(removalTitle, isPresented: $confirmsRemoval, titleVisibility: .visible) {
+            Button("Remove", role: .destructive) { Task { await model.removeCurrentMove() } }
+        }
     }
 
     private func action(_ title: String, _ symbol: String, enabled: Bool, perform: @escaping () -> Void) -> some View {
@@ -211,7 +212,8 @@ private struct RepertoireBuilder: View {
         guard let node = model.currentNode else { return "" }
         let below = node.descendantCount
         let name = RepertoireTree.numbered(node)
-        return below == 0 ? "Remove \(name)?" : "Remove \(name) and the \(CDFormat.plural(below, "move")) after it?"
+        if below == 0 { return "Remove \(name)?" }
+        return below == 1 ? "Remove \(name) and the move after it?" : "Remove \(name) and the \(CDFormat.count(below)) moves after it?"
     }
 
     /// A move with nothing after it goes at once: it is the way to take back
@@ -626,11 +628,12 @@ private struct RepertoireMoveRow: View {
             .frame(minHeight: 52)
             .background(move.inRepertoire ? CD.surface1 : .clear)
             .contentShape(Rectangle())
+            // One sentence for the row; the button around it stays a button.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(spoken)
         }
         .buttonStyle(CDPressStyle())
         .disabled(!canPlay)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(spoken)
         .accessibilityHint(move.inRepertoire ? "Goes to this move" : canPlay ? "Adds this move to your repertoire" : "")
     }
 

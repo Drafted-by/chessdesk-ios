@@ -8,6 +8,7 @@ struct ExplorerView: View {
     @Environment(AppModel.self) private var app
     @State private var model: ExplorerModel?
     @State private var signIn: SignInView.Mode?
+    @State private var loadedRevision: Int?
 
     var body: some View {
         Group {
@@ -37,6 +38,9 @@ struct ExplorerView: View {
                 model = nil
                 return
             }
+            // Back from a game: the walk and the filters are kept.
+            if model != nil, loadedRevision == app.accountRevision { return }
+            loadedRevision = app.accountRevision
             let fresh = ExplorerModel(api: app.api, token: token, onUnauthorized: { app.sessionExpired() })
             #if DEBUG
                 await ExplorerDebug.prepare(fresh)
@@ -46,11 +50,6 @@ struct ExplorerView: View {
             model = fresh
         }
         .sheet(item: $signIn) { SignInView(mode: $0) }
-        .navigationDestination(for: GameRoute.self) { route in
-            switch route {
-            case let .game(id): GameScreen(id: id)
-            }
-        }
     }
 
     private var guest: some View {
@@ -91,6 +90,7 @@ private struct ExplorerContent: View {
     @Bindable var model: ExplorerModel
 
     @State private var showsFilters = false
+    @State private var opened: GameRoute?
 
     var body: some View {
         ScrollView {
@@ -120,6 +120,13 @@ private struct ExplorerContent: View {
         }
         .sheet(isPresented: $showsFilters) { ExplorerFiltersSheet(model: model) }
         .sheet(isPresented: $model.showsPremium) { PremiumSheet() }
+        // Pushed from state, not from a value link: the screen works wherever
+        // it is hung, in a stack with a path or without.
+        .navigationDestination(item: $opened) { route in
+            switch route {
+            case let .game(id): GameScreen(id: id)
+            }
+        }
         #if DEBUG
             .onAppear { if ExplorerDebug.opensFilters { showsFilters = true } }
         #endif
@@ -136,7 +143,6 @@ private struct ExplorerContent: View {
                 ],
                 selection: Binding(get: { model.side }, set: { model.choose(side: $0) })
             )
-            .accessibilityLabel("Your colour")
             Button {
                 showsFilters = true
             } label: {
@@ -277,10 +283,10 @@ private struct ExplorerContent: View {
                             .padding(.horizontal, CD.Space.s16)
                             .frame(minHeight: 60)
                             .contentShape(Rectangle())
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("\(card.title): \(card.line.line), \(Int((card.line.score * 100).rounded())) percent over \(CDFormat.plural(card.line.games, "game"))")
                         }
                         .buttonStyle(CDPressStyle())
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(card.title): \(card.line.line), \(Int((card.line.score * 100).rounded())) percent over \(CDFormat.plural(card.line.games, "game"))")
                     }
                 }
                 .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
@@ -351,7 +357,9 @@ private struct ExplorerContent: View {
                 VStack(spacing: 0) {
                     ForEach(Array(position.games.enumerated()), id: \.element.id) { index, game in
                         if index > 0 { CDHairline() }
-                        NavigationLink(value: GameRoute.game(id: game.id)) {
+                        Button {
+                            opened = .game(id: game.id)
+                        } label: {
                             ExplorerGameRow(game: game)
                         }
                         .buttonStyle(CDPressStyle())
@@ -519,11 +527,11 @@ private struct ExplorerMoveRow: View {
             .padding(.horizontal, CD.Space.s16)
             .frame(minHeight: 52)
             .contentShape(Rectangle())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("\(move.san), played \(CDFormat.plural(move.games, "time")), \(move.percent) percent score")
         }
         .buttonStyle(CDPressStyle())
         .disabled(!canWalk)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(move.san), played \(CDFormat.plural(move.games, "time")), \(move.percent) percent score")
     }
 }
 

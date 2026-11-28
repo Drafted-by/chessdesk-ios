@@ -19,7 +19,7 @@ struct RepertoiresView: View {
     @State private var deleting: RepertoireCard?
     @State private var newName = ""
     @State private var opened: RepertoireRoute?
-    @State private var hasAppeared = false
+    @State private var loadedRevision: Int?
 
     var body: some View {
         Group {
@@ -37,32 +37,31 @@ struct RepertoiresView: View {
         // for the back button of the screens pushed from here.
         .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
         .cdPage()
+        // Runs when the screen appears, also on the way back from the
+        // builder: the same account keeps its model and reads the list again.
         .task(id: app.accountRevision) {
             guard let token = app.playerToken else {
                 model = nil
                 return
             }
+            if let model, loadedRevision == app.accountRevision {
+                await model.load()
+                return
+            }
             let fresh = RepertoiresModel(api: app.api, token: token, onUnauthorized: { app.sessionExpired() })
             model = fresh
+            loadedRevision = app.accountRevision
             await fresh.load()
             #if DEBUG
                 openDebugRoute()
             #endif
         }
         .sheet(item: $signIn) { SignInView(mode: $0) }
-        .navigationDestination(for: RepertoireRoute.self) { route in
-            switch route {
-            case let .builder(id, name): RepertoireBuilderScreen(id: id, name: name)
-            }
-        }
+        // Pushed from state, not from a value link: the screen works wherever
+        // it is hung, in a stack with a path or without.
         .navigationDestination(item: $opened) { route in
             switch route {
             case let .builder(id, name): RepertoireBuilderScreen(id: id, name: name)
-            }
-        }
-        .navigationDestination(for: GameRoute.self) { route in
-            switch route {
-            case let .game(id): GameScreen(id: id)
             }
         }
     }
@@ -175,11 +174,6 @@ struct RepertoiresView: View {
                     if let repertoire = deleting { Task { await model.delete(repertoire) } }
                 }
             }
-            // Back from the builder: the counts may have moved.
-            .onAppear {
-                if hasAppeared { Task { await model.load() } }
-                hasAppeared = true
-            }
         }
     }
 
@@ -228,7 +222,9 @@ struct RepertoiresView: View {
             ForEach(Array(model.repertoires.enumerated()), id: \.element.id) { index, repertoire in
                 if index > 0 { CDHairline() }
                 HStack(spacing: 0) {
-                    NavigationLink(value: RepertoireRoute.builder(id: repertoire.id, name: repertoire.name)) {
+                    Button {
+                        opened = .builder(id: repertoire.id, name: repertoire.name)
+                    } label: {
                         RepertoireRow(repertoire: repertoire)
                     }
                     .buttonStyle(CDPressStyle())

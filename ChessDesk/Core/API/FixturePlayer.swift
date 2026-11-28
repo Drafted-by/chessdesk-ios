@@ -610,8 +610,12 @@ nonisolated enum FixtureData {
             var weight = 0
             if position.isCapture(move) { weight += 4 }
             if position.isCastling(move) { weight += 5 }
-            if piece.kind == .knight || piece.kind == .bishop { weight += 3 }
-            if piece.kind == .pawn, (2...5).contains(move.to.file) { weight += 2 }
+            // Knights towards the centre, centre pawns two squares, then bishops.
+            if piece.kind == .knight { weight += (2...5).contains(move.to.file) ? 4 : 1 }
+            if piece.kind == .bishop { weight += 2 }
+            if piece.kind == .pawn, (2...5).contains(move.to.file) {
+                weight += abs(move.to.rank - move.from.rank) == 2 ? 4 : 2
+            }
             if piece.kind == .king, !position.isCastling(move) { weight -= 4 }
             // Not onto a square a pawn takes on.
             if piece.kind != .pawn, pawnAttacks(move.to, in: position) { weight -= 6 }
