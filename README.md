@@ -117,6 +117,9 @@ scripts/sim.sh iphone -CDRoute account/delete
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES
+scripts/sim.sh iphone -CDRoute puzzles
+scripts/sim.sh iphone -CDRoute puzzles/free
+scripts/sim.sh iphone -CDRoute woodpecker
 ```
 
 ## Tests
