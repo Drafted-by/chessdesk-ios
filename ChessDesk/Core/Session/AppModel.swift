@@ -18,7 +18,12 @@ nonisolated enum Backend: Hashable, Sendable {
 
     var api: any ChessDeskAPI {
         switch self {
-        case .sampleData: FixtureAPI()
+        case .sampleData:
+            #if DEBUG
+                FixtureAPI(player: FixturePlayer.atLaunch)
+            #else
+                FixtureAPI()
+            #endif
         case let .server(url): LiveAPI(baseURL: url)
         }
     }
@@ -129,6 +134,9 @@ final class AppModel {
     /// Called at launch: a stored token is checked against the server. A
     /// token the server no longer accepts is dropped; being offline keeps it.
     func restoreSession() async {
+        #if DEBUG
+            if FixturePlayer.atLaunch != nil, backend == .sampleData, token == nil { tokens.write(FixturePlayer.token) }
+        #endif
         guard let token else { return }
         do {
             setAccount(.signedIn(try await api.me(token: token)))

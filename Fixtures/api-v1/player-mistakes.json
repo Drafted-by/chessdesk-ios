@@ -1,0 +1,11 @@
+{
+  "_synthetic": "Written by hand from the contract (MistakeQueue). Invented games and opponents; the positions are checked legal by HomeFixtureTests.",
+  "counts": { "due": 5, "total": 23, "mastered": 6, "nextDueAt": null },
+  "due": [
+    { "id": "m-1", "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 24", "bestUci": "d1d8", "bestSan": "Rd8#", "playedSan": "h3", "classification": "BLUNDER", "winLoss": 48.2, "moveLabel": "24.", "gameId": "g-1", "opponent": "marta_k", "streak": 0, "firstTime": true },
+    { "id": "m-2", "fen": "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 31", "bestUci": "d5c7", "bestSan": "Nc7+", "playedSan": "Kd2", "classification": "MISTAKE", "winLoss": 18.5, "moveLabel": "31.", "gameId": "g-2", "opponent": "endgame_eli", "streak": 1, "firstTime": false },
+    { "id": "m-3", "fen": "4k3/8/8/3q4/8/8/3R4/4K3 w - - 0 19", "bestUci": "d2d5", "bestSan": "Rxd5", "playedSan": "Ke2", "classification": "BLUNDER", "winLoss": 61.0, "moveLabel": "19.", "gameId": "g-1", "opponent": "marta_k", "streak": 0, "firstTime": true },
+    { "id": "m-4", "fen": "r7/8/8/8/8/6k1/8/7K b - - 0 40", "bestUci": "a8a1", "bestSan": "Ra1#", "playedSan": "Kh3", "classification": "BLUNDER", "winLoss": 52.3, "moveLabel": "40…", "gameId": "g-3", "opponent": "pawnstorm77", "streak": 0, "firstTime": true },
+    { "id": "m-5", "fen": "7q/8/8/4k3/8/8/8/2B1K3 w - - 0 27", "bestUci": "c1b2", "bestSan": "Bb2+", "playedSan": "Kf2", "classification": "MISTAKE", "winLoss": 22.4, "moveLabel": "27.", "gameId": "g-2", "opponent": "endgame_eli", "streak": 2, "firstTime": false }
+  ]
+}

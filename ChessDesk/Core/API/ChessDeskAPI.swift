@@ -5,7 +5,7 @@ import Foundation
 /// interchangeable, which is what previews, tests and offline Debug builds use.
 ///
 /// `token` is nil for a guest. Guest-open routes answer without it.
-nonisolated protocol ChessDeskAPI: Sendable, PlayAPI {
+nonisolated protocol ChessDeskAPI: Sendable, PlayAPI, HomeAPI, SettingsAPI {
     func login(email: String, password: String) async throws -> AuthSession
     /// A player account. Coaches sign up on the site.
     func signup(firstName: String, lastName: String, email: String, password: String) async throws -> AuthSession
