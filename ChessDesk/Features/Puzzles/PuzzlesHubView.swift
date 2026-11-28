@@ -152,24 +152,7 @@ private struct EntryRow: View {
 
     var body: some View {
         NavigationLink { route.screen } label: {
-            HStack(spacing: CD.Space.s12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .cdFont(.cardTitle)
-                        .foregroundStyle(CD.ink)
-                    Text(detail)
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: CD.Space.s8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CD.ink4)
-            }
-            .padding(CD.Space.s16)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            FeatureRow(emblem: route == .woodpecker ? .woodpecker : .puzzles, title: title, detail: detail)
             .cardSurface()
             .hairline()
         }

@@ -181,19 +181,25 @@ struct RepertoiresView: View {
     private func due(_ list: RepertoireList, top: RepertoireCard?) -> some View {
         CDCard(tone: .raised, padding: CD.Space.s20) {
             VStack(alignment: .leading, spacing: CD.Space.s12) {
-                Text("Due today")
-                    .cdFont(.small)
-                    .foregroundStyle(CD.ink3)
-                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                    Text(CDFormat.count(list.totalDue))
-                        .cdFont(.metric)
-                        .foregroundStyle(CD.ink)
-                        .cdNumber()
-                    Text("\(list.totalDue == 1 ? "move" : "moves") across \(CDFormat.plural(list.repertoires.count, "repertoire"))")
-                        .cdFont(.body)
-                        .foregroundStyle(CD.ink3)
+                HStack(alignment: .center, spacing: CD.Space.s12) {
+                    VStack(alignment: .leading, spacing: CD.Space.s2) {
+                        Text("Due today")
+                            .cdFont(.small)
+                            .foregroundStyle(CD.ink3)
+                        HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
+                            Text(CDFormat.count(list.totalDue))
+                                .cdFont(.metric)
+                                .foregroundStyle(CD.ink)
+                                .cdNumber()
+                            Text("\(list.totalDue == 1 ? "move" : "moves") across \(CDFormat.plural(list.repertoires.count, "repertoire"))")
+                                .cdFont(.body)
+                                .foregroundStyle(CD.ink3)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                    Spacer(minLength: CD.Space.s8)
+                    Emblem(kind: .repertoire, size: 48, surface: CD.surface2)
                 }
-                .accessibilityElement(children: .combine)
                 Text(dueSentence(list, top: top))
                     .cdFont(.meta)
                     .foregroundStyle(CD.ink3)

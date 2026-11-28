@@ -310,24 +310,37 @@ private struct MistakesCard: View {
 
     var body: some View {
         CDCard(tone: .raised, padding: CD.Space.s20) {
-            VStack(alignment: .leading, spacing: CD.Space.s12) {
-                Text("Your mistakes")
-                    .cdFont(.small)
-                    .foregroundStyle(CD.ink3)
-                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                    Text(CDFormat.count(counts.due))
-                        .cdFont(.metric)
-                        .foregroundStyle(CD.ink)
-                        .cdNumber()
-                    Text(counts.due == 1 ? "position to solve today" : "positions to solve today")
-                        .cdFont(.body)
-                        .foregroundStyle(CD.ink3)
+            VStack(alignment: .leading, spacing: CD.Space.s16) {
+                HStack(alignment: .center, spacing: CD.Space.s12) {
+                    VStack(alignment: .leading, spacing: CD.Space.s2) {
+                        Text("Your mistakes")
+                            .cdFont(.small)
+                            .foregroundStyle(CD.ink3)
+                        HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
+                            Text(CDFormat.count(counts.due))
+                                .cdFont(.metric)
+                                .foregroundStyle(CD.ink)
+                                .cdNumber()
+                            Text("to solve today")
+                                .cdFont(.body)
+                                .foregroundStyle(CD.ink3)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                    Spacer(minLength: CD.Space.s8)
+                    Emblem(kind: .mistakes, size: 48, surface: CD.surface2)
                 }
-                .accessibilityElement(children: .combine)
-                Text("\(CDFormat.plural(counts.total, "position")) from your reviewed games, \(CDFormat.count(counts.mastered)) mastered.")
-                    .cdFont(.meta)
-                    .foregroundStyle(CD.ink3)
-                    .cdNumber()
+                // How far the bank is: mastered positions out of all of them.
+                if counts.total > 0 {
+                    VStack(alignment: .leading, spacing: CD.Space.s6) {
+                        CDMeter(value: Double(counts.mastered) / Double(counts.total))
+                        Text("\(CDFormat.count(counts.mastered)) of \(CDFormat.plural(counts.total, "position")) from your reviewed games mastered")
+                            .cdFont(.meta)
+                            .foregroundStyle(CD.ink3)
+                            .cdNumber()
+                    }
+                    .accessibilityElement(children: .combine)
+                }
                 if counts.due > 0 {
                     Button("Practise", action: practise)
                         .buttonStyle(.cd(.primary, fullWidth: true))

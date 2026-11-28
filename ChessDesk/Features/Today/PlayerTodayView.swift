@@ -637,7 +637,8 @@ private struct FirstReportCard: View {
     var body: some View {
         CDCard(tone: .raised, padding: CD.Space.s20) {
             VStack(alignment: .leading, spacing: CD.Space.s16) {
-                HStack(alignment: .top) {
+                HStack(alignment: .top, spacing: CD.Space.s12) {
+                    Emblem(kind: .review, size: 44, surface: CD.surface2)
                     VStack(alignment: .leading, spacing: CD.Space.s4) {
                         Text("Your first report")
                             .cdFont(.plateTitle)
@@ -665,11 +666,14 @@ private struct FirstReportCard: View {
                              "Average over \(CDFormat.plural(report.reviewedGames, "game"))")
                         if let opening = report.opening {
                             cell("Most played opening", opening.name,
-                                 "\(opening.wins)W \(opening.draws)D \(opening.losses)L in \(CDFormat.plural(opening.games, "game"))")
+                                 "\(opening.wins) won · \(opening.draws) drawn · \(opening.losses) lost")
                         }
                     }
                 }
                 if let blunder = report.blunder {
+                    CDHairline()
+                    HStack(alignment: .top, spacing: CD.Space.s12) {
+                    MoveSeal(.blunder, size: 26)
                     VStack(alignment: .leading, spacing: CD.Space.s2) {
                         Text("Costliest move").cdFont(.meta).foregroundStyle(CD.ink3)
                         Text("\(blunder.moveLabel)\(blunder.moveLabel.hasSuffix("…") ? "" : " ")\(blunder.san)\(blunder.winLoss > 0 ? String(format: ", −%.0f%% win chance", blunder.winLoss) : "")")
@@ -680,7 +684,9 @@ private struct FirstReportCard: View {
                             .cdFont(.meta)
                             .foregroundStyle(CD.ink3)
                     }
+                    }
                     .accessibilityElement(children: .combine)
+                    CDHairline()
                 }
                 if !report.pendingGameIds.isEmpty {
                     Text("\(CDFormat.plural(report.pendingGameIds.count, "game")) of this batch still to review: open them in Games.")

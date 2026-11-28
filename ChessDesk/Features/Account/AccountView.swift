@@ -132,13 +132,18 @@ private struct SignedInCard: View {
             if !me.user.emailVerified { VerifyEmailNotice(email: me.user.email) }
             CDCard(padding: CD.Space.s20) {
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
-                    VStack(alignment: .leading, spacing: CD.Space.s4) {
-                        Text(me.user.name)
-                            .cdFont(.plateTitle)
-                            .foregroundStyle(CD.ink)
-                        Text(me.user.email)
-                            .cdFont(.small)
-                            .foregroundStyle(CD.ink3)
+                    HStack(alignment: .center, spacing: CD.Space.s12) {
+                        Emblem(kind: .profile, size: 48)
+                        VStack(alignment: .leading, spacing: CD.Space.s4) {
+                            Text(me.user.name)
+                                .cdFont(.plateTitle)
+                                .foregroundStyle(CD.ink)
+                            Text(me.user.email)
+                                .cdFont(.small)
+                                .foregroundStyle(CD.ink3)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                        }
                     }
                     CDHairline()
                     HStack(alignment: .firstTextBaseline) {
