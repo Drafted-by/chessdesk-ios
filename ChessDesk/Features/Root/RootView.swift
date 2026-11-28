@@ -27,7 +27,7 @@ struct RootView: View {
             .tag(AppSection.courses)
 
             NavigationStack {
-                GamesView()
+                GamesView().toolsEntry()
             }
             .tabItem { Label("Games", systemImage: "flag.checkered") }
             .tag(AppSection.games)
@@ -51,7 +51,7 @@ struct RootView: View {
             guard let route = DebugLaunch.route else { return }
             switch route.first {
             case "courses": section = .courses
-            case "games": section = .games
+            case "games", "tools", "analysis", "bestmove", "coordinates", "elo": section = .games
             case "account": section = .account
             case "course", "trainer":
                 guard route.count > 1 else { return }
