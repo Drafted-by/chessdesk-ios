@@ -5,10 +5,6 @@ import Testing
 
 nonisolated private let detailedSlugs = ["practical-caro-kann", "aggressive-1e4", "practical-london-system"]
 
-private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Value.self) throws -> Value {
-    try LiveAPI.decode(status: 200, data: FixtureAPI.data(name))
-}
-
 /// The captured answers of the site decode into the app's models.
 @Suite struct FixtureDecodingTests {
     @Test func catalogue() throws {
@@ -96,13 +92,6 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
 /// decode. A field the app treats as always present but the contract marks
 /// optional fails here.
 @Suite struct ContractTests {
-    private static func contract() throws -> [String: Any] {
-        let bundle = Bundle(for: ContractBundleToken.self)
-        let url = try #require(bundle.url(forResource: "openapi-v1", withExtension: "json", subdirectory: "contracts"))
-        let object = try JSONSerialization.jsonObject(with: Data(contentsOf: url))
-        return try #require(object as? [String: Any])
-    }
-
     /// `unknownEnums`: every enumerated string is one the contract does not
     /// list, as a value added on the site after the app was built.
     private static func example(_ schema: [String: Any], _ schemas: [String: Any], unknownEnums: Bool = false) -> Any {
@@ -137,7 +126,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
     }
 
     private func decodeExample<Value: Decodable>(_ name: String, as type: Value.Type, unknownEnums: Bool = false) throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
         let schema = try #require(schemas[name] as? [String: Any], "schema \(name) is in the contract")
@@ -186,7 +175,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
     /// uses, answer the schemas the app decodes, and the body the app sends
     /// is exactly what `BotGameRequest` describes.
     @Test func playRoutesAndBodiesAreTheContracts() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let paths = try #require(contract["paths"] as? [String: Any])
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
@@ -259,7 +248,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
     }
 
     @Test func contractServesEveryRouteTheAppCalls() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let paths = try #require(contract["paths"] as? [String: Any])
         let used = [
             "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/me",
@@ -300,7 +289,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
     }
 
     @Test func contractServesEveryHomeRouteTheAppCalls() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let paths = try #require(contract["paths"] as? [String: [String: Any]])
         let used: [(String, String)] = [
             ("get", "/api/v1/home"), ("get", "/api/v1/progress"), ("get", "/api/v1/progress/patterns/{key}"),
@@ -314,7 +303,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
 
     /// The home and settings request bodies hold every field the contract requires.
     @Test func homeRequestsCarryWhatTheContractRequires() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
         func keys(_ body: some Encodable) throws -> Set<String> {
@@ -337,7 +326,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
 
     /// The request bodies the app sends hold every field the contract requires.
     @Test func accountRequestsCarryWhatTheContractRequires() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
         func keys(_ body: some Encodable) throws -> Set<String> {
@@ -361,7 +350,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
 
     /// The puzzle and Woodpecker bodies carry what the contract requires.
     @Test func puzzleRequestsCarryWhatTheContractRequires() throws {
-        let contract = try Self.contract()
+        let contract = try Contract.document()
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
         func check(_ body: some Encodable, _ name: String) throws {
@@ -391,5 +380,3 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         #expect(guest.value(forHTTPHeaderField: "Authorization") == nil)
     }
 }
-
-private final class ContractBundleToken {}

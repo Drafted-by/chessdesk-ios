@@ -31,14 +31,6 @@ nonisolated final class StubLiveEngine: LiveAnalysing, @unchecked Sendable {
     }
 }
 
-/// Waits (up to a second) for something that happens on another task.
-@MainActor
-private func eventually(_ condition: () -> Bool) async {
-    for _ in 0..<200 where !condition() {
-        try? await Task.sleep(for: .milliseconds(5))
-    }
-}
-
 private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [String]) -> EngineEvaluation {
     EngineEvaluation(centipawns: cp, mate: mate, depth: depth, principalVariation: pv)
 }
@@ -62,7 +54,7 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
         model.start()
         #expect(engine.searches.map(\.fen) == [model.fen])
         model.stop()
-        await eventually { engine.ended.count == 1 }
+        await settled { engine.ended.count == 1 }
         #expect(engine.ended == [model.fen])
         model.back()
         #expect(engine.searches.count == 1)
@@ -145,11 +137,11 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
     @Test func playsAnEngineLine() async throws {
         let engine = StubLiveEngine()
         let model = board(engine)
-        await eventually { engine.searches.count == 1 }
+        await settled { engine.searches.count == 1 }
         engine.searches[0].continuation.yield(LiveSearchUpdate(depth: 12, lines: [
             evaluation(30, ["e2e4", "e7e5", "g1f3"]),
         ]))
-        await eventually { !model.engine.lines.isEmpty }
+        await settled { !model.engine.lines.isEmpty }
         let line = try #require(model.engine.best)
         model.play(line, count: 1)
         #expect(model.node.san == "e4")
@@ -186,18 +178,18 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
         let engine = StubLiveEngine()
         let model = LiveAnalysisModel(engine: engine)
         model.show(.start)
-        await eventually { engine.searches.count == 1 }
+        await settled { engine.searches.count == 1 }
         let e4 = try #require(Move(uci: "e2e4"))
         let after = try #require(Position.start.playing(e4))
         model.show(after)
-        await eventually { engine.ended.count == 1 }
+        await settled { engine.ended.count == 1 }
         #expect(engine.ended == [Position.start.fen])
         #expect(engine.searches.map(\.fen) == [Position.start.fen, after.fen])
 
         // A late report of the old position is not shown.
         engine.searches[0].continuation.yield(LiveSearchUpdate(depth: 20, lines: [evaluation(40, ["d2d4"])]))
         engine.searches[1].continuation.yield(LiveSearchUpdate(depth: 9, lines: [evaluation(-30, ["c7c5"])]))
-        await eventually { !model.lines.isEmpty }
+        await settled { !model.lines.isEmpty }
         #expect(model.depth == 9)
         #expect(model.lines.map(\.san) == [["c5"]])
         #expect(model.position == after)
@@ -209,24 +201,24 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
         // Black to move: the engine's scores are Black's.
         let position = try #require(Position(fen: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"))
         model.show(position)
-        await eventually { engine.searches.count == 1 }
+        await settled { engine.searches.count == 1 }
         let search = engine.searches[0]
         search.continuation.yield(LiveSearchUpdate(depth: 10, lines: [
             evaluation(-25, ["c7c5", "g1f3"]),
             evaluation(-31, ["e7e5"]),
             evaluation(nil, mate: -3, ["f7f6"]),
         ]))
-        await eventually { model.lines.count == 3 }
+        await settled { model.lines.count == 3 }
         #expect(model.lines.map(\.id) == [1, 2, 3])
         #expect(model.lines.map(\.scoreText) == ["+0.25", "+0.31", "#3"])
         #expect(model.lines[0].san == ["c5", "Nf3"])
         #expect(model.status == .searching)
 
         search.continuation.yield(LiveSearchUpdate(depth: 11, lines: [evaluation(-20, ["e7e5"])]))
-        await eventually { model.depth == 11 }
+        await settled { model.depth == 11 }
         #expect(model.lines.map(\.san) == [["e5"]])
         search.continuation.finish()
-        await eventually { model.status == .done }
+        await settled { model.status == .done }
         #expect(model.status == .done)
     }
 
@@ -237,12 +229,12 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
         model.show(.start)
         #expect(model.status == .off)
         model.isOn = true
-        await eventually { engine.searches.count == 1 }
+        await settled { engine.searches.count == 1 }
         model.stop()
-        await eventually { engine.ended.count == 1 }
+        await settled { engine.ended.count == 1 }
         #expect(engine.ended.count == 1)
         model.resume()
-        await eventually { engine.searches.count == 2 }
+        await settled { engine.searches.count == 2 }
         #expect(engine.searches.count == 2)
 
         let mated = try #require(Position(fen: "rnb1kbnr/pppp1ppp/8/4p3/6Pq/5P2/PPPPP2P/RNBQKBNR w KQkq - 1 3"))

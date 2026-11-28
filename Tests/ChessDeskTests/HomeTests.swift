@@ -228,10 +228,7 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
 
     /// Every kind the contract lists has a case here: a new one fails this test.
     @Test func theContractListsNoKindTheRouterDoesNotKnow() throws {
-        let bundle = Bundle(for: HomeTestsBundleToken.self)
-        let url = try #require(bundle.url(forResource: "openapi-v1", withExtension: "json", subdirectory: "contracts"))
-        let contract = try #require(try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any])
-        let schemas = try #require((contract["components"] as? [String: Any])?["schemas"] as? [String: Any])
+        let schemas = try Contract.schemas()
         let step = try #require(schemas["TodayStep"] as? [String: Any])
         let properties = try #require(step["properties"] as? [String: Any])
         let targetSchema = try #require((properties["target"] as? [String: Any])?["properties"] as? [String: Any])
@@ -589,5 +586,3 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
         #expect(server.sentReminders.last?.hour == nil)
     }
 }
-
-private final class HomeTestsBundleToken {}

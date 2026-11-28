@@ -370,11 +370,3 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
         .treeSpelled
     }
 }
-
-/// Waits for a condition that scheduled work brings about.
-func settled(_ done: () -> Bool) async {
-    for _ in 0..<600 where !done() {
-        await Task.yield()
-        try? await Task.sleep(for: .milliseconds(2))
-    }
-}

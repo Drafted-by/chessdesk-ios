@@ -4,10 +4,6 @@ import StockfishEngine
 import Testing
 @testable import ChessDesk
 
-private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Value.self) throws -> Value {
-    try LiveAPI.decode(status: 200, data: FixtureAPI.data(name))
-}
-
 nonisolated private let capturedStages = ["fight-for-the-centre", "develop-your-pieces", "castle-early"]
 
 @Suite struct PathFixtureTests {
@@ -143,13 +139,6 @@ private final class FixedJudge: MoveJudging, @unchecked Sendable {
     }
 }
 
-private func settle(until done: () -> Bool) async {
-    for _ in 0..<400 where !done() {
-        await Task.yield()
-        try? await Task.sleep(for: .milliseconds(1))
-    }
-}
-
 @Suite @MainActor struct PathTrainerTests {
     private func line(_ stage: String, _ index: Int) throws -> (TrainingLine, PathSession.Exercise, Side) {
         let session: PathSession = try fixture("path-session-\(stage)")
@@ -186,11 +175,11 @@ private func settle(until done: () -> Bool) async {
         model.onFinished = { reported = $0 }
         model.start()
         while model.phase == .guided {
-            await settle { model.isOurTurn || model.phase == .finished }
+            await settled { model.isOurTurn || model.phase == .finished }
             if model.phase == .finished { break }
             #expect(model.play(try expected(model)))
         }
-        await settle { model.phase == .finished }
+        await settled { model.phase == .finished }
         #expect(model.phase == .finished)
         #expect(reported.count == model.ourMoveCount)
         #expect(reported.allSatisfy { $0.grade == .good })
@@ -201,18 +190,18 @@ private func settle(until done: () -> Bool) async {
         #expect(model.flow == .solve)
         #expect(model.phase == .play)
         model.start()
-        await settle { model.isOurTurn }
+        await settled { model.isOurTurn }
         #expect(model.arrows.isEmpty)
         #expect(model.solvedStep == nil)
 
         #expect(model.play(try otherMove(model)))
         #expect(model.feedback == .missed)
         #expect(!model.noteRevealed, "the note explains the answer: it waits for the move")
-        await settle { !model.isBoardLocked }
+        await settled { !model.isBoardLocked }
 
         #expect(model.play(try expected(model)))
         #expect(model.solvedStep?.uci == model.steps.last { $0.mine }?.uci)
-        await settle { model.phase == .finished }
+        await settled { model.phase == .finished }
         #expect(model.grades.map(\.grade) == [.again])
     }
 
@@ -220,13 +209,13 @@ private func settle(until done: () -> Bool) async {
         let judge = FixedJudge(true)
         let model = try model("fight-for-the-centre", 1, judge: judge)
         model.start()
-        await settle { model.isOurTurn }
+        await settled { model.isOurTurn }
         let step = try #require(model.currentStep)
         let other = try otherMove(model)
         let fenAfterOther = try #require(model.position.playing(other)).fen
         #expect(model.play(other))
         #expect(model.isJudging)
-        await settle { model.phase == .finished }
+        await settled { model.phase == .finished }
         #expect(judge.questions == [.equal(fenAfterPlayed: fenAfterOther, fenAfterExpected: step.fenAfter)])
         #expect(model.solvedAnotherWay)
         #expect(model.grades.map(\.grade) == [.good])
@@ -235,10 +224,10 @@ private func settle(until done: () -> Bool) async {
     @Test func aRefusedMoveIsAMiss() async throws {
         let model = try model("fight-for-the-centre", 1, judge: FixedJudge(false))
         model.start()
-        await settle { model.isOurTurn }
+        await settled { model.isOurTurn }
         let home = model.position
         #expect(model.play(try otherMove(model)))
-        await settle { !model.isJudging && !model.isBoardLocked }
+        await settled { !model.isJudging && !model.isBoardLocked }
         #expect(model.position == home)
         #expect(model.feedback == .missed)
         #expect(!model.solvedAnotherWay)
@@ -250,11 +239,11 @@ private func settle(until done: () -> Bool) async {
         let model = try model("castle-early", 3, judge: judge)
         #expect(model.steps.last?.san.hasSuffix("#") == true)
         model.start()
-        await settle { model.isOurTurn }
+        await settled { model.isOurTurn }
         let other = try otherMove(model)
         let fenAfterOther = try #require(model.position.playing(other)).fen
         #expect(model.play(other))
-        await settle { !model.isJudging && !model.isBoardLocked }
+        await settled { !model.isJudging && !model.isBoardLocked }
         #expect(judge.questions == [.mate(fenAfterPlayed: fenAfterOther, within: 1)])
     }
 }

@@ -10,14 +10,6 @@ private func caroKannLine() throws -> (TrainingLine, Side) {
     return (try #require(session.lines.first), session.side)
 }
 
-/// Lets the model's scheduled work (the opponent's replies) run.
-private func settle(_ model: LineTrainerModel, until done: () -> Bool) async {
-    for _ in 0..<400 where !done() {
-        await Task.yield()
-        try? await Task.sleep(for: .milliseconds(1))
-    }
-}
-
 private func makeModel(review: [Int]? = nil) throws -> LineTrainerModel {
     let (line, side) = try caroKannLine()
     let model = LineTrainerModel(line: line, side: side, review: review)
@@ -46,14 +38,14 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
         #expect(model.side == .black)
         model.start()
         // White's first move plays by itself, then the board waits for us.
-        await settle(model) { model.isOurTurn }
+        await settled { model.isOurTurn }
         #expect(model.cursor == 1)
         #expect(model.arrows.count == 1)
         #expect(model.leadStep?.san == "c6")
         #expect(model.trailingStep?.san == "e4")
 
         while !model.guidedPassDone {
-            await settle(model) { model.isOurTurn || model.guidedPassDone }
+            await settled { model.isOurTurn || model.guidedPassDone }
             if model.guidedPassDone { break }
             #expect(model.play(try expectedMove(model)))
         }
@@ -65,11 +57,11 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
     @Test func guidedWrongMoveIsHeldThenTakenBackAndNeverGraded() async throws {
         let model = try makeModel()
         model.start()
-        await settle(model) { model.isOurTurn }
+        await settled { model.isOurTurn }
         let home = model.position
         #expect(model.play(try wrongMove(model)))
         #expect(model.feedback == .notThisOne)
-        await settle(model) { !model.isBoardLocked }
+        await settled { !model.isBoardLocked }
         #expect(model.position == home)
         #expect(model.verdict == nil)
         #expect(model.cursor == 1)
@@ -78,10 +70,10 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
     @Test func backReturnsToOurPreviousMove() async throws {
         let model = try makeModel()
         model.start()
-        await settle(model) { model.isOurTurn }
+        await settled { model.isOurTurn }
         #expect(!model.canGoBack)
         #expect(model.play(try expectedMove(model)))
-        await settle(model) { model.isOurTurn }
+        await settled { model.isOurTurn }
         #expect(model.cursor == 3)
         #expect(model.canGoBack)
         model.back()
@@ -97,14 +89,14 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
         model.startMemoryPass()
         var ourMove = 0
         while model.phase == .play {
-            await settle(model) { model.isOurTurn || model.phase == .finished }
+            await settled { model.isOurTurn || model.phase == .finished }
             if model.phase == .finished { break }
             #expect(model.arrows.isEmpty, "no arrow from memory")
             #expect(model.leadStep == nil, "no note from memory")
             if ourMove == 0 {
                 #expect(model.play(try wrongMove(model)))
                 #expect(model.feedback == .missed)
-                await settle(model) { !model.isBoardLocked }
+                await settled { !model.isBoardLocked }
                 #expect(model.leadStep != nil, "the note shows after a miss")
             }
             if ourMove == 1 {
@@ -116,7 +108,7 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
             #expect(model.play(try expectedMove(model)))
             ourMove += 1
         }
-        await settle(model) { model.phase == .finished }
+        await settled { model.phase == .finished }
         #expect(model.phase == .finished)
         #expect(reported.count == model.ourMoveCount)
         #expect(reported.prefix(2).allSatisfy { $0.grade == .again })
@@ -132,11 +124,11 @@ private func wrongMove(_ model: LineTrainerModel) throws -> Move {
         #expect(model.isReview)
         model.start()
         while model.phase == .play {
-            await settle(model) { model.isOurTurn || model.phase == .finished }
+            await settled { model.isOurTurn || model.phase == .finished }
             if model.phase == .finished { break }
             #expect(model.play(try expectedMove(model)))
         }
-        await settle(model) { model.phase == .finished }
+        await settled { model.phase == .finished }
         #expect(model.grades.map(\.uci) == [model.steps[3].uci])
         #expect(model.grades.first?.grade == .good)
     }

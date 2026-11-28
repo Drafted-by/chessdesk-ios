@@ -160,17 +160,6 @@ private func played(_ uci: String, in setup: BotGameSetup) throws -> BotGame {
     return game
 }
 
-/// Waits for something the model does on its own (the bot's reply, a save).
-private func eventually(_ timeout: Duration = .seconds(5), _ condition: () -> Bool) async -> Bool {
-    let clock = ContinuousClock()
-    let limit = clock.now + timeout
-    while clock.now < limit {
-        if condition() { return true }
-        try? await Task.sleep(for: .milliseconds(10))
-    }
-    return condition()
-}
-
 /// Answers a list of moves in order, then repeats the last.
 private func scripted(_ moves: String, kind: BotEngineKind = .maia) -> StubBotEngine {
     let script = Script(moves.split(separator: " ").map(String.init))
@@ -715,7 +704,7 @@ private actor Script {
         #expect(model.game.humanToMove)
         #expect(model.play(move("e2e4")))
         #expect(model.thinking)
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
         #expect(model.game.moves.map(\.san) == ["e4", "e5"])
         // Back to the player: not stuck on "thinking".
         #expect(!model.thinking)
@@ -735,13 +724,13 @@ private actor Script {
         // The bot is thinking: the player cannot move twice.
         #expect(!model.play(move("d2d4")))
         #expect(model.game.moves.count == 1)
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
     }
 
     @Test func letsTheBotMoveFirstWhenThePlayerIsBlack() async throws {
         let model = try model(setup(.black), engine: StubBotEngine(move: "d2d4"))
         model.begin()
-        #expect(await eventually { model.game.moves.count == 1 })
+        #expect(await settled { model.game.moves.count == 1 })
         #expect(model.game.moves[0].san == "d4")
         #expect(model.game.humanSide == .black)
     }
@@ -751,7 +740,7 @@ private actor Script {
         let model = try model(setup(.black, firstMove: "c2c4"), engine: StubBotEngine(move: "d2d4"))
         model.begin()
         model.begin()
-        #expect(await eventually { model.game.humanToMove })
+        #expect(await settled { model.game.humanToMove })
         #expect(model.game.moves.map(\.san) == ["c4"])
     }
 
@@ -759,7 +748,7 @@ private actor Script {
         let model = try model(setup(.white), engine: StubBotEngine(move: "a1a8"))
         model.begin()
         #expect(model.play(move("e2e4")))
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
         #expect(model.game.humanToMove)
     }
 
@@ -770,7 +759,7 @@ private actor Script {
         }
         let model = try model(setup(.black), engine: hung, timeout: .milliseconds(80))
         model.begin()
-        #expect(await eventually { model.game.moves.count == 1 })
+        #expect(await settled { model.game.moves.count == 1 })
         #expect(!model.thinking)
     }
 
@@ -803,7 +792,7 @@ private actor Script {
         try await Task.sleep(for: .milliseconds(300))
         #expect(model.game.moves.count == 1)
         model.begin()
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
     }
 
     @Test func theSoundOfEveryMoveIsAsked() async throws {
@@ -812,9 +801,9 @@ private actor Script {
         model.onMovePlayed = { captures.append($0) }
         model.begin()
         #expect(model.play(move("e2e4")))
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
         #expect(model.play(move("e4d5")))
-        #expect(await eventually { model.game.moves.count == 4 })
+        #expect(await settled { model.game.moves.count == 4 })
         #expect(captures == [false, false, true, true])
     }
 
@@ -830,7 +819,7 @@ private actor Script {
         for text in ["e2e4", "d1h5", "f1c4"] {
             let count = model.game.moves.count
             #expect(model.play(move(text)))
-            #expect(await eventually { model.game.moves.count == count + 2 })
+            #expect(await settled { model.game.moves.count == count + 2 })
             // The game is on the device after every move.
             #expect(store.current()?.moves.count == model.game.moves.count)
         }
@@ -862,11 +851,11 @@ private actor Script {
         let lost = try model(setup(.white), engine: scripted("e7e5 d8h4", kind: .stockfish), app: app)
         lost.begin()
         #expect(lost.play(move("f2f3")))
-        #expect(await eventually { lost.game.moves.count == 2 })
+        #expect(await settled { lost.game.moves.count == 2 })
         #expect(lost.play(move("g2g4")))
-        #expect(await eventually { lost.game.isOver })
+        #expect(await settled { lost.game.isOver })
         #expect(lost.game.outcome?.tone == .loss)
-        #expect(await eventually { lost.saving == .saved(gameID: "game-1") })
+        #expect(await settled { lost.saving == .saved(gameID: "game-1") })
         #expect(server.saved[0].result == "0-1")
         #expect(server.saved[0].engine == "stockfish")
 
@@ -875,10 +864,10 @@ private actor Script {
         for text in ["g1f3", "f3g1", "g1f3", "f3g1"] {
             let count = drawn.game.moves.count
             #expect(drawn.play(move(text)))
-            #expect(await eventually { drawn.game.moves.count == count + 2 })
+            #expect(await settled { drawn.game.moves.count == count + 2 })
         }
         #expect(drawn.game.termination == .repetition)
-        #expect(await eventually { drawn.saving == .saved(gameID: "game-2") })
+        #expect(await settled { drawn.saving == .saved(gameID: "game-2") })
         #expect(server.saved[1].result == "1/2-1/2")
     }
 
@@ -888,7 +877,7 @@ private actor Script {
         try await app.signIn(email: "ana@example.com", password: "x")
         let model = try model(setup(.black), engine: StubBotEngine(move: "e2e4"), app: app)
         model.begin()
-        #expect(await eventually { model.game.moves.count == 1 })
+        #expect(await settled { model.game.moves.count == 1 })
         model.resign()
         await model.waitForSave()
         #expect(model.saving == .saved(gameID: "game-1"))
@@ -904,7 +893,7 @@ private actor Script {
         let model = try model(setup(.white), engine: StubBotEngine(move: "e7e5"), app: app, store: store)
         model.begin()
         #expect(model.play(move("e2e4")))
-        #expect(await eventually { model.game.moves.count == 2 })
+        #expect(await settled { model.game.moves.count == 2 })
         model.resign()
         #expect(model.saving == .waitingForAccount)
         #expect(server.saved.isEmpty)
@@ -994,7 +983,7 @@ private actor Script {
         #expect(model.game.humanSide == .black)
         #expect(model.saving == .unavailable || model.saving == .idle)
         // The bot has White now and opens with its move.
-        #expect(await eventually { model.game.moves.count == 1 })
+        #expect(await settled { model.game.moves.count == 1 })
         #expect(model.game.moves[0].san == "c4")
         #expect(!model.game.isOver)
         model.resign()
@@ -1074,7 +1063,7 @@ private actor Script {
         let game = try #require(await offline.start(OpponentPick.bot(bot).setup(rating: 0, humanSide: .white, start: .standard, engines: served.engines)))
         game.begin()
         #expect(game.play(move("e2e4")))
-        #expect(await eventually { game.game.moves.count == 2 })
+        #expect(await settled { game.game.moves.count == 2 })
 
         // The connection is back: the server's answer replaces the kept one.
         server.catalogueFails = false
@@ -1151,7 +1140,7 @@ private actor Script {
         let game = try #require(await first.start(setup(.white)))
         game.begin()
         #expect(game.play(move("e2e4")))
-        #expect(await eventually { game.game.moves.count == 2 })
+        #expect(await settled { game.game.moves.count == 2 })
         #expect(game.play(move("g1f3")))
         // The screen goes away with the bot still to move.
         game.pause()
@@ -1167,7 +1156,7 @@ private actor Script {
         #expect(resumed.game.botToMove)
         #expect(resumed.engineKind == .stockfish)
         resumed.begin()
-        #expect(await eventually { resumed.game.moves.count == 4 })
+        #expect(await settled { resumed.game.moves.count == 4 })
         #expect(resumed.game.moves[3].san == "Nc6")
         #expect(resumed.game.humanToMove)
 
