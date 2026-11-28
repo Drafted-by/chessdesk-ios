@@ -40,6 +40,12 @@ nonisolated final class FixturePlayer: @unchecked Sendable {
         var courseReviewed = false
         var starred: [String: Bool] = [:]
         var reviewed: Set<String> = []
+        /// The puzzle rating of `player-home.json`, moved by each rated puzzle.
+        var puzzleRating = 1388
+        var puzzleAttempts = 14
+        var puzzlesSolved = 9
+        var servedPuzzle: String?
+        var seenPuzzles: Set<String> = []
     }
 
     private let lock = NSLock()
@@ -226,11 +232,81 @@ nonisolated final class FixturePlayer: @unchecked Sendable {
         return DueSummary(totalDue: total, decks: decks, top: top?.deck, learnNext: nil)
     }
 
+    // MARK: Puzzles
+
+    func puzzlePlayer(now: Date = .now) -> PuzzlePlayer {
+        let state = withState { $0 }
+        // A curve that ends on the rating: the last attempts, a few days apart.
+        let steps = [-52, -44, -51, -38, -30, -36, -22, -27, -14, -8, -15, 0]
+        let history = steps.enumerated().map { index, offset in
+            PuzzlePlayer.Point(
+                at: now.addingTimeInterval(-Double(steps.count - 1 - index) * 1.5 * 86400), rating: state.puzzleRating + offset,
+                solved: index == 0 || offset > steps[index - 1]
+            )
+        }
+        return PuzzlePlayer(
+            rating: state.puzzleRating, deviation: 62, solved: state.puzzlesSolved, attempts: state.puzzleAttempts,
+            last30Days: .init(attempts: state.puzzleAttempts, solved: state.puzzlesSolved), history: history
+        )
+    }
+
+    /// The puzzle of the free set nearest the player's rating that was not served yet.
+    func nextPuzzle(theme: String?, from puzzles: [Puzzle]) throws -> Puzzle {
+        let themed = puzzles.filter { puzzle in theme == nil || puzzle.themes.contains { $0.id == theme } }
+        return try withState { state in
+            let fresh = themed.filter { !state.seenPuzzles.contains($0.id) }
+            let pool = fresh.isEmpty ? themed : fresh
+            guard let next = pool.min(by: { abs($0.rating - state.puzzleRating) < abs($1.rating - state.puzzleRating) }) else {
+                throw APIError.server(status: 404, code: "not_found", message: "No puzzle with this theme.")
+            }
+            if fresh.isEmpty { state.seenPuzzles = [] }
+            state.seenPuzzles.insert(next.id)
+            state.servedPuzzle = next.id
+            return next
+        }
+    }
+
+    /// Once per served puzzle, as the server takes it.
+    func recordPuzzleAttempt(_ puzzleId: String, solved: Bool) throws -> PuzzleAttempt {
+        try withState { state in
+            guard state.servedPuzzle == puzzleId else {
+                throw APIError.server(status: 409, code: "request_failed", message: "This puzzle is no longer the one being solved.")
+            }
+            state.servedPuzzle = nil
+            let delta = solved ? 8 : -8
+            state.puzzleRating += delta
+            state.puzzleAttempts += 1
+            if solved { state.puzzlesSolved += 1 }
+            return PuzzleAttempt(rating: state.puzzleRating, delta: delta, deviation: 62, solved: state.puzzlesSolved)
+        }
+    }
+
+    /// Woodpecker asks for a settled puzzle rating first; the sample data
+    /// holds no sets, so building one is refused in its own words.
+    static let woodpeckerCalibration = 20
+    static let noWoodpeckerSets = APIError.server(
+        status: 422, code: "request_failed",
+        message: "Sample data holds no Woodpecker sets. Switch to a server in Developer settings to build one."
+    )
+
+    func woodpecker(themeGroups: [PuzzleThemeGroup]) -> WoodpeckerOverview {
+        let attempts = withState { $0.puzzleAttempts }
+        let calibrated = attempts >= Self.woodpeckerCalibration
+        return WoodpeckerOverview(
+            state: !calibrated ? .calibrate : premium ? .create : .discovery, premium: premium,
+            calibration: .init(attempts: attempts, required: Self.woodpeckerCalibration, calibrated: calibrated),
+            discovery: .init(used: false, size: 30, cycles: 2), completedSets: 0,
+            creation: .init(sizes: .init(min: 30, max: 300, default: 100, presets: [50, 100, 200]), themeGroups: themeGroups),
+            run: nil, history: []
+        )
+    }
+
     // MARK: Home
 
     func home() throws -> PlayerHome {
         var home: PlayerHome = try Self.load("player-home")
         let state = withState { $0 }
+        home.puzzleRating = Double(state.puzzleRating)
         if state.dailyDone {
             home.daily.doneToday = true
             home.daily.streak = doneStreak(home.daily.streak)

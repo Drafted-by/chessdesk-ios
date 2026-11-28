@@ -1,6 +1,6 @@
 {
   "_synthetic": "Written by hand from the contract (MistakeQueue). Invented games and opponents; the positions are checked legal by HomeFixtureTests.",
-  "counts": { "due": 5, "total": 23, "mastered": 6, "nextDueAt": null },
+  "counts": { "due": 9, "total": 23, "mastered": 6, "nextDueAt": null },
   "due": [
     { "id": "m-1", "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 24", "bestUci": "d1d8", "bestSan": "Rd8#", "playedSan": "h3", "classification": "BLUNDER", "winLoss": 48.2, "moveLabel": "24.", "gameId": "sample-game-1", "opponent": "marta_k", "streak": 0, "firstTime": true },
     { "id": "m-2", "fen": "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 31", "bestUci": "d5c7", "bestSan": "Nc7+", "playedSan": "Kd2", "classification": "MISTAKE", "winLoss": 18.5, "moveLabel": "31.", "gameId": "sample-game-31", "opponent": "endgame_eli", "streak": 1, "firstTime": false },

@@ -212,6 +212,45 @@ import Testing
         #expect(try await api.home(token: "t").today.map(\.key) == ["daily", "review", "path", "mistakes", "puzzles"])
     }
 
+    /// The figures of the home are those of the games, the mistakes and the puzzles.
+    @Test func theFiguresOfTheHomeAreThoseOfTheOtherScreens() async throws {
+        let api = api
+        let home = try await api.home(token: "t")
+        let week = player.sampleGames.filter { $0.summary.playedAt > Date.now.addingTimeInterval(-7 * 86400) }
+        #expect(home.stats.gamesThisWeek == week.count)
+        #expect(home.pulse.week.wins == week.count { $0.result == "win" })
+        #expect(home.pulse.week.draws == week.count { $0.result == "draw" })
+        #expect(home.pulse.week.losses == week.count { $0.result == "loss" })
+        #expect(home.pulse.activity.count == 84)
+        #expect(home.pulse.activityTotal == home.pulse.activity.reduce(0, +))
+        #expect(home.pulse.activityTotal == player.sampleGames.count { $0.summary.playedAt > Date.now.addingTimeInterval(-84 * 86400) })
+        let mistakes = try await api.mistakes(token: "t")
+        #expect(home.mistakes.due == mistakes.counts.due)
+        #expect(home.mistakes.total == mistakes.counts.total)
+        #expect(home.mistakes.mastered == mistakes.counts.mastered)
+
+        // Puzzles: one rating, on the home, in the hub and after a puzzle.
+        let overview = try await api.puzzleOverview(token: "t")
+        let rated = try #require(overview.player)
+        #expect(Double(rated.rating) == home.puzzleRating)
+        #expect(rated.history.last?.rating == rated.rating)
+        let puzzle = try await api.nextPuzzle(theme: nil, token: "t")
+        let attempt = try await api.recordPuzzleAttempt(puzzle.id, solved: true, ms: 4000, token: "t")
+        #expect(attempt.rating == rated.rating + attempt.delta)
+        #expect(try await api.home(token: "t").puzzleRating == Double(attempt.rating))
+        #expect(try await api.puzzleOverview(token: "t").player?.attempts == rated.attempts + 1)
+        // An answer for a puzzle that is not the one served is stale.
+        await #expect(throws: APIError.self) { _ = try await api.recordPuzzleAttempt(puzzle.id, solved: true, ms: 1, token: "t") }
+        #expect(try await api.nextPuzzle(theme: nil, token: "t").id != puzzle.id)
+
+        // Woodpecker waits for a settled rating, and says how far it is.
+        let woodpecker = try await api.woodpecker(token: "t")
+        #expect(woodpecker.state == .calibrate)
+        #expect(woodpecker.calibration.attempts == rated.attempts + 1)
+        #expect(try Contract.problems(in: try Contract.json(woodpecker), against: "WoodpeckerOverview") == [])
+        #expect(try Contract.problems(in: try Contract.json(try await api.puzzleOverview(token: "t")), against: "PuzzleOverview") == [])
+    }
+
     /// The fixtures the player answers with have the shapes of the contract.
     @Test func theSamplePlayerAnswersHaveTheShapesOfTheContract() async throws {
         let api = api

@@ -83,23 +83,26 @@ nonisolated extension LiveAPI: PuzzlesAPI {
     }
 }
 
-/// The free set and the visitor's summary are captured in `Fixtures/api-v1`;
-/// the rated side and Woodpecker need an account, as on the server.
+/// The free set and the visitor's summary are captured in `Fixtures/api-v1`.
+/// The rated side and Woodpecker need an account, as on the server: a guest
+/// is answered `unauthorized`, the sample player by `FixturePlayer`.
 nonisolated extension FixtureAPI: PuzzlesAPI {
-    private var accountNeeded: APIError {
-        .server(status: 401, code: "unauthorized", message: "Sign in to continue.")
+    private static func freeSet() throws -> FreePuzzles {
+        try LiveAPI.decode(status: 200, data: data("puzzles-free"))
     }
 
     func puzzleOverview(token: String?) async throws -> PuzzleOverview {
         try await Task.sleep(for: delay)
-        return try LiveAPI.decode(status: 200, data: Self.data("puzzles"))
+        let overview: PuzzleOverview = try LiveAPI.decode(status: 200, data: Self.data("puzzles"))
+        guard let player else { return overview }
+        return PuzzleOverview(player: player.puzzlePlayer(), themeGroups: overview.themeGroups, free: overview.free)
     }
 
     /// The captured answer is the whole free set; filtered here the way the
     /// server filters it (`selectPuzzles` in the site's `lib/puzzles/engine.ts`).
     func freePuzzles(theme: String?, band: String?, token: String?) async throws -> FreePuzzles {
         try await Task.sleep(for: delay)
-        let all: FreePuzzles = try LiveAPI.decode(status: 200, data: Self.data("puzzles-free"))
+        let all = try Self.freeSet()
         let range = band.flatMap { id in all.bands.first { $0.id == id } }
         let puzzles = all.puzzles.filter { puzzle in
             (theme == nil || puzzle.themes.contains { $0.id == theme })
@@ -108,18 +111,49 @@ nonisolated extension FixtureAPI: PuzzlesAPI {
         return FreePuzzles(puzzles: puzzles, themes: all.themes, bands: all.bands)
     }
 
-    func nextPuzzle(theme: String?, token: String) async throws -> Puzzle { throw accountNeeded }
-    func recordPuzzleAttempt(_ puzzleId: String, solved: Bool, ms: Int?, token: String) async throws -> PuzzleAttempt {
-        throw accountNeeded
+    func nextPuzzle(theme: String?, token: String) async throws -> Puzzle {
+        try await Task.sleep(for: delay)
+        return try signedInPlayer().nextPuzzle(theme: theme, from: try Self.freeSet().puzzles)
     }
 
-    func woodpecker(token: String) async throws -> WoodpeckerOverview { throw accountNeeded }
-    func createWoodpeckerSet(size: Int?, theme: String?, token: String) async throws -> WoodpeckerOverview { throw accountNeeded }
-    func closeWoodpeckerSet(_ status: WoodpeckerSetStatus, token: String) async throws -> WoodpeckerOverview { throw accountNeeded }
-    func recordWoodpeckerSolve(puzzleId: String, correct: Bool, ms: Int, token: String) async throws -> WoodpeckerStep {
-        throw accountNeeded
+    func recordPuzzleAttempt(_ puzzleId: String, solved: Bool, ms: Int?, token: String) async throws -> PuzzleAttempt {
+        try await Task.sleep(for: delay)
+        return try signedInPlayer().recordPuzzleAttempt(puzzleId, solved: solved)
     }
-    func startWoodpeckerCycle(token: String) async throws -> WoodpeckerRun { throw accountNeeded }
-    func retireWoodpeckerPuzzle(_ puzzleId: String, token: String) async throws -> WoodpeckerStep { throw accountNeeded }
-    func woodpeckerReport(token: String) async throws -> WoodpeckerReport { throw accountNeeded }
+
+    func woodpecker(token: String) async throws -> WoodpeckerOverview {
+        try await Task.sleep(for: delay)
+        let overview: PuzzleOverview = try LiveAPI.decode(status: 200, data: Self.data("puzzles"))
+        return try signedInPlayer().woodpecker(themeGroups: overview.themeGroups)
+    }
+
+    func createWoodpeckerSet(size: Int?, theme: String?, token: String) async throws -> WoodpeckerOverview {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
+
+    func closeWoodpeckerSet(_ status: WoodpeckerSetStatus, token: String) async throws -> WoodpeckerOverview {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
+
+    func recordWoodpeckerSolve(puzzleId: String, correct: Bool, ms: Int, token: String) async throws -> WoodpeckerStep {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
+
+    func startWoodpeckerCycle(token: String) async throws -> WoodpeckerRun {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
+
+    func retireWoodpeckerPuzzle(_ puzzleId: String, token: String) async throws -> WoodpeckerStep {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
+
+    func woodpeckerReport(token: String) async throws -> WoodpeckerReport {
+        _ = try signedInPlayer()
+        throw FixturePlayer.noWoodpeckerSets
+    }
 }

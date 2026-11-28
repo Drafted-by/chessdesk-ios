@@ -81,7 +81,9 @@ struct RootView: View {
         /// - `today`, `learn` (or `courses`), `play`, `train`, `games`: a section.
         /// - `you` (or `account`), `account/signin`, `account/signup`,
         ///   `account/delete`, `boardsettings`; `progress`, `daily`,
-        ///   `drill/<key>` for a signed-in player.
+        ///   `drill/<key>`, `game/<id>` and `deck/<deck>` (the review of a
+        ///   deck: `deck/course:<slug>`, `deck/repertoire:<id>`) for a
+        ///   signed-in player.
         /// - `course/<slug>`, `trainer/<slug>`, `path`, `stage/<stage slug>`,
         ///   `premium`, `repertoires`, `repertoires/new`, `repertoires/<id>`,
         ///   `repertoires/<id>/train`, `repertoires/<id>/games`.
@@ -114,7 +116,7 @@ struct RootView: View {
                 if let tool = ToolRoute(rawValue: first) { navigator.open(AppRoute.tool(tool), in: .games) }
             case "you", "account": navigator.open(AppRoute.you, in: .today)
             case "boardsettings": debugBoardSettings = true
-            case "progress", "daily", "drill", "mistakes":
+            case "progress", "daily", "drill", "mistakes", "deck", "game":
                 // These need the player: wait for the session to be restored.
                 for _ in 0..<100 where !app.isSignedIn { try? await Task.sleep(for: .milliseconds(50)) }
                 guard app.isSignedIn else {
@@ -125,6 +127,8 @@ struct RootView: View {
                 case "progress": home.open(.progress)
                 case "daily": home.open(.daily)
                 case "mistakes": home.open(.mistakes)
+                case "deck": if route.count > 1, let review = HomeRouter.deck(route[1]) { home.open(review) }
+                case "game": if route.count > 1 { home.open(.game(id: route[1])) }
                 default: if route.count > 1 { home.open(.patternDrill(key: route[1])) }
                 }
             default: break

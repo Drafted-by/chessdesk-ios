@@ -202,7 +202,7 @@ nonisolated struct PlayerHome: Codable, Hashable, Sendable {
     let mistakes: Mistakes
     var today: [TodayStep]
     var daily: Daily
-    let puzzleRating: Double?
+    var puzzleRating: Double?
     let pulse: Pulse
     var progress: HomeProgress?
     var onboarding: Onboarding

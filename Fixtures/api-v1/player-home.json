@@ -1,7 +1,7 @@
 {
   "_synthetic": "Written by hand from the contract (Home), following lib/player/today.ts for the plan. Invented player, games and figures. See FixturePlayer.swift.",
   "totalGames": 412,
-  "stats": { "gamesThisWeek": 13, "accuracy": 71.4, "errorsPerGame": 2.3, "reviewedGames": 38 },
+  "stats": { "gamesThisWeek": 3, "accuracy": 71.4, "errorsPerGame": 2.3, "reviewedGames": 38 },
   "toReview": { "gameId": "sample-game-1", "opponent": "marta_k", "result": "L", "playedAt": "2026-11-27T20:41:00.000Z" },
   "mistakes": { "due": 9, "total": 23, "mastered": 6 },
   "today": [
@@ -19,10 +19,10 @@
   },
   "puzzleRating": 1388,
   "pulse": {
-    "activity": [0,1,0,2,0,0,3, 1,0,0,2,4,0,1, 0,0,2,1,0,3,2, 1,0,0,0,2,5,1, 3,2,0,1,0,4,2, 0,1,2,0,3,1,0, 2,0,1,3,0,2,4, 1,2,0,0,1,3,2, 0,4,2,1,0,2,3, 1,0,2,3,1,0,2, 3,1,2,0,4,1,2, 2,3,0,1,2,4,1],
-    "activityTotal": 117,
+    "activity": [0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1],
+    "activityTotal": 35,
     "streak": 6,
-    "week": { "wins": 7, "draws": 1, "losses": 5 },
+    "week": { "wins": 2, "draws": 0, "losses": 1 },
     "rating": {
       "timeClass": "blitz", "current": 1342, "delta": 38,
       "series": [1298,1304,1296,1301,1310,1305,1299,1308,1315,1311,1306,1312,1320,1317,1309,1314,1322,1318,1326,1321,1315,1324,1330,1327,1333,1329,1336,1331,1338,1342],
