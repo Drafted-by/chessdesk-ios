@@ -21,21 +21,8 @@ struct PuzzlesHubView: View {
         .navigationBarTitleDisplayMode(.inline)
         .cdPage()
         .sheet(item: $signIn) { SignInView(mode: $0) }
-        .navigationDestination(for: PuzzlesRoute.self) { route in
-            switch route {
-            case .free: PuzzleTrainerScreen(source: .free)
-            case .rated: PuzzleTrainerScreen(source: .rated)
-            case .woodpecker: WoodpeckerScreen()
-            }
-        }
         #if DEBUG
-            .navigationDestination(item: $debugRoute) { route in
-                switch route {
-                case .free: PuzzleTrainerScreen(source: .free)
-                case .rated: PuzzleTrainerScreen(source: .rated)
-                case .woodpecker: WoodpeckerScreen()
-                }
-            }
+            .navigationDestination(item: $debugRoute) { $0.screen }
             .onAppear {
                 guard !PuzzlesDebug.handled else { return }
                 PuzzlesDebug.handled = true
@@ -49,7 +36,7 @@ struct PuzzlesHubView: View {
             VStack(alignment: .leading, spacing: CD.Space.s24) {
                 if let player = overview.player {
                     RatingSummary(player: player)
-                    NavigationLink(value: PuzzlesRoute.rated) {
+                    NavigationLink { PuzzlesRoute.rated.screen } label: {
                         Text("Solve rated puzzles")
                     }
                     .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
@@ -63,7 +50,7 @@ struct PuzzlesHubView: View {
                 }
                 woodpecker
                 if overview.player == nil {
-                    AccountPitch(signIn: $signIn, leads: false)
+                    AccountPitch(signIn: $signIn, title: "What an account adds", leads: false)
                 }
             }
             .puzzlesPage()
@@ -80,7 +67,7 @@ struct PuzzlesHubView: View {
                 .cdFont(.lede)
                 .foregroundStyle(CD.ink2)
                 .fixedSize(horizontal: false, vertical: true)
-            NavigationLink(value: PuzzlesRoute.free) {
+            NavigationLink { PuzzlesRoute.free.screen } label: {
                 Text("Solve free puzzles")
             }
             .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
@@ -164,7 +151,7 @@ private struct EntryRow: View {
     let route: PuzzlesRoute
 
     var body: some View {
-        NavigationLink(value: route) {
+        NavigationLink { route.screen } label: {
             HStack(spacing: CD.Space.s12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)

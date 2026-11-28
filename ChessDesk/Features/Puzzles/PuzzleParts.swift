@@ -5,6 +5,15 @@ import SwiftUI
 /// Routes of the puzzles section.
 enum PuzzlesRoute: Hashable {
     case free, rated, woodpecker
+
+    /// Pushed as a view, not a value, so a link works in any stack the hub is in.
+    @ViewBuilder var screen: some View {
+        switch self {
+        case .free: PuzzleTrainerScreen(source: .free)
+        case .rated: PuzzleTrainerScreen(source: .rated)
+        case .woodpecker: WoodpeckerScreen()
+        }
+    }
 }
 
 // MARK: Trainer pieces

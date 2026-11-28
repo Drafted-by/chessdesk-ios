@@ -13,7 +13,15 @@ struct PuzzleTrainerScreen: View {
     var body: some View {
         Group {
             if source == .rated, !app.isSignedIn {
-                ScrollView { AccountPitch(signIn: $signIn).puzzlesPage() }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: CD.Space.s16) {
+                        AccountPitch(signIn: $signIn, title: "Rated puzzles need an account")
+                        NavigationLink { PuzzlesRoute.free.screen } label: { Text("Solve free puzzles instead") }
+                            .buttonStyle(.cd(.ghost))
+                            .padding(.leading, -10)
+                    }
+                    .puzzlesPage()
+                }
             } else if let model {
                 PuzzleTrainerContent(model: model, signIn: $signIn)
             } else {
@@ -22,6 +30,8 @@ struct PuzzleTrainerScreen: View {
         }
         .navigationTitle(source == .free ? "Free puzzles" : "Rated puzzles")
         .navigationBarTitleDisplayMode(.inline)
+        // A working screen: the board and its actions need the whole height.
+        .toolbar(.hidden, for: .tabBar)
         .cdPage()
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .task(id: app.accountRevision) {
@@ -51,7 +61,7 @@ private struct PuzzleTrainerContent: View {
             }
         case .empty, .ready:
             ScrollView {
-                VStack(alignment: .leading, spacing: CD.Space.s16) {
+                VStack(alignment: .leading, spacing: CD.Space.s12) {
                     filters
                     stats
                     if model.phase == .empty {
@@ -61,7 +71,7 @@ private struct PuzzleTrainerContent: View {
                     }
                     footer
                 }
-                .padding(.top, CD.Space.s8)
+                .padding(.top, CD.Space.s4)
                 .padding(.bottom, CD.Space.s40)
                 .frame(maxWidth: 720)
                 .frame(maxWidth: .infinity)
@@ -73,32 +83,29 @@ private struct PuzzleTrainerContent: View {
 
     @ViewBuilder private var filters: some View {
         if model.source == .free {
-            VStack(alignment: .leading, spacing: 0) {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: CD.Space.s6) {
-                        FilterChip(label: "All themes", selected: model.theme == nil) {
-                            Task { await model.setFilters(theme: nil, band: model.band) }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: CD.Space.s6) {
+                    Menu {
+                        Picker("Difficulty", selection: Binding(
+                            get: { model.band ?? "" },
+                            set: { value in Task { await model.setFilters(theme: model.theme, band: value.isEmpty ? nil : value) } }
+                        )) {
+                            Text("Any difficulty").tag("")
+                            ForEach(model.bands) { band in Text(band.label).tag(band.id) }
                         }
-                        ForEach(model.freeThemes) { theme in
-                            FilterChip(label: theme.label, selected: model.theme == theme.id) {
-                                Task { await model.setFilters(theme: theme.id, band: model.band) }
-                            }
+                    } label: {
+                        FilterMenuLabel(text: model.bands.first { $0.id == model.band }?.label ?? "Any difficulty")
+                    }
+                    .accessibilityLabel("Difficulty")
+                    FilterChip(label: "All themes", selected: model.theme == nil) {
+                        Task { await model.setFilters(theme: nil, band: model.band) }
+                    }
+                    ForEach(model.freeThemes) { theme in
+                        FilterChip(label: theme.label, selected: model.theme == theme.id) {
+                            Task { await model.setFilters(theme: theme.id, band: model.band) }
                         }
                     }
-                    .pageGutter()
                 }
-                Menu {
-                    Picker("Difficulty", selection: Binding(
-                        get: { model.band ?? "" },
-                        set: { value in Task { await model.setFilters(theme: model.theme, band: value.isEmpty ? nil : value) } }
-                    )) {
-                        Text("Any difficulty").tag("")
-                        ForEach(model.bands) { band in Text(band.label).tag(band.id) }
-                    }
-                } label: {
-                    FilterMenuLabel(text: model.bands.first { $0.id == model.band }?.label ?? "Any difficulty")
-                }
-                .accessibilityLabel("Difficulty")
                 .pageGutter()
             }
         } else if !model.themeGroups.isEmpty {
@@ -295,13 +302,14 @@ private struct FlowThemes: View {
 /// What an account adds to puzzles, with the two ways in.
 struct AccountPitch: View {
     @Binding var signIn: SignInView.Mode?
+    var title = "What an account adds"
     /// False when the screen's primary action is elsewhere.
     var leads = true
 
     var body: some View {
         CDCard(tone: .raised, padding: CD.Space.s20) {
             VStack(alignment: .leading, spacing: CD.Space.s12) {
-                Text("Your rating, your level")
+                Text(title)
                     .cdFont(.plateTitle)
                     .foregroundStyle(CD.ink)
                 VStack(alignment: .leading, spacing: CD.Space.s8) {

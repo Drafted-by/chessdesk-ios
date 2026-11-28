@@ -18,7 +18,7 @@ struct WoodpeckerScreen: View {
                             .cdFont(.lede)
                             .foregroundStyle(CD.ink2)
                             .fixedSize(horizontal: false, vertical: true)
-                        AccountPitch(signIn: $signIn)
+                        AccountPitch(signIn: $signIn, title: "Woodpecker needs an account")
                     }
                     .puzzlesPage()
                 }
@@ -30,6 +30,7 @@ struct WoodpeckerScreen: View {
         }
         .navigationTitle("Woodpecker")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .cdPage()
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .task(id: app.accountRevision) {
@@ -173,7 +174,7 @@ private struct WoodpeckerEntry: View {
             }
             .accessibilityElement(children: .combine)
             .accessibilityLabel("\(calibration.attempts) of \(calibration.required) rated puzzles")
-            NavigationLink(value: PuzzlesRoute.rated) { Text("Solve rated puzzles") }
+            NavigationLink { PuzzlesRoute.rated.screen } label: { Text("Solve rated puzzles") }
                 .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
                 .padding(.top, CD.Space.s4)
         }

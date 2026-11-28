@@ -225,8 +225,8 @@ final class WoodpeckerModel {
 
     /// Retires a flawed puzzle from this cycle and every later one.
     func retire() async {
-        guard let id = puzzle?.id ?? run?.expectedPuzzleId, !isBusy else { return }
-        resolved = true
+        // Never once the puzzle is answered: its solve is on its way.
+        guard let id = puzzle?.id ?? run?.expectedPuzzleId, !isBusy, !ended else { return }
         await perform {
             let step = try await self.api.retireWoodpeckerPuzzle(id, token: self.requireToken())
             self.apply(step.run)
