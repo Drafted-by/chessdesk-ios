@@ -98,15 +98,18 @@ nonisolated struct BotGameSetup: Codable, Hashable, Sendable {
     var humanSide: Side
     /// The move the bot likes to open with as White, in UCI.
     var firstMove: String?
-    /// 0 (rock-solid) to 1 (wild); nil falls back to a mid-range value.
-    var wildness: Double?
+    /// How loosely Maia samples for this opponent, as the catalogue gave it
+    /// when the game was set up.
+    var temperature: Double
+    /// The `UCI_Elo` Stockfish is held to for this opponent, from the catalogue.
+    var stockfishElo: Int
+    /// True for "build your own opponent": its rating is sent when saving.
+    var isCustom = false
     var start = BotStart.standard
 
-    static let customBotID = "custom"
-
-    /// How loosely the engine samples: wilder bots stray further from its
-    /// first choice. The site's `0.4 + (wildness ?? 0.6)`.
-    var temperature: Double { 0.4 + (wildness ?? 0.6) * 1.0 }
+    var strength: BotStrength {
+        BotStrength(rating: rating, temperature: temperature, stockfishElo: stockfishElo)
+    }
 }
 
 /// A game against a bot: the moves, whose turn it is, and how it ended. A
@@ -220,21 +223,17 @@ nonisolated struct BotGame: Hashable, Sendable {
         ])
     }
 
-    /// What the server stores for a finished game (`saveBotGameAction`).
+    /// What `POST /api/v1/play/games` takes for a finished game. The server
+    /// reads the bot's name and rating from its catalogue; only the custom
+    /// bot's rating is the player's choice, so only that one is sent.
     func saveRequest(humanName: String, engine: BotEngineKind) -> SaveBotGameRequest {
-        let humanIsWhite = humanSide == .white
-        return SaveBotGameRequest(
-            pgn: pgn(humanName: humanName),
-            result: result ?? "1/2-1/2",
+        SaveBotGameRequest(
+            bot: setup.botID,
+            rating: setup.isCustom ? setup.rating : nil,
             userColor: humanSide.rawValue,
-            botRating: setup.rating,
-            botName: setup.botName,
+            result: result ?? "1/2-1/2",
             engine: engine.rawValue,
-            ply: game.moves.count,
-            whiteName: humanIsWhite ? humanName : setup.botName,
-            blackName: humanIsWhite ? setup.botName : humanName,
-            whiteElo: humanIsWhite ? nil : setup.rating,
-            blackElo: humanIsWhite ? setup.rating : nil
+            pgn: pgn(humanName: humanName)
         )
     }
 }

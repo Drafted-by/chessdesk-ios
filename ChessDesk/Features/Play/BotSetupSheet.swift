@@ -24,7 +24,7 @@ struct BotSetupSheet: View {
         self.model = model
         self.started = started
         if case let .custom(custom) = pick {
-            _rating = State(initialValue: Double(custom.defaultRating))
+            _rating = State(initialValue: Double(custom.rating.default))
         } else {
             _rating = State(initialValue: 0)
         }
@@ -41,7 +41,7 @@ struct BotSetupSheet: View {
     }
 
     private var name: String { bot?.name ?? custom?.name ?? "" }
-    private var avatar: String { bot?.avatar ?? custom?.avatar ?? "" }
+    private var avatar: String { bot?.portraitUrl ?? custom?.portraitUrl ?? "" }
     private var shownRating: Int { bot?.rating ?? Int(rating) }
 
     /// What the pasted position parses to; nil while the field is empty.
@@ -51,7 +51,7 @@ struct BotSetupSheet: View {
 
     /// What stands between this player and this bot, as the server lists it.
     private var gate: BotAccess? {
-        switch bot?.access ?? .free {
+        switch pick.access {
         case .free: nil
         case .account: app.isSignedIn ? nil : .account
         case .premium: app.hasPremium ? nil : .premium
@@ -145,16 +145,16 @@ struct BotSetupSheet: View {
             }
             Slider(
                 value: $rating,
-                in: Double(custom.minRating)...Double(custom.maxRating),
-                step: Double(max(1, custom.step))
+                in: Double(custom.rating.min)...Double(max(custom.rating.min, custom.rating.max)),
+                step: Double(max(1, custom.rating.step))
             )
             .tint(CD.accent)
             .accessibilityLabel("Bot rating")
             .accessibilityValue("\(Int(rating))")
             HStack {
-                Text(CDFormat.count(custom.minRating))
+                Text(CDFormat.count(custom.rating.min))
                 Spacer()
-                Text(CDFormat.count(custom.maxRating))
+                Text(CDFormat.count(custom.rating.max))
             }
             .cdFont(.meta)
             .foregroundStyle(CD.ink4)
@@ -270,7 +270,8 @@ struct BotSetupSheet: View {
     private func start() {
         var chosen = BotStart.standard
         if case let .success(parsed) = parsedStart { chosen = parsed }
-        let setup = pick.setup(rating: Int(rating), humanSide: side.resolved(), start: chosen)
+        guard let engines = model.catalogue?.engines else { return }
+        let setup = pick.setup(rating: Int(rating), humanSide: side.resolved(), start: chosen, engines: engines)
         Task {
             if let game = await model.start(setup) { started(game) }
         }

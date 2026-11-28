@@ -19,9 +19,23 @@ nonisolated enum BotEngineError: Error, Equatable {
 nonisolated protocol BotEngine: Sendable {
     var kind: BotEngineKind { get }
     /// A move in UCI ("e2e4", "e7e8q") for the side to move in `fen`, played
-    /// at `rating`. `temperature` loosens or tightens Maia's sampling; nil
-    /// leaves the engine's own. Stockfish ignores it.
-    func bestMove(fen: String, rating: Int, temperature: Double?) async throws -> String
+    /// at `strength`.
+    func bestMove(fen: String, strength: BotStrength) async throws -> String
+}
+
+/// How strongly a bot plays, as the catalogue states it. Each engine reads
+/// what concerns it.
+nonisolated struct BotStrength: Codable, Hashable, Sendable {
+    /// The rating Maia plays at.
+    var rating: Int
+    /// How loosely Maia samples; nil leaves the catalogue's default.
+    var temperature: Double?
+    /// The `UCI_Elo` Stockfish is held to.
+    var stockfishElo: Int
+
+    /// The warm-up move the site asks of Maia before trusting it with a game
+    /// (the start position at 1500: `docs/api/README.md`, "Which engine").
+    static let warmup = BotStrength(rating: 1500, temperature: nil, stockfishElo: 1500)
 }
 
 /// Runs `work`, but gives up after `duration`: the caller gets `timedOut` and
@@ -68,31 +82,43 @@ private nonisolated final class DeadlineRace<Value: Sendable>: @unchecked Sendab
 }
 
 /// Picks the engine of a game, as the site does (`lib/play/engine/select.ts`):
-/// Maia when it loads and answers a first move quickly enough, Stockfish held
-/// to a rating otherwise. A game always gets an engine that works.
+/// the engines are tried in the catalogue's order. Maia plays when it loads
+/// and answers a first move within its two budgets; otherwise Stockfish, held
+/// to a rating, plays the whole game. A game always gets an engine that works.
 nonisolated struct BotEngineSelection: Sendable {
     static let startFEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
+    /// The catalogue's `engines.order`.
+    var order: [BotEngineKind] = [.maia, .stockfish]
     /// Loads Maia (the network may have to be downloaded first).
     var makeMaia: @Sendable () async throws -> any BotEngine
     var makeStockfish: @Sendable () async throws -> any BotEngine
-    /// The site's budgets: 20 s to load the network, 1.5 s for a first move.
-    var loadBudget: Duration = .seconds(20)
-    var warmupBudget: Duration = .milliseconds(1500)
+    /// The catalogue's `maia.initBudgetMs` and `maia.warmupBudgetMs`.
+    var loadBudget: Duration
+    var warmupBudget: Duration
 
     func make() async throws -> any BotEngine {
-        do {
-            let makeMaia = makeMaia
-            let maia = try await withDeadline(loadBudget) { try await makeMaia() }
-            _ = try await withDeadline(warmupBudget) {
-                try await maia.bestMove(fen: Self.startFEN, rating: 1500, temperature: nil)
+        var failure: any Error = BotEngineError.unavailable("the catalogue lists no engine this app runs")
+        for kind in order {
+            do {
+                switch kind {
+                case .maia:
+                    let makeMaia = makeMaia
+                    let maia = try await withDeadline(loadBudget) { try await makeMaia() }
+                    _ = try await withDeadline(warmupBudget) {
+                        try await maia.bestMove(fen: Self.startFEN, strength: .warmup)
+                    }
+                    return maia
+                case .stockfish:
+                    return try await makeStockfish()
+                }
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                // This engine could not load or is too slow here: the next one plays.
+                failure = error
             }
-            return maia
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch {
-            // Maia could not load or is too slow here: Stockfish plays.
         }
-        return try await makeStockfish()
+        throw failure
     }
 }

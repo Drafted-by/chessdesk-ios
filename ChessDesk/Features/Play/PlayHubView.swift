@@ -79,6 +79,12 @@ struct PlayHubView: View {
                         .frame(maxWidth: CD.readingWidth, alignment: .leading)
                 }
 
+                if model.isFromCache {
+                    Text("No connection: these are the bots as you last loaded them. You can still play.")
+                        .cdFont(.small)
+                        .foregroundStyle(CD.ink3)
+                        .frame(maxWidth: CD.readingWidth, alignment: .leading)
+                }
                 if let gameID = model.claimedGameID {
                     claimedRow(gameID, model)
                 }
@@ -131,8 +137,12 @@ struct PlayHubView: View {
     }
 
     private func lede(_ catalogue: PlayCatalogue) -> String {
-        let range = "from \(CDFormat.count(catalogue.custom.minRating)) to \(CDFormat.count(catalogue.custom.maxRating))"
-        let saving = !app.api.savesBotGames ? "" : app.isSignedIn ? " Every game is saved for review." : " Sign in to save your games."
+        let range = "from \(CDFormat.count(catalogue.custom.rating.min)) to \(CDFormat.count(catalogue.custom.rating.max))"
+        // The server says whether this session may save (`canSaveGames`); a
+        // catalogue kept from an earlier visit cannot speak for today's.
+        let saving = !app.api.savesBotGames ? ""
+            : !app.isSignedIn ? " Sign in to save your games."
+            : catalogue.canSaveGames && model?.isFromCache == false ? " Every game is saved for review." : ""
         return "Human-like opponents \(range). Pick one, then a color.\(saving)"
     }
 
@@ -152,7 +162,7 @@ struct PlayHubView: View {
                         Text("Build your own opponent")
                             .cdFont(.cardTitle)
                             .foregroundStyle(CD.ink)
-                        Text("Set the exact rating, from \(CDFormat.count(custom.minRating)) to \(CDFormat.count(custom.maxRating)), and start from any position.")
+                        Text("Set the exact rating, from \(CDFormat.count(custom.rating.min)) to \(CDFormat.count(custom.rating.max)), and start from any position.")
                             .cdFont(.small)
                             .foregroundStyle(CD.ink3)
                             .multilineTextAlignment(.leading)
@@ -203,11 +213,14 @@ struct PlayHubView: View {
                 return
             }
             let side: Side = UserDefaults.standard.string(forKey: "CDPlaySide") == "black" ? .black : .white
-            let chosen: OpponentPick? = route[1] == BotGameSetup.customBotID
+            let chosen: OpponentPick? = route[1] == catalogue.custom.id
                 ? .custom(catalogue.custom)
                 : catalogue.bots.first { $0.id == route[1] }.map(OpponentPick.bot)
             guard let chosen else { return }
-            let setup = chosen.setup(rating: PlayDebug.customRating ?? catalogue.custom.defaultRating, humanSide: side, start: .standard)
+            let setup = chosen.setup(
+                rating: PlayDebug.customRating ?? catalogue.custom.rating.default, humanSide: side, start: .standard,
+                engines: catalogue.engines
+            )
             if let game = await model.start(setup) { open = OpenGame(model: game) }
         }
     #endif
@@ -219,7 +232,7 @@ private struct BotCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            BotPortrait(avatar: bot.avatar, name: bot.name)
+            BotPortrait(avatar: bot.portraitUrl, name: bot.name)
                 .aspectRatio(1, contentMode: .fit)
                 .overlay(alignment: .topTrailing) {
                     if bot.access != .free {

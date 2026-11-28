@@ -31,23 +31,36 @@ nonisolated enum OpponentPick: Hashable, Identifiable, Sendable {
     var id: String {
         switch self {
         case let .bot(bot): bot.id
-        case .custom: BotGameSetup.customBotID
+        case let .custom(custom): custom.id
         }
     }
 
-    /// What a game against this opponent is set up with. A character brings
-    /// its opening move and its wildness; a built opponent has neither.
-    func setup(rating: Int, humanSide: Side, start: BotStart) -> BotGameSetup {
+    var access: BotAccess {
+        switch self {
+        case let .bot(bot): bot.access
+        case let .custom(custom): custom.access
+        }
+    }
+
+    /// What a game against this opponent is set up with, every number from
+    /// the catalogue. A character brings its rating, its opening move, its
+    /// temperature and its Stockfish Elo. A built opponent plays at the
+    /// rating asked (held to its range), with the custom temperature, no
+    /// opening move, and that rating held to what Stockfish accepts.
+    func setup(rating: Int, humanSide: Side, start: BotStart, engines: PlayEngines) -> BotGameSetup {
         switch self {
         case let .bot(bot):
-            BotGameSetup(
-                botID: bot.id, botName: bot.name, rating: bot.rating, avatar: bot.avatar, country: bot.country,
-                humanSide: humanSide, firstMove: bot.firstMove, wildness: bot.wildness, start: start
+            return BotGameSetup(
+                botID: bot.id, botName: bot.name, rating: bot.rating, avatar: bot.portraitUrl, country: bot.country,
+                humanSide: humanSide, firstMove: bot.firstMove, temperature: bot.temperature,
+                stockfishElo: bot.stockfishElo, start: start
             )
         case let .custom(custom):
-            BotGameSetup(
-                botID: BotGameSetup.customBotID, botName: custom.name, rating: rating, avatar: custom.avatar, country: nil,
-                humanSide: humanSide, firstMove: nil, wildness: custom.wildness, start: start
+            let rating = max(custom.rating.min, min(max(custom.rating.min, custom.rating.max), rating))
+            return BotGameSetup(
+                botID: custom.id, botName: custom.name, rating: rating, avatar: custom.portraitUrl, country: nil,
+                humanSide: humanSide, firstMove: nil, temperature: custom.temperature,
+                stockfishElo: engines.stockfish.elo(forRating: rating), isCustom: true, start: start
             )
         }
     }
@@ -64,6 +77,9 @@ final class PlayModel {
     }
 
     private(set) var phase = Phase.loading
+    /// True when the catalogue on screen is the one kept from an earlier
+    /// visit, because the server could not be reached this time.
+    private(set) var isFromCache = false
     /// The game waiting on this device, if any.
     private(set) var resumable: BotGameSnapshot?
     /// True while the opponent's engine loads.
@@ -74,25 +90,29 @@ final class PlayModel {
 
     private let app: AppModel
     private let store: BotGameStore
-    private let engines: @Sendable (MaiaModelInfo?) -> BotEngineSelection
+    private let cache: PlayCatalogueCache?
+    private let engines: @Sendable (PlayEngines) -> BotEngineSelection
 
     init(
         app: AppModel,
         store: BotGameStore = .standard,
-        engines: @escaping @Sendable (MaiaModelInfo?) -> BotEngineSelection = PlayModel.deviceEngines
+        cache: PlayCatalogueCache? = .standard,
+        engines: @escaping @Sendable (PlayEngines) -> BotEngineSelection = PlayModel.deviceEngines
     ) {
         self.app = app
         self.store = store
+        self.cache = cache
         self.engines = engines
     }
 
-    /// Maia from the catalogue's network, Stockfish from the app bundle.
-    /// `-CDPlayEngine stockfish` (Debug) leaves Maia out, to check the fallback.
-    nonisolated static let deviceEngines: @Sendable (MaiaModelInfo?) -> BotEngineSelection = { maia in
+    /// The engines as the catalogue sets them up: Maia from the network it
+    /// names, Stockfish from the app bundle. `-CDPlayEngine stockfish`
+    /// (Debug) leaves Maia out, to check the fallback.
+    nonisolated static let deviceEngines: @Sendable (PlayEngines) -> BotEngineSelection = { engines in
         #if DEBUG
-            if UserDefaults.standard.string(forKey: "CDPlayEngine") == "stockfish" { return .device(maia: nil) }
+            if UserDefaults.standard.string(forKey: "CDPlayEngine") == "stockfish" { return .device(engines, maia: false) }
         #endif
-        return .device(maia: maia)
+        return .device(engines)
     }
 
     var catalogue: PlayCatalogue? {
@@ -100,15 +120,33 @@ final class PlayModel {
         return nil
     }
 
+    /// Asks the server for the catalogue and keeps its answer on the device.
+    /// The catalogue kept from the last visit shows at once, and stays when
+    /// the server cannot be reached: a player without a connection still
+    /// finds the bots. Only a device that never loaded them sees the failure.
     func load() async {
         refresh()
+        let backend = app.backend
+        let kept = cache?.catalogue(for: backend)
+        if catalogue == nil, let kept {
+            phase = .ready(kept)
+            isFromCache = true
+        }
         do {
-            phase = .ready(try await app.api.playBots(token: app.token))
+            let fresh = try await app.api.playBots(token: app.token)
+            guard backend == app.backend else { return }
+            cache?.keep(fresh, for: backend)
+            phase = .ready(fresh)
+            isFromCache = false
         } catch is CancellationError {
-        } catch let error as APIError {
-            phase = .failed(error.message)
         } catch {
-            phase = .failed(APIError.unreadable.message)
+            guard backend == app.backend else { return }
+            if let shown = catalogue ?? kept {
+                phase = .ready(shown)
+                isFromCache = true
+            } else {
+                phase = .failed((error as? APIError)?.message ?? APIError.unreadable.message)
+            }
         }
     }
 
@@ -145,13 +183,16 @@ final class PlayModel {
     }
 
     private func open(_ game: BotGame) async -> BotGameModel? {
-        guard !isStarting else { return nil }
+        guard !isStarting, let settings = catalogue?.engines else { return nil }
         isStarting = true
         startFailure = nil
         defer { isStarting = false }
         do {
-            let engine = try await engines(catalogue?.maia).make()
-            let model = BotGameModel(game: game, engine: engine, app: app, store: store)
+            let engine = try await engines(settings).make()
+            let model = BotGameModel(
+                game: game, engine: engine, app: app, store: store,
+                moveTimeout: .milliseconds(settings.moveTimeoutMs)
+            )
             resumable = store.current()
             return model
         } catch {
@@ -165,7 +206,7 @@ final class PlayModel {
         guard app.api.savesBotGames, app.isSignedIn, let token = app.token, let pending = store.pending() else { return }
         guard let saved = try? await app.api.saveBotGame(pending.request, token: token) else { return }
         store.setPending(nil)
-        claimedGameID = saved.gameId
+        claimedGameID = saved.id
     }
 
     func claimedGameShown() {

@@ -166,6 +166,84 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         try decodeExample("GameDetail", as: GameDetail.self)
         try decodeExample("MistakeQueue", as: MistakeQueue.self)
         try decodeExample("MistakeAttempt", as: MistakeAttempt.self)
+        try decodeExample("Bot", as: PlayBot.self)
+        try decodeExample("BotCatalogue", as: PlayCatalogue.self)
+    }
+
+    /// Playing the bots: the two operations exist with the method the app
+    /// uses, answer the schemas the app decodes, and the body the app sends
+    /// is exactly what `BotGameRequest` describes.
+    @Test func playRoutesAndBodiesAreTheContracts() throws {
+        let contract = try Self.contract()
+        let paths = try #require(contract["paths"] as? [String: Any])
+        let components = try #require(contract["components"] as? [String: Any])
+        let schemas = try #require(components["schemas"] as? [String: Any])
+        func operation(_ path: String, _ method: String) throws -> [String: Any] {
+            let item = try #require(paths["/api/v1/\(path)"] as? [String: Any], "\(path) is in the contract")
+            return try #require(item[method] as? [String: Any], "\(method) \(path) is in the contract")
+        }
+        func answer(_ operation: [String: Any]) -> String? {
+            let responses = operation["responses"] as? [String: Any]
+            let ok = responses?["200"] as? [String: Any]
+            let content = (ok?["content"] as? [String: Any])?["application/json"] as? [String: Any]
+            return (content?["schema"] as? [String: Any])?["$ref"] as? String
+        }
+
+        // The catalogue is open to a visitor: one of its security options is empty.
+        let bots = try operation(PlayEndpoints.catalogue, "get")
+        #expect(answer(bots) == "#/components/schemas/BotCatalogue")
+        let security = try #require(bots["security"] as? [[String: Any]])
+        #expect(security.contains { $0.isEmpty })
+        #expect(security.contains { $0["bearer"] != nil })
+
+        // Saving needs a session and answers the game, as GET /games/{gameId}.
+        let games = try operation(PlayEndpoints.games, "post")
+        #expect(answer(games) == "#/components/schemas/GameDetail")
+        #expect((games["security"] as? [[String: Any]])?.allSatisfy { $0["bearer"] != nil } == true)
+        let body = ((games["requestBody"] as? [String: Any])?["content"] as? [String: Any])?["application/json"] as? [String: Any]
+        #expect((body?["schema"] as? [String: Any])?["$ref"] as? String == "#/components/schemas/BotGameRequest")
+
+        let schema = try #require(schemas["BotGameRequest"] as? [String: Any])
+        let properties = try #require(schema["properties"] as? [String: [String: Any]])
+        let required = Set(schema["required"] as? [String] ?? [])
+        func keys(_ request: SaveBotGameRequest) throws -> Set<String> {
+            let object = try JSONSerialization.jsonObject(with: APICoding.encoder.encode(request))
+            return Set(try #require(object as? [String: Any]).keys)
+        }
+        // A character: the required fields and nothing else. The custom bot adds its rating.
+        let character = SaveBotGameRequest(bot: "peru", rating: nil, userColor: "white", result: "1-0", engine: "maia-3", pgn: "1. e4")
+        #expect(try keys(character) == required)
+        let custom = SaveBotGameRequest(bot: "custom", rating: 1500, userColor: "black", result: "1/2-1/2", engine: "stockfish", pgn: "1. e4")
+        #expect(try keys(custom) == required.union(["rating"]))
+        #expect(try keys(custom).isSubset(of: Set(properties.keys)))
+
+        // Every value the app can send is one the contract lists.
+        func allowed(_ name: String) -> Set<String> { Set(properties[name]?["enum"] as? [String] ?? []) }
+        #expect(allowed("engine") == [BotEngineKind.maia.rawValue, BotEngineKind.stockfish.rawValue])
+        #expect(allowed("userColor") == ["white", "black"])
+        #expect(allowed("result") == ["1-0", "0-1", "1/2-1/2"])
+
+        // The engines the catalogue may order are the two the app runs.
+        let catalogue = try #require(schemas["BotCatalogue"] as? [String: Any])
+        let enginesSchema = (catalogue["properties"] as? [String: [String: Any]])?["engines"]
+        let engines = enginesSchema?["properties"] as? [String: [String: Any]]
+        let order = (engines?["order"]?["items"] as? [String: Any])?["enum"] as? [String]
+        #expect(Set(order ?? []) == [BotEngineKind.maia.rawValue, BotEngineKind.stockfish.rawValue])
+        // And the fields the app reads from the catalogue are required by the contract.
+        func requiredFields(_ object: [String: Any]?) -> Set<String> { Set(object?["required"] as? [String] ?? []) }
+        #expect(requiredFields(catalogue) == ["tiers", "bots", "custom", "engines", "canSaveGames"])
+        #expect(requiredFields(schemas["Bot"] as? [String: Any]).isSuperset(of: [
+            "id", "name", "country", "tier", "rating", "tagline", "portraitUrl", "flagUrl", "firstMove", "wildness",
+            "temperature", "stockfishElo", "requiresAccount", "requiresPremium",
+        ]))
+        let maia = requiredFields(engines?["maia"])
+        let stockfish = requiredFields(engines?["stockfish"])
+        #expect(maia.isSuperset(of: [
+            "model", "modelUrl", "inputs", "policyOutput", "policySize", "history", "planeOrder", "eloMax", "sampling",
+            "initBudgetMs", "warmupBudgetMs",
+        ]))
+        #expect(stockfish.isSuperset(of: ["minElo", "maxElo", "moveTimeMs"]))
+        #expect(requiredFields(enginesSchema).isSuperset(of: ["order", "maia", "stockfish", "moveTimeoutMs"]))
     }
 
     @Test func contractServesEveryRouteTheAppCalls() throws {
@@ -181,6 +259,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
             "/api/v1/courses", "/api/v1/courses/{slug}", "/api/v1/courses/{slug}/session",
             "/api/v1/courses/{slug}/enrollment", "/api/v1/courses/{slug}/local-progress",
             "/api/v1/training/grades", "/api/v1/training/due",
+            "/api/v1/play/bots", "/api/v1/play/games",
         ]
         for path in used { #expect(paths[path] != nil, "\(path) is in the contract") }
     }
