@@ -115,7 +115,7 @@ struct ProgressScreen: View {
             Button(page.streak.doneToday ? "Five more" : "Start Daily 5") { navigator.open(.daily) }
                 .buttonStyle(.cd(page.streak.doneToday ? .secondary : .primary, fullWidth: true))
         }
-        .plate(padding: CD.Space.s20)
+        .plate()
     }
 
     private func section(_ title: String, detail: String? = nil, @ViewBuilder content: () -> some View) -> some View {

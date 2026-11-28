@@ -167,7 +167,7 @@ private struct TodayPlanCard: View {
             CDHairline()
             footer
         }
-        .plate(padding: CD.Space.s20)
+        .plate()
     }
 
     private func planLine(_ steps: [PlannedStep]) -> String {
@@ -459,7 +459,7 @@ private struct WelcomeQuestion: View {
                 .buttonStyle(.cd(.secondary, fullWidth: true))
             }
         }
-        .plate(padding: CD.Space.s20)
+        .plate()
         .task {
             guard games == nil else { return }
             games = GamesModel(app: app)
