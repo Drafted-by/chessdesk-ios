@@ -71,6 +71,29 @@ struct HomeRouteLink<Label: View>: View {
     }
 }
 
+/// The same way in, as a button of the kit: an action inside a card.
+struct HomeRouteButton: View {
+    let title: String
+    let route: HomeRoute
+    var variant: CDButtonStyle.Variant = .secondary
+    var size: CDButtonStyle.Size = .medium
+    var fullWidth = false
+    /// A trailing arrow: the button leads somewhere else.
+    var leads = true
+
+    @Environment(HomeNavigator.self) private var navigator
+
+    var body: some View {
+        Button { navigator.open(route) } label: {
+            HStack(spacing: CD.Space.s6) {
+                Text(title)
+                if leads { Image(systemName: "arrow.right").font(.system(size: 12, weight: .semibold)) }
+            }
+        }
+        .buttonStyle(.cd(variant, size: size, fullWidth: fullWidth))
+    }
+}
+
 extension View {
     /// The screens the home pushes, on Today's stack.
     func homeDestinations(_ navigator: HomeNavigator) -> some View {

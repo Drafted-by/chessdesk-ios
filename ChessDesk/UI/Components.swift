@@ -22,16 +22,39 @@ struct CDButtonStyle: ButtonStyle {
     var size: Size = .medium
     var fullWidth = false
 
+    func makeBody(configuration: Configuration) -> some View {
+        CDButtonFace(variant: variant, size: size, fullWidth: fullWidth, pressed: configuration.isPressed) {
+            configuration.label
+        }
+        .sensoryFeedback(trigger: configuration.isPressed) { _, isDown in
+            isDown && (variant == .primary || variant == .lead) ? .impact(weight: .light) : nil
+        }
+    }
+}
+
+/// What a button looks like, on its own: for a call to action drawn inside a
+/// row or a card that is itself the thing tapped (the lead step of today's
+/// plan), so it is the same object as every other button and not a pill
+/// drawn by hand. A real button uses `.buttonStyle(.cd(...))`.
+struct CDButtonFace<Label: View>: View {
+    typealias Variant = CDButtonStyle.Variant
+    typealias Size = CDButtonStyle.Size
+
+    var variant: Variant = .secondary
+    var size: Size = .medium
+    var fullWidth = false
+    var pressed = false
+    @ViewBuilder var label: Label
+
     @Environment(\.isEnabled) private var isEnabled
 
-    func makeBody(configuration: Configuration) -> some View {
+    var body: some View {
         let height: CGFloat = switch size {
         case .small: 34
         case .medium: 44
         case .large: 54
         }
-        let pressed = configuration.isPressed
-        return configuration.label
+        return label
             .cdFont(size == .large && isRaised ? .buttonLarge : .button)
             .foregroundStyle(foreground)
             .lineLimit(1)
@@ -50,9 +73,6 @@ struct CDButtonStyle: ButtonStyle {
             .offset(y: pressed && isRaised ? 1 : 0)
             .animation(CD.Motion.press, value: pressed)
             .contentShape(shape)
-            .sensoryFeedback(trigger: pressed) { _, isDown in
-                isDown && (variant == .primary || variant == .lead) ? .impact(weight: .light) : nil
-            }
     }
 
     /// Brass and the neutral key stand above the surface; ghost and danger lie in it.

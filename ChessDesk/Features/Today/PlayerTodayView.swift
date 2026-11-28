@@ -222,16 +222,13 @@ private struct StepRow: View {
             Spacer(minLength: CD.Space.s8)
             VStack(alignment: .trailing, spacing: CD.Space.s4) {
                 if planned.leads {
-                    HStack(spacing: CD.Space.s4) {
-                        Text(planned.step.cta)
-                        Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold))
+                    // The one brass action of the plan: the step to do now.
+                    CDButtonFace(variant: .primary, size: .small) {
+                        HStack(spacing: CD.Space.s4) {
+                            Text(planned.step.cta)
+                            Image(systemName: "arrow.right").font(.system(size: 11, weight: .semibold))
+                        }
                     }
-                    .cdFont(.small)
-                    .foregroundStyle(CD.ink)
-                    .padding(.horizontal, CD.Space.s12)
-                    .frame(minHeight: 32)
-                    .background(CD.surface3, in: RoundedRectangle(cornerRadius: CD.Radius.md, style: .continuous))
-                    .hairline(CD.lineStrong, radius: CD.Radius.md)
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
@@ -696,7 +693,7 @@ private struct FirstReportCard: View {
                         .foregroundStyle(CD.ink3)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                HStack(spacing: CD.Space.s12) {
+                VStack(alignment: .leading, spacing: CD.Space.s12) {
                     VStack(alignment: .leading, spacing: CD.Space.s2) {
                         Text(report.drillPositions > 0 ? CDFormat.plural(report.drillPositions, "position") + " to drill" : "Nothing to drill yet")
                             .cdFont(.cardTitle)
@@ -707,17 +704,8 @@ private struct FirstReportCard: View {
                             .foregroundStyle(CD.ink3)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    Spacer(minLength: CD.Space.s8)
                     if report.drillPositions > 0 {
-                        HomeRouteLink(route: .mistakes) {
-                            Text("Start the drill")
-                                .cdFont(.small)
-                                .foregroundStyle(CD.ink)
-                                .padding(.horizontal, CD.Space.s12)
-                                .frame(minHeight: 44)
-                                .background(CD.surface3, in: RoundedRectangle(cornerRadius: CD.Radius.md, style: .continuous))
-                                .hairline(CD.lineStrong, radius: CD.Radius.md)
-                        }
+                        HomeRouteButton(title: "Start the drill", route: .mistakes, fullWidth: true)
                     }
                 }
             }
