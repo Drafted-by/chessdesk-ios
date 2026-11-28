@@ -55,15 +55,32 @@ final class PremiumStore {
         self.app = app
     }
 
+    /// True while the store listens for transactions.
+    var isListening: Bool { updates != nil }
+
     /// Listens for transactions that arrive outside a purchase: a renewal, an
-    /// approved Ask to Buy, a purchase made on another device.
+    /// approved Ask to Buy, a purchase made on another device, and the ones
+    /// left unfinished because the server could not be reached.
+    ///
+    /// Only for a player signed in to ChessDesk. A transaction is of no use
+    /// without an account to attach it to (`deliver` drops it), and a guest
+    /// must not have the App Store queried in their name at launch: the app
+    /// makes no StoreKit call at all until there is an account, or until the
+    /// Premium sheet is opened. Nothing is lost by waiting: StoreKit keeps an
+    /// unfinished transaction and hands it over when listening starts.
     func start() {
-        guard updates == nil else { return }
+        guard updates == nil, app.isSignedIn else { return }
         updates = Task { [weak self] in
             for await result in Transaction.updates {
                 try? await self?.deliver(result)
             }
         }
+    }
+
+    /// The player signed out: the App Store is left alone again.
+    func stop() {
+        updates?.cancel()
+        updates = nil
     }
 
     func load() async {
@@ -111,16 +128,28 @@ final class PremiumStore {
 
     /// "Restore purchases": asks the App Store again, then presents what the
     /// Apple Account holds. True when the account ends up Premium.
+    ///
+    /// `AppStore.sync()` is the one StoreKit call that asks the person to
+    /// sign in to their Apple Account. It belongs to this button and is
+    /// never made anywhere else: not at launch, not on an account change.
     func restore() async throws -> Bool {
         try await AppStore.sync()
         try await presentEntitlements()
         return app.hasPremium
     }
 
-    /// At launch and after a sign-in: what this Apple Account is entitled to
-    /// is presented to the server, so a subscription bought before signing in
-    /// (or on another device) reaches the account.
+    /// At launch and after every account change. Signed in: the store
+    /// listens, and what this Apple Account is entitled to is presented to
+    /// the server, so a purchase the server missed (or one made on another
+    /// device) reaches the account. These are reads of what the device
+    /// already holds; they never ask for the Apple Account. Signed out: the
+    /// store stops listening and StoreKit is not called.
     func syncEntitlements() async {
+        guard app.isSignedIn else {
+            stop()
+            return
+        }
+        start()
         try? await presentEntitlements()
     }
 

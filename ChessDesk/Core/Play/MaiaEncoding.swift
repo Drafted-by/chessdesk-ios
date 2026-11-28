@@ -12,13 +12,28 @@ nonisolated enum MaiaEncoding {
     static let history = 8
     static let planes = 12
     static let tokensPerSquare = history * planes
+    /// 64 x 64 plain moves, then 8 x 8 x 4 promotions.
     static let policySize = 4352
-    static let eloClampMax = 5000.0
 
     static let tokensName = "tokens"
     static let selfEloName = "self_elos"
     static let opponentEloName = "oppo_elos"
-    static let policyName = "logits_move"
+    /// The planes in the order `plane(of:)` writes them, White first.
+    static let planeOrder = ["wP", "wN", "wB", "wR", "wQ", "wK", "bP", "bN", "bB", "bR", "bQ", "bK"]
+
+    /// Whether the network the catalogue describes is the one this encoder
+    /// was written for. These are not settings: they are the layout of the
+    /// code below. A catalogue that describes another layout means a new
+    /// network, which this version of the app must not feed; Stockfish plays.
+    static func canEncode(for info: MaiaEngineInfo) -> Bool {
+        let expected = [
+            MaiaEngineInfo.Input(name: tokensName, dims: [1, 64, tokensPerSquare], type: "float32"),
+            MaiaEngineInfo.Input(name: selfEloName, dims: [1], type: "float32"),
+            MaiaEngineInfo.Input(name: opponentEloName, dims: [1], type: "float32"),
+        ]
+        return info.inputs == expected && info.history == history && info.planeOrder == planeOrder
+            && info.policySize == policySize
+    }
 
     private static let promotionKinds: [PieceKind] = [.queen, .rook, .bishop, .knight]
 
@@ -33,15 +48,16 @@ nonisolated enum MaiaEncoding {
         }
     }
 
-    static func clampElo(_ elo: Double) -> Float {
+    /// Rounded and held to `0...max` (the catalogue's `maia.eloMax`).
+    static func clampElo(_ elo: Double, max eloMax: Double) -> Float {
         guard elo.isFinite else { return 0 }
-        return Float(max(0, min(eloClampMax, elo.rounded())))
+        return Float(max(0, min(eloMax, elo.rounded())))
     }
 
     /// The three inputs of the network. `tokens` is 64 squares by 96 values:
     /// the 12-plane one-hot of the piece on each square, repeated over the 8
     /// history slots (the site sends no move history, so does the app).
-    static func inputs(for position: Position, selfElo: Double, opponentElo: Double) -> [String: OnnxTensor] {
+    static func inputs(for position: Position, selfElo: Double, opponentElo: Double, eloMax: Double) -> [String: OnnxTensor] {
         let blackToMove = position.turn == .black
         var tokens = [Float](repeating: 0, count: 64 * tokensPerSquare)
         for square in Square.all {
@@ -53,8 +69,8 @@ nonisolated enum MaiaEncoding {
         }
         return [
             tokensName: OnnxTensor(shape: [1, 64, tokensPerSquare], floats: tokens),
-            selfEloName: OnnxTensor(shape: [1], floats: [clampElo(selfElo)]),
-            opponentEloName: OnnxTensor(shape: [1], floats: [clampElo(opponentElo)]),
+            selfEloName: OnnxTensor(shape: [1], floats: [clampElo(selfElo, max: eloMax)]),
+            opponentEloName: OnnxTensor(shape: [1], floats: [clampElo(opponentElo, max: eloMax)]),
         ]
     }
 

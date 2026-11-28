@@ -22,10 +22,6 @@ final class BotGameModel {
         case unavailable
     }
 
-    /// If the engine never answers, a random legal move is played rather
-    /// than leaving the game on "thinking" (the site's 12 seconds).
-    static let moveTimeout = Duration.seconds(12)
-
     private(set) var game: BotGame
     private(set) var saving = Saving.idle
     /// Called after every move, with whether it captured: the board's sound.
@@ -36,6 +32,8 @@ final class BotGameModel {
 
     private let app: AppModel
     private let store: BotGameStore?
+    /// If the engine never answers, a random legal move is played rather
+    /// than leaving the game on "thinking": the catalogue's `moveTimeoutMs`.
     private let moveTimeout: Duration
     /// The least time before the bot answers, so its move does not land on
     /// top of the player's own.
@@ -48,7 +46,7 @@ final class BotGameModel {
         engine: any BotEngine,
         app: AppModel,
         store: BotGameStore? = .standard,
-        moveTimeout: Duration = BotGameModel.moveTimeout,
+        moveTimeout: Duration,
         replyFloor: Duration = .milliseconds(350)
     ) {
         self.game = game
@@ -129,7 +127,7 @@ final class BotGameModel {
             var answer = signature
             if answer == nil {
                 answer = try? await withDeadline(timeout) {
-                    try await engine.bestMove(fen: fen, rating: setup.rating, temperature: setup.temperature)
+                    try await engine.bestMove(fen: fen, strength: setup.strength)
                 }
             }
             let spent = ContinuousClock.now - started
@@ -187,17 +185,25 @@ final class BotGameModel {
         let api = app.api
         saveTask = Task { [weak self] in
             let outcome: Saving
+            var unreachable = false
             do {
-                outcome = .saved(gameID: try await api.saveBotGame(request, token: token).gameId)
+                outcome = .saved(gameID: try await api.saveBotGame(request, token: token).id)
             } catch let error as APIError {
                 outcome = .failed(error.message)
+                unreachable = error == .offline
             } catch {
                 outcome = .failed(APIError.unreadable.message)
             }
             guard !Task.isCancelled, let self else { return }
             self.saveTask = nil
             self.saving = outcome
-            if case .saved = outcome { self.store?.setPending(nil) }
+            if case .saved = outcome {
+                self.store?.setPending(nil)
+            } else if unreachable {
+                // Finished without a connection: the game waits on the device
+                // and is saved the next time the bots are opened.
+                self.store?.setPending(PendingBotGame(request: request))
+            }
         }
     }
 

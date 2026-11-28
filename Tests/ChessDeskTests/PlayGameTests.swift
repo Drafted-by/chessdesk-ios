@@ -12,24 +12,40 @@ private final class PlayServer: ChessDeskAPI, @unchecked Sendable {
     private let lock = NSLock()
     private var stored: [SaveBotGameRequest] = []
     private var failures: Int
+    private var unreachable: Bool
+    private var asked: [String?] = []
     private let guest = FixtureAPI(delay: .zero)
-    let catalogueFails: Bool
 
     init(failingSaves: Int = 0, catalogueFails: Bool = false) {
         failures = failingSaves
-        self.catalogueFails = catalogueFails
+        unreachable = catalogueFails
     }
 
     var saved: [SaveBotGameRequest] { lock.withLock { stored } }
+    /// The token of every catalogue request, in order.
+    var catalogueTokens: [String?] { lock.withLock { asked } }
+    /// Cuts or restores the connection for the catalogue.
+    var catalogueFails: Bool {
+        get { lock.withLock { unreachable } }
+        set { lock.withLock { unreachable = newValue } }
+    }
 
     var savesBotGames: Bool { true }
 
+    /// The captured catalogue, with `canSaveGames` as the server sets it:
+    /// true for a session, false for a visitor.
     func playBots(token: String?) async throws -> PlayCatalogue {
+        lock.withLock { asked.append(token) }
         if catalogueFails { throw APIError.offline }
-        return try BundledPlayCatalogue.load()
+        var object = try #require(JSONSerialization.jsonObject(with: FixtureAPI.data("play-bots")) as? [String: Any])
+        object["canSaveGames"] = token != nil
+        return try LiveAPI.decode(status: 200, data: JSONSerialization.data(withJSONObject: object))
     }
 
-    func saveBotGame(_ game: SaveBotGameRequest, token: String) async throws -> SavedBotGame {
+    /// Answers as `POST /api/v1/play/games` does: the saved game, in the
+    /// shape of `GET /api/v1/games/{gameId}`, the opponent named from the
+    /// catalogue and the half-moves counted from the PGN.
+    func saveBotGame(_ game: SaveBotGameRequest, token: String) async throws -> GameDetail {
         let count: Int? = lock.withLock {
             if failures > 0 {
                 failures -= 1
@@ -39,7 +55,19 @@ private final class PlayServer: ChessDeskAPI, @unchecked Sendable {
             return stored.count
         }
         guard let count else { throw APIError.offline }
-        return SavedBotGame(gameId: "game-\(count)")
+        let catalogue = try FixtureAPI.playCatalogue()
+        let bot = catalogue.bots.first { $0.id == game.bot }
+        guard let name = bot?.name ?? (game.bot == catalogue.custom.id ? catalogue.custom.name : nil),
+              let rating = bot?.rating ?? game.rating
+        else { throw APIError.server(status: 400, code: "invalid_request", message: "Unknown bot, or a rating outside the range of the custom bot.") }
+        let human = session(token).user.name
+        let white = game.userColor == "white"
+        return GameDetail(
+            id: "game-\(count)", source: "BOT", white: white ? human : name, black: white ? name : human,
+            whiteElo: white ? nil : rating, blackElo: white ? rating : nil, result: game.result, timeClass: "casual",
+            opening: nil, userColor: game.userColor, playedAt: .now, ply: GameLine(pgn: game.pgn).moves.count,
+            starred: false, reviewed: false, pgn: game.pgn, url: nil, review: nil
+        )
     }
 
     private func session(_ token: String) -> AuthSession {
@@ -99,13 +127,19 @@ private func appModel(_ api: any ChessDeskAPI) -> AppModel {
     )
 }
 
+/// Maria, the second bot of the roster, with the catalogue's numbers.
 private func setup(
-    _ side: Side = .white, firstMove: String? = nil, wildness: Double? = 0.5, start: BotStart = .standard
+    _ side: Side = .white, firstMove: String? = nil, start: BotStart = .standard
 ) -> BotGameSetup {
     BotGameSetup(
-        botID: "maria", botName: "Maria", rating: 446, avatar: "/bots/philippines.webp", country: "Philippines",
-        humanSide: side, firstMove: firstMove, wildness: wildness, start: start
+        botID: "philippines", botName: "Maria", rating: 446, avatar: "https://chessdesk.app/bots/philippines.webp",
+        country: "Philippines", humanSide: side, firstMove: firstMove, temperature: 1.33, stockfishElo: 1320, start: start
     )
+}
+
+/// The engines as the captured catalogue sets them.
+private func catalogueEngines() throws -> PlayEngines {
+    try FixtureAPI.playCatalogue().engines
 }
 
 private func move(_ uci: String) -> Move { Move(uci: uci).unsafelyUnwrapped }
@@ -159,7 +193,7 @@ private actor Script {
     }
 
     @Test func everyCountryOfTheRosterHasAFlag() throws {
-        for bot in try BundledPlayCatalogue.load().bots {
+        for bot in try FixtureAPI.playCatalogue().bots {
             #expect(CountryFlag.emoji(for: bot.country) != nil, "\(bot.country)")
         }
         #expect(CountryFlag.emoji(for: "Peru") == "🇵🇪")
@@ -307,10 +341,9 @@ private actor Script {
         #expect(later.signatureMove == nil)
     }
 
-    @Test func wilderBotsSampleMoreLoosely() {
-        #expect(abs(setup(wildness: 0.95).temperature - 1.35) < 1e-9)
-        #expect(abs(setup(wildness: 0.24).temperature - 0.64) < 1e-9)
-        #expect(abs(setup(wildness: nil).temperature - 1.0) < 1e-9)
+    /// The engine is asked at the strength the game was set up with.
+    @Test func theSetupCarriesTheStrengthTheEngineIsAskedAt() {
+        #expect(setup().strength == BotStrength(rating: 446, temperature: 1.33, stockfishElo: 1320))
     }
 
     @Test func continuesAPastedPGNAndExportsTheWholeGame() throws {
@@ -353,29 +386,34 @@ private actor Script {
         #expect(line.headers["Result"] == "1-0")
     }
 
-    @Test func aFinishedGameIsSentAsTheSiteStoresIt() throws {
+    /// The body of `POST /api/v1/play/games`: the bot by its id, never its
+    /// name or rating (the server reads those from its catalogue).
+    @Test func aFinishedGameIsSentAsTheContractAsks() throws {
         let game = try played("e2e4 e7e5 d1h5 b8c6 f1c4 g8f6 h5f7", in: setup(.white))
         let request = game.saveRequest(humanName: "Ana Silva", engine: .maia)
+        #expect(request.bot == "philippines")
+        #expect(request.rating == nil)
         #expect(request.result == "1-0")
         #expect(request.userColor == "white")
-        #expect(request.botRating == 446)
-        #expect(request.botName == "Maria")
         #expect(request.engine == "maia-3")
-        #expect(request.ply == 7)
-        #expect(request.whiteName == "Ana Silva")
-        #expect(request.blackName == "Maria")
-        #expect(request.whiteElo == nil)
-        #expect(request.blackElo == 446)
         #expect(request.pgn.contains("[Event \"Bot game\"]"))
+        #expect(request.pgn.contains("[White \"Ana Silva\"]"))
         let json = try #require(JSONSerialization.jsonObject(with: APICoding.encoder.encode(request)) as? [String: Any])
-        #expect(Set(json.keys).isSuperset(of: ["pgn", "result", "userColor", "botRating", "botName", "engine", "ply", "whiteName", "blackName", "blackElo"]))
+        #expect(Set(json.keys) == ["bot", "userColor", "result", "engine", "pgn"])
 
         let asBlack = try played("f2f3 e7e5 g2g4 d8h4", in: setup(.black)).saveRequest(humanName: "You", engine: .stockfish)
-        #expect(asBlack.whiteName == "Maria")
-        #expect(asBlack.whiteElo == 446)
-        #expect(asBlack.blackElo == nil)
+        #expect(asBlack.userColor == "black")
         #expect(asBlack.engine == "stockfish")
         #expect(asBlack.result == "0-1")
+
+        // The custom bot's rating is the player's choice, so it is sent.
+        let catalogue = try FixtureAPI.playCatalogue()
+        let built = OpponentPick.custom(catalogue.custom).setup(rating: 1230, humanSide: .white, start: .standard, engines: catalogue.engines)
+        let custom = try played("f2f3 e7e5 g2g4 d8h4", in: built).saveRequest(humanName: "You", engine: .maia)
+        #expect(custom.bot == "custom")
+        #expect(custom.rating == 1230)
+        let customJSON = try #require(JSONSerialization.jsonObject(with: APICoding.encoder.encode(custom)) as? [String: Any])
+        #expect(customJSON["rating"] as? Int == 1230)
     }
 
     @Test func aPawnReachingTheLastRankWithoutAPieceNamedBecomesAQueen() throws {
@@ -804,9 +842,9 @@ private actor Script {
         let saved = try #require(server.saved.first)
         #expect(saved.result == "1-0")
         #expect(saved.engine == "maia-3")
-        #expect(saved.whiteName == "Ana Silva")
-        #expect(saved.blackName == "Maria")
-        #expect(saved.ply == 7)
+        #expect(saved.bot == "philippines")
+        #expect(saved.userColor == "white")
+        #expect(saved.pgn.contains("[White \"Ana Silva\"]"))
         #expect(saved.pgn.contains("4. Qxf7# 1-0"))
         // A finished game is no longer "in progress".
         #expect(store.current() == nil)
@@ -856,7 +894,7 @@ private actor Script {
         #expect(model.saving == .saved(gameID: "game-1"))
         #expect(server.saved[0].result == "1-0")
         #expect(server.saved[0].userColor == "black")
-        #expect(server.saved[0].whiteElo == 446)
+        #expect(server.saved[0].bot == "philippines")
     }
 
     @Test func aGuestsGameWaitsForAnAccountThenIsSaved() async throws {
@@ -870,14 +908,14 @@ private actor Script {
         model.resign()
         #expect(model.saving == .waitingForAccount)
         #expect(server.saved.isEmpty)
-        #expect(store.pending()?.request.whiteName == "You")
+        #expect(store.pending()?.request.pgn.contains("[White \"You\"]") == true)
 
         // The player creates an account from the result panel.
         try await app.signIn(email: "ana@example.com", password: "x")
         model.accountChanged()
         await model.waitForSave()
         #expect(model.saving == .saved(gameID: "game-1"))
-        #expect(server.saved[0].whiteName == "Ana Silva")
+        #expect(server.saved[0].pgn.contains("[White \"Ana Silva\"]"))
         #expect(store.pending() == nil)
     }
 
@@ -887,7 +925,7 @@ private actor Script {
         let store = BotGameStore(folder: temporaryFolder())
         let request = try played("f2f3 e7e5 g2g4 d8h4", in: setup(.white)).saveRequest(humanName: "You", engine: .maia)
         store.setPending(PendingBotGame(request: request))
-        let hub = PlayModel(app: app, store: store)
+        let hub = PlayModel(app: app, store: store, cache: nil)
         await hub.claimPendingGame()
         // Still a guest: nothing moves.
         #expect(hub.claimedGameID == nil)
@@ -913,6 +951,26 @@ private actor Script {
         model.save()
         await model.waitForSave()
         #expect(model.saving == .saved(gameID: "game-1"))
+    }
+
+    /// A signed-in player who finishes without a connection keeps the game:
+    /// it waits on the device and is saved when the bots are next opened.
+    @Test func aGameFinishedWithoutAConnectionIsSavedLater() async throws {
+        let server = PlayServer(failingSaves: 1)
+        let app = appModel(server)
+        try await app.signIn(email: "ana@example.com", password: "x")
+        let store = BotGameStore(folder: temporaryFolder())
+        let model = try model(setup(.white), engine: StubBotEngine(move: "e7e5"), app: app, store: store)
+        model.begin()
+        model.resign()
+        await model.waitForSave()
+        #expect(model.saving == .failed(APIError.offline.message))
+        #expect(store.pending() != nil)
+        let hub = PlayModel(app: app, store: store, cache: nil)
+        await hub.claimPendingGame()
+        #expect(hub.claimedGameID == "game-1")
+        #expect(server.saved.count == 1)
+        #expect(store.pending() == nil)
     }
 
     @Test func nothingIsPromisedWhereGamesCannotBeSaved() async throws {
@@ -949,41 +1007,134 @@ private actor Script {
 // MARK: The hub
 
 @Suite struct PlayModelTests {
-    private func engines(_ engine: StubBotEngine) -> @Sendable (MaiaModelInfo?) -> BotEngineSelection {
-        { _ in BotEngineSelection(makeMaia: { engine }, makeStockfish: { engine }) }
+    private func engines(_ engine: StubBotEngine) -> @Sendable (PlayEngines) -> BotEngineSelection {
+        { _ in BotEngineSelection(makeMaia: { engine }, makeStockfish: { engine }, loadBudget: .seconds(5), warmupBudget: .seconds(5)) }
     }
 
     @Test func loadsTheCatalogue() async {
-        let hub = PlayModel(app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()))
+        let hub = PlayModel(app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()), cache: nil)
         #expect(hub.phase == .loading)
         await hub.load()
         #expect(hub.catalogue?.bots.count == 41)
+        #expect(!hub.isFromCache)
 
-        let failing = PlayModel(app: appModel(PlayServer(catalogueFails: true)), store: BotGameStore(folder: temporaryFolder()))
+        let failing = PlayModel(app: appModel(PlayServer(catalogueFails: true)), store: BotGameStore(folder: temporaryFolder()), cache: nil)
         await failing.load()
         #expect(failing.phase == .failed(APIError.offline.message))
         #expect(failing.catalogue == nil)
     }
 
+    /// The server says whether this session may save; the app asks with its token.
+    @Test func theCatalogueIsAskedWithTheSessionAndSaysWhetherGamesAreSaved() async throws {
+        let server = PlayServer()
+        let app = appModel(server)
+        let hub = PlayModel(app: app, store: BotGameStore(folder: temporaryFolder()), cache: nil)
+        await hub.load()
+        #expect(hub.catalogue?.canSaveGames == false)
+        try await app.signIn(email: "ana@example.com", password: "x")
+        await hub.load()
+        #expect(hub.catalogue?.canSaveGames == true)
+        #expect(server.catalogueTokens == [nil, "token"])
+    }
+
+    /// The last catalogue the server answered is kept: without a connection
+    /// the bots are still there, and a game still starts.
+    @Test func theLastCatalogueIsKeptForPlayingWithoutAConnection() async throws {
+        let cache = PlayCatalogueCache(folder: temporaryFolder())
+        let server = PlayServer()
+        let app = appModel(server)
+        #expect(cache.catalogue(for: app.backend) == nil)
+
+        // Never loaded and no connection: there is nothing to show.
+        server.catalogueFails = true
+        let never = PlayModel(app: app, store: BotGameStore(folder: temporaryFolder()), cache: cache)
+        await never.load()
+        #expect(never.phase == .failed(APIError.offline.message))
+
+        // One visit with a connection keeps the answer on the device.
+        server.catalogueFails = false
+        let online = PlayModel(app: app, store: BotGameStore(folder: temporaryFolder()), cache: cache)
+        await online.load()
+        let served = try #require(online.catalogue)
+        #expect(!online.isFromCache)
+        #expect(cache.catalogue(for: app.backend) == served)
+        // Another backend has its own file.
+        #expect(cache.catalogue(for: .server(try #require(URL(string: "https://other.example")))) == nil)
+
+        // A new launch without a connection: the kept catalogue, and a game.
+        server.catalogueFails = true
+        let offline = PlayModel(
+            app: app, store: BotGameStore(folder: temporaryFolder()), cache: cache,
+            engines: engines(StubBotEngine(kind: .maia, move: "e7e5"))
+        )
+        await offline.load()
+        #expect(offline.catalogue == served)
+        #expect(offline.isFromCache)
+        let bot = try #require(served.bots.first)
+        let game = try #require(await offline.start(OpponentPick.bot(bot).setup(rating: 0, humanSide: .white, start: .standard, engines: served.engines)))
+        game.begin()
+        #expect(game.play(move("e2e4")))
+        #expect(await eventually { game.game.moves.count == 2 })
+
+        // The connection is back: the server's answer replaces the kept one.
+        server.catalogueFails = false
+        await offline.load()
+        #expect(!offline.isFromCache)
+
+        // A file that no longer decodes is ignored, not trusted.
+        try Data("{}".utf8).write(to: try #require(try FileManager.default.contentsOfDirectory(at: cache.folder, includingPropertiesForKeys: nil).first))
+        #expect(cache.catalogue(for: app.backend) == nil)
+    }
+
+    /// Without a catalogue there are no engine settings: no game starts on
+    /// numbers the server did not give.
+    @Test func noGameStartsWithoutACatalogue() async throws {
+        let hub = PlayModel(
+            app: appModel(PlayServer(catalogueFails: true)), store: BotGameStore(folder: temporaryFolder()), cache: nil,
+            engines: engines(StubBotEngine(move: "e7e5"))
+        )
+        await hub.load()
+        #expect(await hub.start(setup(.white)) == nil)
+    }
+
+    /// Every number of a game comes from the catalogue.
     @Test func aPickBecomesTheSetupOfAGame() throws {
-        let catalogue = try BundledPlayCatalogue.load()
+        let catalogue = try FixtureAPI.playCatalogue()
+        let engines = catalogue.engines
         let bot = try #require(catalogue.bots.first { $0.id == "china" })
-        let character = OpponentPick.bot(bot).setup(rating: 999, humanSide: .black, start: .standard)
+        let character = OpponentPick.bot(bot).setup(rating: 999, humanSide: .black, start: .standard, engines: engines)
         #expect(character.botID == "china")
         #expect(character.botName == "Wei")
-        // A character keeps its own rating, opening and wildness.
-        #expect(character.rating == 2312)
-        #expect(character.firstMove == "c2c4")
-        #expect(character.wildness == 0.24)
+        // A character keeps its own rating, opening, temperature and Stockfish Elo.
+        #expect(character.rating == bot.rating)
+        #expect(character.firstMove == bot.firstMove)
+        #expect(character.temperature == bot.temperature)
+        #expect(character.stockfishElo == bot.stockfishElo)
+        #expect(character.avatar == bot.portraitUrl)
+        #expect(!character.isCustom)
         #expect(character.humanSide == .black)
+        // The weakest bot is under what Stockfish accepts: the catalogue says where it plays.
+        let weakest = try #require(catalogue.bots.first)
+        let weak = OpponentPick.bot(weakest).setup(rating: 0, humanSide: .white, start: .standard, engines: engines)
+        #expect(weak.strength == BotStrength(rating: weakest.rating, temperature: weakest.temperature, stockfishElo: weakest.stockfishElo))
+        #expect(weak.stockfishElo == engines.stockfish.minElo)
 
-        let built = OpponentPick.custom(catalogue.custom).setup(rating: 1230, humanSide: .white, start: .standard)
-        #expect(built.botID == "custom")
-        #expect(built.botName == "Custom bot")
+        let built = OpponentPick.custom(catalogue.custom).setup(rating: 1230, humanSide: .white, start: .standard, engines: engines)
+        #expect(built.botID == catalogue.custom.id)
+        #expect(built.botName == catalogue.custom.name)
         #expect(built.rating == 1230)
         #expect(built.firstMove == nil)
-        #expect(built.wildness == 0.5)
-        #expect(built.avatar == "/bots/placeholder.webp")
+        #expect(built.temperature == catalogue.custom.temperature)
+        #expect(built.stockfishElo == engines.stockfish.minElo)
+        #expect(built.isCustom)
+        #expect(built.avatar == catalogue.custom.portraitUrl)
+        // A rating outside the range the server offers is held to it, and
+        // Stockfish to what it accepts.
+        let over = OpponentPick.custom(catalogue.custom).setup(rating: 9000, humanSide: .white, start: .standard, engines: engines)
+        #expect(over.rating == catalogue.custom.rating.max)
+        #expect(over.stockfishElo == min(catalogue.custom.rating.max, engines.stockfish.maxElo))
+        #expect(engines.stockfish.elo(forRating: 9000) == engines.stockfish.maxElo)
+        #expect(engines.stockfish.elo(forRating: 2000) == 2000)
 
         #expect(SideChoice.white.resolved() == .white)
         #expect(SideChoice.black.resolved() == .black)
@@ -994,7 +1145,7 @@ private actor Script {
     @Test func aGameSurvivesLeavingTheScreenAndRelaunchingTheApp() async throws {
         let folder = temporaryFolder()
         let server = PlayServer()
-        let first = PlayModel(app: appModel(server), store: BotGameStore(folder: folder), engines: engines(StubBotEngine(kind: .maia, move: "e7e5")))
+        let first = PlayModel(app: appModel(server), store: BotGameStore(folder: folder), cache: nil, engines: engines(StubBotEngine(kind: .maia, move: "e7e5")))
         await first.load()
         #expect(first.resumable == nil)
         let game = try #require(await first.start(setup(.white)))
@@ -1008,7 +1159,7 @@ private actor Script {
         #expect(first.resumable?.moves == ["e2e4", "e7e5", "g1f3"])
 
         // A new launch: another model, another engine, the same folder.
-        let second = PlayModel(app: appModel(server), store: BotGameStore(folder: folder), engines: engines(StubBotEngine(kind: .stockfish, move: "b8c6")))
+        let second = PlayModel(app: appModel(server), store: BotGameStore(folder: folder), cache: nil, engines: engines(StubBotEngine(kind: .stockfish, move: "b8c6")))
         await second.load()
         #expect(second.resumable?.setup.botName == "Maria")
         let resumed = try #require(await second.resume())
@@ -1028,7 +1179,7 @@ private actor Script {
     }
 
     @Test func aGameInProgressCanBeGivenUp() async throws {
-        let hub = PlayModel(app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()), engines: engines(StubBotEngine(move: "e7e5")))
+        let hub = PlayModel(app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()), cache: nil, engines: engines(StubBotEngine(move: "e7e5")))
         await hub.load()
         let game = try #require(await hub.start(setup(.white)))
         #expect(game.play(move("e2e4")))
@@ -1043,8 +1194,10 @@ private actor Script {
     @Test func aBotThatCannotStartSaysSo() async {
         struct Failure: Error {}
         let hub = PlayModel(
-            app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()),
-            engines: { _ in BotEngineSelection(makeMaia: { throw Failure() }, makeStockfish: { throw Failure() }) }
+            app: appModel(PlayServer()), store: BotGameStore(folder: temporaryFolder()), cache: nil,
+            engines: { _ in
+                BotEngineSelection(makeMaia: { throw Failure() }, makeStockfish: { throw Failure() }, loadBudget: .seconds(5), warmupBudget: .seconds(5))
+            }
         )
         await hub.load()
         #expect(await hub.start(setup(.white)) == nil)

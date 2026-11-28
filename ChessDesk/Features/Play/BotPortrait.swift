@@ -42,12 +42,18 @@ struct BotPortrait: View {
     }
 }
 
-/// The flag of a bot's country, from its name. The site draws flags as SVG
-/// files, which the system does not read; the system's own flags stand in.
-/// A country the system does not know simply shows no flag.
+/// The flag of a bot's country, derived from the `country` the catalogue
+/// gives. The catalogue's `flagUrl` is an SVG, which the system does not draw
+/// from the network; the system's own flag emoji stands in.
+///
+/// The catalogue names the country in English and carries no ISO code, so the
+/// name is looked up among the system's region names. Three names of today's
+/// roster are not what the system calls the region ("USA", "China") or are
+/// not a region at all (England): they are the only ones written here. A
+/// country the system does not know simply shows no flag.
 nonisolated enum CountryFlag {
-    /// Names the system writes otherwise ("China mainland", "United States").
-    private static let aliases = ["USA": "US", "UK": "GB", "China": "CN", "Turkey": "TR", "Czech Republic": "CZ"]
+    /// Names the system writes otherwise ("United States", "China mainland").
+    private static let aliases = ["USA": "US", "China": "CN"]
     private static let england = "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"
 
     private static let regionsByName: [String: String] = {

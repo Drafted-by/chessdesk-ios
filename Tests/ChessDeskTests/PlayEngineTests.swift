@@ -267,7 +267,7 @@ import Testing
     }
 
     @Test func theBoardIsEncodedFromTheSideToMove() throws {
-        let white = MaiaEncoding.inputs(for: .start, selfElo: 1500, opponentElo: 1500)
+        let white = MaiaEncoding.inputs(for: .start, selfElo: 1500, opponentElo: 1500, eloMax: 5000)
         let tokens = try #require(white[MaiaEncoding.tokensName])
         #expect(tokens.shape == [1, 64, 96])
         // Every piece, once per history slot.
@@ -283,7 +283,7 @@ import Testing
 
         // Black to move: the board is turned, so Black's king is "white's" on e1.
         let position = try #require(Position(fen: afterE4))
-        let black = try #require(MaiaEncoding.inputs(for: position, selfElo: 1100, opponentElo: 1100)[MaiaEncoding.tokensName])
+        let black = try #require(MaiaEncoding.inputs(for: position, selfElo: 1100, opponentElo: 1100, eloMax: 5000)[MaiaEncoding.tokensName])
         #expect(plane(black, square: "e1") == 5)
         #expect(plane(black, square: "e5") == 6)            // White's e4 pawn, seen from Black
         #expect(plane(black, square: "e4") == nil)
@@ -291,10 +291,30 @@ import Testing
     }
 
     @Test func ratingsAreClamped() {
-        #expect(MaiaEncoding.clampElo(1499.6) == 1500)
-        #expect(MaiaEncoding.clampElo(-20) == 0)
-        #expect(MaiaEncoding.clampElo(9000) == 5000)
-        #expect(MaiaEncoding.clampElo(.nan) == 0)
+        #expect(MaiaEncoding.clampElo(1499.6, max: 5000) == 1500)
+        #expect(MaiaEncoding.clampElo(-20, max: 5000) == 0)
+        #expect(MaiaEncoding.clampElo(9000, max: 5000) == 5000)
+        #expect(MaiaEncoding.clampElo(9000, max: 3000) == 3000)
+        #expect(MaiaEncoding.clampElo(.nan, max: 5000) == 0)
+    }
+
+    /// The network the server describes today is the one the encoder is for;
+    /// one it describes differently is refused, so Stockfish plays instead of
+    /// a network fed the wrong way.
+    @Test func theEncoderKnowsTheNetworkOfTheCatalogueAndRefusesAnother() throws {
+        let info = try FixtureAPI.playCatalogue().engines.maia
+        #expect(MaiaEncoding.canEncode(for: info))
+        func changed(_ edit: (inout [String: Any]) -> Void) throws -> MaiaEngineInfo {
+            var object = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(info)) as? [String: Any])
+            edit(&object)
+            return try JSONDecoder().decode(MaiaEngineInfo.self, from: JSONSerialization.data(withJSONObject: object))
+        }
+        #expect(!MaiaEncoding.canEncode(for: try changed { $0["history"] = 4 }))
+        #expect(!MaiaEncoding.canEncode(for: try changed { $0["policySize"] = 1858 }))
+        #expect(!MaiaEncoding.canEncode(for: try changed { $0["planeOrder"] = ["bP"] }))
+        #expect(!MaiaEncoding.canEncode(for: try changed { $0["inputs"] = [["name": "tokens", "dims": [1, 64, 12], "type": "float32"]] }))
+        // What is a setting, not a layout, may change freely.
+        #expect(MaiaEncoding.canEncode(for: try changed { $0["eloMax"] = 4000; $0["warmupBudgetMs"] = 9000 }))
     }
 }
 
@@ -302,15 +322,13 @@ import Testing
 /// time a game is played; `CD_MAIA_MODEL` can also point at the file). The
 /// numbers are onnxruntime's for the same file: the app's runner must agree.
 @Suite struct MaiaNetworkTests {
-    nonisolated static let model = MaiaModelInfo(
-        model: "maia3-5m",
-        url: URL(string: "https://pub-26a6fb2503864acf88323aba7ae89c2a.r2.dev/maia3-5m.onnx").unsafelyUnwrapped
-    )
+    /// The network as the captured catalogue describes it.
+    nonisolated static let model = try? FixtureAPI.playCatalogue().engines.maia
 
     nonisolated static var file: URL? {
         let candidates = [
             ProcessInfo.processInfo.environment["CD_MAIA_MODEL"].map { URL(fileURLWithPath: $0) },
-            MaiaModelStore.shared.file(for: model),
+            model.map { MaiaModelStore.shared.file(for: $0) },
         ]
         return candidates.compactMap { $0 }.first { FileManager.default.fileExists(atPath: $0.path) }
     }
@@ -337,7 +355,7 @@ import Testing
 
     @Test(.enabled(if: MaiaNetworkTests.file != nil, "the Maia network is not on this simulator"))
     func theAppsRunnerAgreesWithTheReferenceRuntime() async throws {
-        let engine = try MaiaBotEngine(model: Data(contentsOf: try #require(Self.file)))
+        let engine = try MaiaBotEngine(model: Data(contentsOf: try #require(Self.file)), info: try #require(Self.model))
         for (fen, rating, top, values) in Self.reference {
             let position = try #require(Position(fen: fen))
             let policy = try engine.policy(for: position, rating: rating)
@@ -346,7 +364,7 @@ import Testing
                 #expect(abs(policy[index] - value) < 2e-3, "\(fen) at \(rating): entry \(index)")
             }
             // And whatever is drawn from it is a legal move.
-            let answer = try await engine.bestMove(fen: fen, rating: rating, temperature: 1.2)
+            let answer = try await engine.bestMove(fen: fen, strength: BotStrength(rating: rating, temperature: 1.2, stockfishElo: 1320))
             let move = try #require(Move(uci: answer))
             #expect(position.playing(move) != nil)
         }
@@ -371,7 +389,7 @@ struct StubBotEngine: BotEngine {
         self.init(kind: kind) { _ in move }
     }
 
-    func bestMove(fen: String, rating: Int, temperature: Double?) async throws -> String {
+    func bestMove(fen: String, strength: BotStrength) async throws -> String {
         try await answer(fen)
     }
 }
@@ -383,14 +401,31 @@ struct StubBotEngine: BotEngine {
     private func selection(
         maia: @escaping @Sendable () async throws -> any BotEngine,
         load: Duration = .seconds(5),
-        warmup: Duration = .seconds(5)
+        warmup: Duration = .seconds(5),
+        order: [BotEngineKind] = [.maia, .stockfish]
     ) -> BotEngineSelection {
         BotEngineSelection(
+            order: order,
             makeMaia: maia,
             makeStockfish: { StubBotEngine(kind: .stockfish, move: "d2d4") },
             loadBudget: load,
             warmupBudget: warmup
         )
+    }
+
+    @Test func theCataloguesOrderAndBudgetsAreFollowed() async throws {
+        let engines = try FixtureAPI.playCatalogue().engines
+        let device = BotEngineSelection.device(engines)
+        #expect(device.order == [.maia, .stockfish])
+        #expect(device.loadBudget == .milliseconds(engines.maia.initBudgetMs))
+        #expect(device.warmupBudget == .milliseconds(engines.maia.warmupBudgetMs))
+        // A catalogue that puts Stockfish first gets Stockfish, Maia or not.
+        let first = try await selection(maia: { StubBotEngine(kind: .maia, move: "e2e4") }, order: [.stockfish, .maia]).make()
+        #expect(first.kind == .stockfish)
+        // One that lists nothing this app runs has no engine to give.
+        await #expect(throws: BotEngineError.self) {
+            try await selection(maia: { StubBotEngine(kind: .maia, move: "e2e4") }, order: []).make()
+        }
     }
 
     @Test func usesMaiaWhenItLoadsAndItsFirstMoveIsFast() async throws {
@@ -401,7 +436,7 @@ struct StubBotEngine: BotEngine {
     @Test func fallsBackToStockfishWhenMaiaDoesNotLoad() async throws {
         let engine = try await selection(maia: { throw Failure() }).make()
         #expect(engine.kind == .stockfish)
-        #expect(try await engine.bestMove(fen: BotEngineSelection.startFEN, rating: 1500, temperature: nil) == "d2d4")
+        #expect(try await engine.bestMove(fen: BotEngineSelection.startFEN, strength: .warmup) == "d2d4")
     }
 
     @Test func fallsBackToStockfishWhenTheFirstMoveIsTooSlow() async throws {
@@ -428,7 +463,9 @@ struct StubBotEngine: BotEngine {
     }
 
     @Test func aGameWithoutAnyEngineSaysSo() async {
-        let selection = BotEngineSelection(makeMaia: { throw Failure() }, makeStockfish: { throw Failure() })
+        let selection = BotEngineSelection(
+            makeMaia: { throw Failure() }, makeStockfish: { throw Failure() }, loadBudget: .seconds(5), warmupBudget: .seconds(5)
+        )
         await #expect(throws: Failure.self) { try await selection.make() }
     }
 
