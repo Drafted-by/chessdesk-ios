@@ -17,66 +17,81 @@ struct BotGameScreen: View {
     private var setup: BotGameSetup { game.setup }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                VStack(alignment: .leading, spacing: CD.Space.s12) {
-                    VStack(spacing: CD.Space.s8) {
-                        opponentBar
-                        BoardView(
-                            position: game.position,
-                            orientation: game.humanSide,
-                            lastMove: game.lastMove,
-                            movableSide: game.isOver ? nil : game.humanSide,
-                            onMove: { model.play($0) }
-                        )
-                        .frame(maxWidth: 560)
-                        .boardBleed()
-                        playerBar
-                    }
-                    .frame(maxWidth: 560)
-                    .frame(maxWidth: .infinity)
+        GeometryReader { viewport in
+            ScrollViewReader { proxy in
+                ScrollView {
+                    // While the game is on, nothing scrolls: the moves on top,
+                    // the board between its two players in the middle of
+                    // what is left, the way out under the thumb. A finished
+                    // game adds its result, and the page scrolls to it.
+                    VStack(alignment: .leading, spacing: 0) {
+                        PlayMoveStrip(moves: game.moves, outcome: game.outcome)
 
-                    if let outcome = game.outcome {
-                        ResultPanel(
-                            model: model,
-                            outcome: outcome,
-                            playsOtherSideNext: $playsOtherSideNext,
-                            review: { review = $0 },
-                            signIn: { signIn = $0 },
-                            newGame: { dismiss() }
-                        )
-                        .id("result")
-                        .transition(.opacity)
-                    }
+                        Spacer(minLength: CD.Space.s12)
 
-                    PlayMoveStrip(moves: game.moves, outcome: game.outcome)
+                        VStack(spacing: CD.Space.s8) {
+                            opponentBar
+                                .pageGutter()
+                            BoardView(
+                                position: game.position,
+                                orientation: game.humanSide,
+                                lastMove: game.lastMove,
+                                movableSide: game.isOver ? nil : game.humanSide,
+                                onMove: { model.play($0) }
+                            )
+                            .aspectRatio(1, contentMode: .fit)
+                            playerBar
+                                .pageGutter()
+                        }
+                        .frame(maxWidth: 600)
+                        .frame(maxWidth: .infinity)
 
-                    if !game.isOver {
-                        HStack {
-                            Button("Resign") { confirmsResigning = true }
-                                .buttonStyle(.cd(.ghost))
+                        Spacer(minLength: CD.Space.s12)
+
+                        VStack(alignment: .leading, spacing: CD.Space.s12) {
+                            if let outcome = game.outcome {
+                                ResultPanel(
+                                    model: model,
+                                    outcome: outcome,
+                                    playsOtherSideNext: $playsOtherSideNext,
+                                    review: { review = $0 },
+                                    signIn: { signIn = $0 },
+                                    newGame: { dismiss() }
+                                )
+                                .id("result")
+                                .transition(.opacity)
+                            } else {
+                                Button { confirmsResigning = true } label: {
+                                    HStack(spacing: CD.Space.s8) {
+                                        Image(systemName: "flag")
+                                            .font(.system(size: 15, weight: .semibold))
+                                        Text("Resign")
+                                    }
+                                }
+                                .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
                                 .confirmationDialog("Resign this game?", isPresented: $confirmsResigning, titleVisibility: .visible) {
                                     Button("Resign", role: .destructive) { model.resign() }
                                     Button("Keep playing", role: .cancel) {}
                                 }
-                            Spacer()
+                            }
+                            #if DEBUG
+                                Text("Engine: \(model.engineKind.rawValue)")
+                                    .cdFont(.meta)
+                                    .foregroundStyle(CD.ink4)
+                            #endif
                         }
+                        .pageGutter()
+                        .padding(.bottom, CD.Space.s8)
+                        .frame(maxWidth: 600)
+                        .frame(maxWidth: .infinity)
                     }
-                    #if DEBUG
-                        Text("Engine: \(model.engineKind.rawValue)")
-                            .cdFont(.meta)
-                            .foregroundStyle(CD.ink4)
-                    #endif
+                    .frame(minHeight: viewport.size.height)
                 }
-                .pageGutter()
-                .padding(.top, CD.Space.s16)
-                .padding(.bottom, CD.Space.s32)
-                .frame(maxWidth: 720)
-                .frame(maxWidth: .infinity)
-            }
+                .scrollBounceBehavior(.basedOnSize)
             .onChange(of: game.isOver) { _, over in
                 guard over else { return }
                 withAnimation(CD.Motion.enter) { proxy.scrollTo("result", anchor: .bottom) }
+            }
             }
         }
         .navigationTitle(setup.botName)
@@ -228,7 +243,7 @@ private struct PlayMoveStrip: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: CD.Space.s4) {
                     if moves.isEmpty, outcome == nil {
-                        Text("Moves will appear here.")
+                        Text("Your game, move by move.")
                             .cdFont(.small)
                             .foregroundStyle(CD.ink3)
                             .padding(.horizontal, CD.Space.s8)
@@ -262,11 +277,10 @@ private struct PlayMoveStrip: View {
                             .id("end")
                     }
                 }
-                .padding(.horizontal, CD.Space.s8)
+                .padding(.horizontal, CD.Space.s12)
             }
-            .frame(minHeight: 44)
-            .cardSurface()
-            .hairline()
+            .frame(height: 44)
+            .overlay(alignment: .bottom) { CDHairline() }
             .onChange(of: moves.count, initial: true) { _, count in
                 guard count > 0 else { return }
                 withAnimation(CD.Motion.state) { proxy.scrollTo(count - 1, anchor: .trailing) }
