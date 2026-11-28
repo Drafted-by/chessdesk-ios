@@ -169,6 +169,23 @@ extension View {
     }
 }
 
+extension View {
+    /// A board a player works on runs from edge to edge of a phone, as on
+    /// the trainers: inside a gutted column, this takes the gutter back. On
+    /// an iPad the board keeps its width and its place.
+    func boardBleed() -> some View {
+        modifier(BoardBleed())
+    }
+}
+
+private struct BoardBleed: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    func body(content: Content) -> some View {
+        content.padding(.horizontal, sizeClass == .regular ? 0 : -CD.Space.s16)
+    }
+}
+
 private struct PageGutter: ViewModifier {
     @Environment(\.horizontalSizeClass) private var sizeClass
 

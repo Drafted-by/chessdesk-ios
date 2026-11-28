@@ -233,21 +233,14 @@ struct BoardArrowsLayer: View {
     }
 }
 
-/// The check or cross seal in the top corner of a verdict square.
+/// The check or cross seal in the top corner of a verdict square: the
+/// site's verdict badge, a check on the best green or a cross on the blunder red.
 struct VerdictSeal: View {
     let kind: BoardVerdict.Kind
     let size: CGFloat
 
     var body: some View {
-        ZStack {
-            Circle().fill(kind == .right ? CD.Board.sealRight : CD.Board.sealWrong)
-            Image(systemName: kind == .right ? "checkmark" : "xmark")
-                .font(.system(size: size * 0.5, weight: .heavy))
-                .foregroundStyle(Color.white)
-        }
-        .frame(width: size, height: size)
-        .overlay(Circle().strokeBorder(Color.black.opacity(0.25), lineWidth: 1))
-        .accessibilityHidden(true)
+        MoveSeal(glyph: kind == .right ? .right : .wrong, size: size, onBoard: true)
     }
 }
 

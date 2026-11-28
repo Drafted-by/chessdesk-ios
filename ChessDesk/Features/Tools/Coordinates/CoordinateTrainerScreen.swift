@@ -14,6 +14,7 @@ struct CoordinateTrainerScreen: View {
                 prompt
                 board
                     .frame(maxWidth: 560)
+                    .boardBleed()
                 controls
                 if trainer.phase == .over {
                     Text("You found \(CDFormat.plural(trainer.score, "square")) in \(CoordinateTrainer.roundSeconds) seconds.")
@@ -113,7 +114,6 @@ struct CoordinateTrainerScreen: View {
                 }
             }
             .frame(width: side, height: side)
-            .clipShape(RoundedRectangle(cornerRadius: CD.Radius.md, style: .continuous))
             .opacity(trainer.phase == .playing ? 1 : 0.85)
             .contentShape(Rectangle())
             .onTapGesture { location in

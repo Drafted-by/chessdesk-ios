@@ -73,6 +73,9 @@ struct MistakeSession: View {
                 .frame(maxWidth: .infinity)
                 .frame(height: 44)
 
+            // The board and its question in the middle of what is left.
+            Spacer(minLength: 0)
+
             BoardView(
                 position: position,
                 orientation: start.turn,

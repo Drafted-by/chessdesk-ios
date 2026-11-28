@@ -175,7 +175,7 @@ extension BotGame {
 }
 
 /// The pieces a side has taken, pawn to queen, and "+N" when it is ahead.
-private struct CapturedRow: View {
+struct CapturedRow: View {
     let material: MaterialDiff.SideMaterial
     /// The side whose pieces were taken.
     let capturedSide: Side

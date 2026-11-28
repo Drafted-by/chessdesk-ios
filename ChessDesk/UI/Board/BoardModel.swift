@@ -29,6 +29,12 @@ struct BoardVerdict: Hashable {
     let kind: Kind
 }
 
+/// The class of the move that just landed on a square, as a review shows it.
+struct BoardBadge: Hashable {
+    let square: Square
+    let kind: MoveClass
+}
+
 /// Maps squares to points for one board size and orientation.
 struct BoardGeometry {
     let side: CGFloat

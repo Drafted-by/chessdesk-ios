@@ -11,6 +11,8 @@ struct BoardView: View {
     var lastMove: Move?
     var arrows: [BoardArrow] = []
     var verdict: BoardVerdict?
+    /// A reviewed move: its seal in the corner of the square it landed on.
+    var badge: BoardBadge?
     var hint: Square?
     /// The side that may move pieces; nil locks the board.
     var movableSide: Side?
@@ -62,6 +64,19 @@ struct BoardView: View {
                     VerdictSeal(kind: verdict.kind, size: seal)
                         .offset(x: rect.maxX - seal * 0.78, y: rect.minY - seal * 0.22)
                         .transition(.scale(scale: 0.6).combined(with: .opacity))
+                }
+                if let badge {
+                    let rect = geometry.rect(of: badge.square)
+                    let seal = geometry.squareSize * 0.42
+                    MoveSeal(badge.kind, size: seal, onBoard: true)
+                        // Inside the board on the last file and the first rank shown.
+                        .offset(
+                            x: min(rect.maxX - seal * 0.72, side - seal),
+                            y: max(rect.minY - seal * 0.28, 0)
+                        )
+                        .id(badge)
+                        .transition(.scale(scale: 0.6).combined(with: .opacity))
+                        .allowsHitTesting(false)
                 }
                 if let promotion {
                     promotionPicker(promotion, geometry)

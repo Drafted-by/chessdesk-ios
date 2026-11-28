@@ -234,6 +234,7 @@ private struct ExplorerContent: View {
         )
         .frame(maxWidth: 520)
         .frame(maxWidth: .infinity)
+        .boardBleed()
         .opacity(model.isCurrent ? 1 : 0.7)
         .animation(CD.Motion.state, value: model.isCurrent)
     }

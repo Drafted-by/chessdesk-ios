@@ -41,9 +41,16 @@ struct CourseDetailView: View {
     private func page(_ course: CourseDetail) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s32) {
-                CourseHero(course: course, lead: leadAction(course)) { action in
-                    run(action, course)
-                }
+                CourseHero(
+                    course: course, lead: leadAction(course), next: nextLine(course, lead: leadAction(course)),
+                    run: { action in run(action, course) },
+                    learnNext: { next in
+                        switch next {
+                        case .learn: trainer = TrainerRequest(course: course, mode: .learn, line: nil)
+                        case .premium: showsPremium = true
+                        }
+                    }
+                )
                 CourseFacts(course: course)
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
                     SectionHeader(title: "About this course")
@@ -103,6 +110,27 @@ struct CourseDetailView: View {
         return learnedHere ? .practiseFree : .startFree
     }
 
+    /// The other thing a player with lines due can do: go on with the
+    /// course. The lead action is the review; without this the next line
+    /// was only reachable from the list of chapters. For a free account the
+    /// lines after the free one belong to Premium, and the button says so
+    /// by opening its sheet.
+    enum NextLine: Equatable {
+        case learn
+        case premium
+    }
+
+    func nextLine(_ course: CourseDetail, lead: LeadAction) -> NextLine? {
+        // Lines the player has not learned yet remain in the course.
+        guard course.progress.learned < course.totals.lines else { return nil }
+        switch lead {
+        case .review, .practiseFree: break
+        case .startFree, .learn: return nil
+        }
+        if app.hasPremium { return course.pace.newLeft > 0 ? .learn : nil }
+        return .premium
+    }
+
     private func run(_ action: LeadAction, _ course: CourseDetail) {
         switch action {
         case .startFree, .practiseFree:
@@ -120,7 +148,9 @@ struct CourseDetailView: View {
 private struct CourseHero: View {
     let course: CourseDetail
     let lead: CourseDetailView.LeadAction
+    var next: CourseDetailView.NextLine?
     let run: (CourseDetailView.LeadAction) -> Void
+    var learnNext: (CourseDetailView.NextLine) -> Void = { _ in }
 
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -176,6 +206,18 @@ private struct CourseHero: View {
             VStack(alignment: .leading, spacing: CD.Space.s8) {
                 Button(lead.title) { run(lead) }
                     .buttonStyle(.cd(.primary, size: .large, fullWidth: true))
+                if let next {
+                    Button { learnNext(next) } label: {
+                        HStack(spacing: CD.Space.s8) {
+                            if next == .premium {
+                                Image(systemName: "lock").font(.system(size: 14, weight: .semibold))
+                            }
+                            Text("Learn the next line")
+                        }
+                    }
+                    .buttonStyle(.cd(.secondary, size: .large, fullWidth: true))
+                    .accessibilityHint(next == .premium ? "Part of Premium" : "")
+                }
                 Text(caption)
                     .cdFont(.meta)
                     .foregroundStyle(CD.ink3)

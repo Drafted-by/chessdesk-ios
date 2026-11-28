@@ -150,6 +150,9 @@ private struct PositionTrainerView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 44)
 
+                // The board and its question in the middle of what is left.
+                Spacer(minLength: 0)
+
                 BoardView(
                     position: shownPosition(drill, start: start),
                     orientation: start.turn,

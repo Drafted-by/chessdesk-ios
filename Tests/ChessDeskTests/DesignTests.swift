@@ -144,3 +144,45 @@ struct GoogleHandoffTests {
         #expect(try read("https://chessdesk.app/auth/google?code=one-time") == .failure(.failed))
     }
 }
+
+/// The summary of a review counts what the review holds, side by side.
+struct GameSummaryTests {
+    private func move(_ ply: Int, _ kind: MoveClass, cp: Double) -> ReviewedMove {
+        ReviewedMove(
+            ply: ply, san: "e4", color: ply % 2 == 1 ? "w" : "b", evalCp: cp, mate: nil, bestSan: "e4", cpl: 0, winLoss: 0,
+            classification: kind
+        )
+    }
+
+    private var review: GameReview {
+        GameReview(
+            version: 1, depth: 12, computedAt: Date(timeIntervalSince1970: 0), whiteAccuracy: 85.84, blackAccuracy: 57.3,
+            moves: [move(1, .book, cp: 20), move(2, .book, cp: 20), move(3, .best, cp: 30), move(4, .blunder, cp: 300),
+                    move(5, .brilliant, cp: 320), move(6, .mistake, cp: 600)]
+        )
+    }
+
+    @Test func countsAreBySideAndClass() {
+        #expect(GameSummaryView.count(.book, side: "w", in: review) == 1)
+        #expect(GameSummaryView.count(.book, side: "b", in: review) == 1)
+        #expect(GameSummaryView.count(.blunder, side: "b", in: review) == 1)
+        #expect(GameSummaryView.count(.blunder, side: "w", in: review) == 0)
+        #expect(GameSummaryView.count(.brilliant, side: "w", in: review) == 1)
+    }
+
+    @Test func accuracyKeepsOneDecimal() {
+        #expect(GameSummaryView.accuracyText(85.84) == "85.8")
+        #expect(GameSummaryView.accuracyText(100) == "100.0")
+    }
+
+    @Test func everyClassIsListedOnce() {
+        #expect(Set(GameSummaryView.classes) == Set(MoveClass.allCases))
+        #expect(GameSummaryView.classes.count == MoveClass.allCases.count)
+    }
+
+    /// The moves a walk-through stops on, and the ones whose SAN is coloured.
+    @Test func keyMomentsAndColouredMoves() {
+        #expect(MoveClass.allCases.filter(\.isKeyMoment) == [.brilliant, .great, .mistake, .blunder])
+        #expect(Set(MoveClass.allCases.filter(\.coloursItsMove)) == [.brilliant, .great, .inaccuracy, .mistake, .blunder])
+    }
+}
