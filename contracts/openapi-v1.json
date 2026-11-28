@@ -3596,7 +3596,7 @@
     "/api/v1/repertoires/{id}/moves": {
       "post": {
         "operationId": "addRepertoireLine",
-        "summary": "Add a move or a line, given from the start position. 403 premium_required past the free line allowance.",
+        "summary": "Add a move or a line, given from the start position. 403 premium_required past the free line allowance; 409 when another device changed the repertoire at the same time: read it again, then send the line again.",
         "security": [
           {
             "bearer": []
@@ -3675,6 +3675,16 @@
               }
             }
           },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request could not be carried out; the message says why.",
             "content": {
@@ -3689,7 +3699,7 @@
       },
       "patch": {
         "operationId": "annotateRepertoireMove",
-        "summary": "Set the note and the glyph of a move, or the note before the first move.",
+        "summary": "Set the note and the glyph of a move, or the note before the first move. 409: read the repertoire again, then retry.",
         "security": [
           {
             "bearer": []
@@ -3768,6 +3778,16 @@
               }
             }
           },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request could not be carried out; the message says why.",
             "content": {
@@ -3782,7 +3802,7 @@
       },
       "delete": {
         "operationId": "removeRepertoireMove",
-        "summary": "Remove a move and everything played after it.",
+        "summary": "Remove a move and everything played after it. 409: read the repertoire again, then retry.",
         "security": [
           {
             "bearer": []
@@ -3862,6 +3882,16 @@
               }
             }
           },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
           "422": {
             "description": "The request could not be carried out; the message says why.",
             "content": {
@@ -3878,7 +3908,7 @@
     "/api/v1/repertoires/{id}/pgn": {
       "put": {
         "operationId": "importRepertoirePgn",
-        "summary": "Replace the tree with a PGN; its games are merged into one tree.",
+        "summary": "Replace the tree with a PGN; its games are merged into one tree. 6 a minute.",
         "security": [
           {
             "bearer": []
@@ -3966,6 +3996,16 @@
                 }
               }
             }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
           }
         }
       }
@@ -3973,7 +4013,7 @@
     "/api/v1/repertoires/{id}/seed": {
       "post": {
         "operationId": "seedRepertoireFromGames",
-        "summary": "Replace the tree with the openings the player really plays with this colour, from their imported games.",
+        "summary": "Replace the tree with the openings the player really plays with this colour, from their imported games. 6 a minute.",
         "security": [
           {
             "bearer": []
@@ -4034,6 +4074,16 @@
           },
           "422": {
             "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
             "content": {
               "application/json": {
                 "schema": {
@@ -4357,7 +4407,7 @@
     "/api/v1/explorer/position": {
       "get": {
         "operationId": "getExplorerPosition",
-        "summary": "One position of the player's opening tree: the moves they played with their results, the games reaching it, and the lines to look at first. Filters: colour, time class, rated, dates, opponent rating, site.",
+        "summary": "One position of the player's opening tree: the moves they played with their results, the games reaching it, and the lines to look at first. Filters: colour, time class, rated, dates, opponent rating, site. 120 a minute; games imported in the last minute may not show yet.",
         "security": [
           {
             "bearer": []
@@ -4501,6 +4551,16 @@
           },
           "403": {
             "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
             "content": {
               "application/json": {
                 "schema": {
@@ -9431,6 +9491,9 @@
               "$ref": "#/components/schemas/RepertoireNode"
             }
           },
+          "truncated": {
+            "type": "boolean"
+          },
           "rootComment": {
             "type": "string"
           },
@@ -9481,6 +9544,7 @@
           "updatedAt",
           "startFen",
           "tree",
+          "truncated",
           "rootComment",
           "pgn",
           "lineLimit",
@@ -12037,10 +12101,25 @@
             "type": "object",
             "properties": {
               "engineLines": {
-                "type": "number"
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
               },
               "engineDepth": {
-                "type": "number"
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "const": 16
+                  },
+                  {
+                    "type": "number",
+                    "const": 22
+                  },
+                  {
+                    "type": "number",
+                    "const": 28
+                  }
+                ]
               },
               "newLinesPerDay": {
                 "type": "integer",
