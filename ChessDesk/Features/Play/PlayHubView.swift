@@ -299,14 +299,14 @@ private struct GameInProgressCard: View {
                         .disabled(isOpening)
                     Button("Give up") { confirmsGivingUp = true }
                         .buttonStyle(.cd(.ghost))
+                        .confirmationDialog("Give up this game?", isPresented: $confirmsGivingUp, titleVisibility: .visible) {
+                            Button("Give up the game", role: .destructive, action: giveUp)
+                            Button("Keep it", role: .cancel) {}
+                        } message: {
+                            Text("It will not be saved.")
+                        }
                 }
             }
-        }
-        .confirmationDialog("Give up this game?", isPresented: $confirmsGivingUp, titleVisibility: .visible) {
-            Button("Give up the game", role: .destructive, action: giveUp)
-            Button("Keep it", role: .cancel) {}
-        } message: {
-            Text("It will not be saved.")
         }
     }
 

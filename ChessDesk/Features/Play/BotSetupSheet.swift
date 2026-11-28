@@ -78,6 +78,7 @@ struct BotSetupSheet: View {
                 .frame(maxWidth: 460)
                 .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(CD.canvas.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -91,12 +92,6 @@ struct BotSetupSheet: View {
         .presentationDetents([.large])
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .sheet(isPresented: $showsPremium) { PremiumSheet() }
-        .confirmationDialog("Start a new game?", isPresented: $confirmsReplacing, titleVisibility: .visible) {
-            Button("Start the new game", role: .destructive, action: start)
-            Button("Keep my game", role: .cancel) {}
-        } message: {
-            Text("Your game in progress against \(model.resumable?.setup.botName ?? "the bot") will be given up.")
-        }
     }
 
     // MARK: The opponent
@@ -263,6 +258,12 @@ struct BotSetupSheet: View {
             }
             .buttonStyle(.cd(.lead, size: .large, fullWidth: true))
             .disabled(model.isStarting || startFailure != nil)
+            .confirmationDialog("Start a new game?", isPresented: $confirmsReplacing, titleVisibility: .visible) {
+                Button("Start the new game", role: .destructive, action: start)
+                Button("Keep my game", role: .cancel) {}
+            } message: {
+                Text("Your game in progress against \(model.resumable?.setup.botName ?? "the bot") will be given up.")
+            }
         }
     }
 

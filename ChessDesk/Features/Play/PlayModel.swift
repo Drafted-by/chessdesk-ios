@@ -79,11 +79,20 @@ final class PlayModel {
     init(
         app: AppModel,
         store: BotGameStore = .standard,
-        engines: @escaping @Sendable (MaiaModelInfo?) -> BotEngineSelection = { BotEngineSelection.device(maia: $0) }
+        engines: @escaping @Sendable (MaiaModelInfo?) -> BotEngineSelection = PlayModel.deviceEngines
     ) {
         self.app = app
         self.store = store
         self.engines = engines
+    }
+
+    /// Maia from the catalogue's network, Stockfish from the app bundle.
+    /// `-CDPlayEngine stockfish` (Debug) leaves Maia out, to check the fallback.
+    nonisolated static let deviceEngines: @Sendable (MaiaModelInfo?) -> BotEngineSelection = { maia in
+        #if DEBUG
+            if UserDefaults.standard.string(forKey: "CDPlayEngine") == "stockfish" { return .device(maia: nil) }
+        #endif
+        return .device(maia: maia)
     }
 
     var catalogue: PlayCatalogue? {

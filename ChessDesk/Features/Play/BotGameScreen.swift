@@ -54,6 +54,10 @@ struct BotGameScreen: View {
                         HStack {
                             Button("Resign") { confirmsResigning = true }
                                 .buttonStyle(.cd(.ghost))
+                                .confirmationDialog("Resign this game?", isPresented: $confirmsResigning, titleVisibility: .visible) {
+                                    Button("Resign", role: .destructive) { model.resign() }
+                                    Button("Keep playing", role: .cancel) {}
+                                }
                             Spacer()
                         }
                     }
@@ -97,10 +101,6 @@ struct BotGameScreen: View {
         }
         .onDisappear { model.pause() }
         .onChange(of: app.accountRevision) { _, _ in model.accountChanged() }
-        .confirmationDialog("Resign this game?", isPresented: $confirmsResigning, titleVisibility: .visible) {
-            Button("Resign", role: .destructive) { model.resign() }
-            Button("Keep playing", role: .cancel) {}
-        }
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .navigationDestination(item: $review) { GameScreen(id: $0) }
     }
@@ -115,24 +115,28 @@ struct BotGameScreen: View {
                 .frame(width: 40, height: 40)
                 .clipShape(Circle())
                 .overlay(Circle().strokeBorder(CD.lineStrong, lineWidth: 1))
+            // What the bot has taken shares the line of its name; the status
+            // keeps the whole width, so a long result is never cut.
             VStack(alignment: .leading, spacing: 1) {
-                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s6) {
+                HStack(alignment: .center, spacing: CD.Space.s6) {
                     Text(setup.botName)
                         .cdFont(.cardTitle)
                         .foregroundStyle(CD.ink)
                         .lineLimit(1)
+                        .layoutPriority(1)
                     Text(CDFormat.count(setup.rating))
                         .cdFont(.meta)
                         .foregroundStyle(CD.ink3)
                         .cdNumber()
+                        .layoutPriority(1)
+                    Spacer(minLength: CD.Space.s4)
+                    CapturedRow(material: material[game.botSide], capturedSide: game.humanSide)
                 }
                 Text(status)
                     .cdFont(.meta)
                     .foregroundStyle(statusColor)
                     .lineLimit(1)
             }
-            Spacer(minLength: CD.Space.s8)
-            CapturedRow(material: material[game.botSide], capturedSide: game.humanSide)
         }
         .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
@@ -179,13 +183,13 @@ private struct CapturedRow: View {
     private static let names: [PieceKind: String] = [.pawn: "pawn", .knight: "knight", .bishop: "bishop", .rook: "rook", .queen: "queen"]
 
     var body: some View {
-        HStack(spacing: CD.Space.s4) {
+        HStack(spacing: 3) {
             ForEach(material.captured, id: \.kind) { group in
-                HStack(spacing: -9) {
+                HStack(spacing: -10) {
                     ForEach(0..<group.count, id: \.self) { _ in
                         Image(Piece(capturedSide, group.kind).assetName)
                             .resizable()
-                            .frame(width: 18, height: 18)
+                            .frame(width: 17, height: 17)
                             // Black pieces on the dark page need an edge of light.
                             .shadow(color: capturedSide == .black ? CD.ink.opacity(0.75) : .clear, radius: 0.6)
                     }
@@ -303,13 +307,14 @@ private struct ResultPanel: View {
                         .cdFont(.plateTitle)
                         .foregroundStyle(CD.ink)
                         .fixedSize(horizontal: false, vertical: true)
-                    HStack(spacing: CD.Space.s6) {
+                    HStack(alignment: .firstTextBaseline, spacing: CD.Space.s6) {
                         Text(BotGameOutcome.printedScore(outcome.result))
                             .cdFont(.bodyStrong)
                             .foregroundStyle(tone)
                         Text(method)
                             .cdFont(.small)
                             .foregroundStyle(CD.ink3)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                     .cdNumber()
                 }
@@ -342,7 +347,7 @@ private struct ResultPanel: View {
 
     private var method: String {
         let last = game.moves.last.map { BotGameOutcome.moveNumber(ofPly: $0.ply) }
-        return "\(outcome.terminationPhrase(lastMoveNumber: last)) · against \(game.setup.botName) \(CDFormat.count(game.setup.rating))"
+        return outcome.terminationPhrase(lastMoveNumber: last)
     }
 
     /// Review leads when the game is in the account.
