@@ -387,6 +387,11 @@ enum Render {
     static func main() {
         let arguments = CommandLine.arguments
         let directory = URL(fileURLWithPath: arguments.count > 1 ? arguments[1] : "design/icon", isDirectory: true)
+        if arguments.count > 2, arguments[2] == "round2" {
+            // Round 2: ten candidates and their overview sheets (round2.swift).
+            renderRound2(into: directory.appendingPathComponent("round2", isDirectory: true))
+            return
+        }
         let fill = systemDarkFill()
         for candidate in Candidate.allCases {
             let name = candidate.rawValue
