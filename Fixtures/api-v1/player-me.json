@@ -3,5 +3,5 @@
   "user": { "id": "fixture-player", "email": "player@example.com", "name": "Sam Rivera", "role": "STUDENT", "emailVerified": true },
   "hasPassword": true,
   "access": { "premium": false, "paid": false, "viaCoachPlan": false, "viaAppStore": false, "trial": { "status": "none", "endsAt": null, "daysLeft": null } },
-  "freeLimits": { "repertoireLines": 20, "explorerGames": 200 }
+  "freeLimits": { "repertoireLines": 20, "explorerGames": 100 }
 }

@@ -14,13 +14,13 @@ nonisolated protocol ExplorerAPI {
 
 extension LiveAPI: ExplorerAPI {
     func explorerSummary(token: String) async throws -> ExplorerSummary {
-        try await exchange("GET", "explorer", token: token)
+        try await send("GET", "explorer", token: token)
     }
 
     func explorerPosition(
         path: [String], filters: ExplorerFilters, games: Int?, token: String
     ) async throws -> ExplorerPosition {
-        try await exchange(
+        try await send(
             "GET", "explorer/position",
             query: Self.explorerQuery(path: path, filters: filters, games: games), token: token
         )
@@ -44,17 +44,18 @@ extension LiveAPI: ExplorerAPI {
     }
 }
 
-/// On sample data the explorer walks the games of `FixtureOpenings`, synthetic.
+/// On sample data the explorer walks the sample player's games (synthetic);
+/// a guest is answered `unauthorized`, as by the server.
 extension FixtureAPI: ExplorerAPI {
     func explorerSummary(token: String) async throws -> ExplorerSummary {
         try await Task.sleep(for: delay)
-        return await FixtureOpenings.current.explorerSummary()
+        return try await signedInPlayer().openings.explorerSummary()
     }
 
     func explorerPosition(
         path: [String], filters: ExplorerFilters, games: Int?, token: String
     ) async throws -> ExplorerPosition {
         try await Task.sleep(for: delay)
-        return try await FixtureOpenings.current.explorerPosition(path: path, filters: filters, games: games)
+        return try await signedInPlayer().openings.explorerPosition(path: path, filters: filters, games: games)
     }
 }

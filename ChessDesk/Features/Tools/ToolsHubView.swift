@@ -1,18 +1,22 @@
 import SwiftUI
 
-/// The player's tools that run on the phone alone: no account, no network.
+/// The tools reached from Games besides the analysis board: they run on
+/// the phone alone, with no account and no network. (The coordinates trainer
+/// is in Train.)
 struct ToolsHubView: View {
+    private let tools: [ToolRoute] = [.bestMove, .elo]
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s16) {
-                Text("Everything here runs on this phone, with Stockfish on the device. No account needed.")
+                Text("Both run on this phone. No account needed.")
                     .cdFont(.body)
                     .foregroundStyle(CD.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 0) {
-                    ForEach(Array(ToolRoute.allCases.enumerated()), id: \.element) { index, tool in
+                    ForEach(Array(tools.enumerated()), id: \.element) { index, tool in
                         if index > 0 { CDHairline() }
-                        NavigationLink(value: tool) {
+                        NavigationLink(value: AppRoute.tool(tool)) {
                             HStack(spacing: CD.Space.s12) {
                                 Image(systemName: tool.symbol)
                                     .font(.system(size: 18, weight: .medium))
@@ -98,63 +102,6 @@ enum ToolRoute: String, Hashable, CaseIterable {
     }
 }
 
-extension View {
-    /// The way to the tools from a tab's first screen: a toolbar button,
-    /// and the screens it leads to. Temporary: the final place is the pilot's.
-    func toolsEntry() -> some View {
-        modifier(ToolsEntry())
-    }
-}
-
-private struct ToolsEntry: ViewModifier {
-    @State private var opensHub = false
-    @State private var debugTool: ToolRoute?
-    @State private var opensBoardSettings = false
-
-    func body(content: Content) -> some View {
-        content
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        opensHub = true
-                    } label: {
-                        Image(systemName: "wrench.and.screwdriver")
-                    }
-                    .accessibilityLabel("Tools")
-                }
-            }
-        #if DEBUG
-            // `-CDRoute boardsettings`: You › Board and sound on its own, to look at it whole.
-            .navigationDestination(isPresented: $opensBoardSettings) {
-                ScrollView { BoardSettingsSection().pageGutter().padding(.vertical, CD.Space.s16) }
-                    .cdPage()
-            }
-        #endif
-            .navigationDestination(isPresented: $opensHub) {
-                ToolsHubView()
-                    .navigationDestination(for: ToolRoute.self) { $0.screen }
-                    .navigationDestination(item: $debugTool) { $0.screen }
-            }
-        #if DEBUG
-            // `-CDRoute tools | analysis | bestmove | coordinates | elo`.
-            .onAppear {
-                guard let first = DebugLaunch.route?.first, !opensHub else { return }
-                if first == "boardsettings" {
-                    opensBoardSettings = true
-                } else if first == "tools" {
-                    opensHub = true
-                } else if let tool = ToolRoute(rawValue: first) {
-                    opensHub = true
-                    Task {
-                        try? await Task.sleep(for: .milliseconds(500))
-                        debugTool = tool
-                    }
-                }
-            }
-        #endif
-    }
-}
-
 #Preview {
-    NavigationStack { ToolsHubView().navigationDestination(for: ToolRoute.self) { $0.screen } }
+    NavigationStack { ToolsHubView().appDestinations() }
 }

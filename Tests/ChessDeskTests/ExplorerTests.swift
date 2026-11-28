@@ -12,6 +12,7 @@ private nonisolated final class ExplorerServer: ExplorerAPI, @unchecked Sendable
     private var failure: APIError?
     private var summary: ExplorerSummary?
     private var endsAt: Int?
+    private let openings = FixtureOpenings()
 
     var requests: [(path: [String], filters: ExplorerFilters)] { lock.withLock { asked } }
     var paths: [String] { requests.map { $0.path.joined(separator: " ") } }
@@ -23,7 +24,7 @@ private nonisolated final class ExplorerServer: ExplorerAPI, @unchecked Sendable
 
     func explorerSummary(token: String) async throws -> ExplorerSummary {
         if let summary = lock.withLock({ summary }) { return summary }
-        return await FixtureOpenings.current.explorerSummary()
+        return await openings.explorerSummary()
     }
 
     func explorerPosition(
@@ -35,7 +36,7 @@ private nonisolated final class ExplorerServer: ExplorerAPI, @unchecked Sendable
         }
         if let delay { try await Task.sleep(for: delay) }
         if let failure { throw failure }
-        let position = try await FixtureOpenings.current.explorerPosition(path: path, filters: filters, games: games)
+        let position = try await openings.explorerPosition(path: path, filters: filters, games: games)
         guard let endsAt, path.count >= endsAt else { return position }
         return ExplorerPosition(
             side: position.side, path: position.path, fen: position.fen, total: position.total, reaching: position.reaching,
@@ -45,7 +46,7 @@ private nonisolated final class ExplorerServer: ExplorerAPI, @unchecked Sendable
     }
 }
 
-@Suite(.samplePlayer()) @MainActor struct ExplorerModelTests {
+@Suite @MainActor struct ExplorerModelTests {
     private func makeModel(onUnauthorized: @escaping () -> Void = {}) async -> (ExplorerModel, ExplorerServer) {
         let server = ExplorerServer()
         let model = ExplorerModel(api: server, token: "t", onUnauthorized: onUnauthorized)

@@ -1,9 +1,12 @@
 import StoreKit
 import SwiftUI
 
-/// "You": the account, the plan, and what the app is made of.
+/// "You": the account, the plan, the way to Progress, the settings, the
+/// board, and what the app is made of. Opened from the profile button of
+/// Today, on Today's stack.
 struct AccountView: View {
     @Environment(AppModel.self) private var app
+    @Environment(HomeNavigator.self) private var home
     @State private var signIn: SignInView.Mode?
     @State private var showsDeletion = false
     @State private var showsPremium = false
@@ -27,7 +30,10 @@ struct AccountView: View {
                 } else {
                     GuestCard { signIn = $0 }
                 }
-                if app.isSignedIn { AccountSettingsSection() }
+                if app.isSignedIn {
+                    ProgressEntry { home.open(.progress) }
+                    AccountSettingsSection()
+                }
                 BoardSettingsSection()
                 #if DEBUG
                     DeveloperSection()
@@ -35,14 +41,16 @@ struct AccountView: View {
                 AboutSection()
             }
             .pageGutter()
-            .padding(.top, CD.Space.s24)
+            .padding(.top, CD.Space.s8)
             .padding(.bottom, CD.Space.s56)
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
         }
         .debugScrollAnchor()
         .navigationTitle("You")
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarTitleDisplayMode(.inline)
+        // The page carries its own title, in the serif; the bar keeps the way back.
+        .toolbar { ToolbarItem(placement: .principal) { Color.clear.frame(width: 1, height: 1).accessibilityHidden(true) } }
         .cdPage()
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .sheet(isPresented: $showsDeletion) { DeleteAccountView() }
@@ -55,6 +63,46 @@ struct AccountView: View {
                 if DebugLaunch.opensDeletion { showsDeletion = true }
             }
         #endif
+    }
+}
+
+/// The way to Progress: the streak, the mistakes mastered, the patterns of
+/// the player's games and the rating goal.
+private struct ProgressEntry: View {
+    let open: () -> Void
+
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: CD.Space.s12) {
+                Image(systemName: "chart.line.uptrend.xyaxis")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(CD.accent)
+                    .frame(width: 32)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: CD.Space.s2) {
+                    Text("Your progress")
+                        .cdFont(.bodyStrong)
+                        .foregroundStyle(CD.ink)
+                    Text("Your streak, the mistakes you no longer make, your rating goal.")
+                        .cdFont(.small)
+                        .foregroundStyle(CD.ink3)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: CD.Space.s8)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(CD.ink4)
+            }
+            .padding(.horizontal, CD.Space.s16)
+            .padding(.vertical, CD.Space.s12)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .hairline()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(CDPressStyle())
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -269,7 +317,7 @@ private struct AboutSection: View {
             VStack(alignment: .leading, spacing: CD.Space.s12) {
                 SectionHeader(
                     title: "Developer",
-                    detail: "Debug builds only. Sample data is a guest's view of three courses; localhost:3000 is a dev server forwarded from a Codespace."
+                    detail: "Debug builds only. Sample data is a guest's view (the sample player with -CDFixturePlayer YES); localhost:3000 is a dev server forwarded from a Codespace."
                 )
                 VStack(spacing: 0) {
                     ForEach(Array(choices.enumerated()), id: \.offset) { index, backend in

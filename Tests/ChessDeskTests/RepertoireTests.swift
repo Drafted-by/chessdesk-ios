@@ -117,8 +117,7 @@ import Testing
     @Test func aCheckInAPathIsPercentEncoded() throws {
         let api = LiveAPI(baseURL: try #require(URL(string: "https://chessdesk.app")))
         let query = LiveAPI.explorerQuery(path: ["e4", "e5", "Bb5+", "Qxf7#", "e8=Q"], filters: ExplorerFilters(), games: nil)
-        let request = api.request("GET", "explorer/position", query: query, token: "abc")
-        let url = LiveAPI.strictQuery(try #require(request.url))
+        let url = try #require(api.request("GET", "explorer/position", query: query, token: "abc").url)
         #expect(url.absoluteString.contains("Bb5%2B"))
         #expect(!url.absoluteString.contains("+"))
         #expect(!url.absoluteString.contains("#"))
@@ -172,6 +171,62 @@ import Testing
         #expect(again == tree)
     }
 
+    /// The server writes castling as the king taking its rook; the app keeps
+    /// the board's spelling, and compares moves in it.
+    @Test func castlingIsRespelledForTheBoardAndBack() throws {
+        let italian = tree("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3 O-O", "e4 e5 Nf3 Nc6 Bc4 Bc5 O-O d6")
+        let kept = detail(tree: italian)
+        let served = kept.treeSpelled
+        let castle = uci("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O")
+        #expect(castle.last == "e1g1")
+        // As served, the board's path does not find the move; respelled, it does.
+        #expect(RepertoireTree.node(at: castle, in: served.tree) == nil)
+        #expect(RepertoireTree.nodes(along: castle, in: served.tree).last?.san == "Bc5")
+        #expect(RepertoireTree.children(at: Array(castle.dropLast()), in: served.tree)?.map(\.uci) == ["e1h1"])
+        #expect(served.boardSpelled == kept)
+        #expect(RepertoireTree.node(at: castle, in: served.boardSpelled.tree)?.san == "O-O")
+        let black = try #require(RepertoireTree.node(at: uci("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3 O-O"), in: served.boardSpelled.tree))
+        #expect(black.uci == "e8g8")
+        #expect(RepertoireTree.node(at: castle + ["g8f6", "d2d3", "e8h8"], in: served.tree) == nil)
+
+        // A rook or a queen may really go from e1 to h1: only a castling move is respelled.
+        #expect(CastlingSpelling.board("e1h1", san: "Rh1") == "e1h1")
+        #expect(CastlingSpelling.board("e1h1", san: "O-O") == "e1g1")
+        #expect(CastlingSpelling.board("e8a8", san: "O-O-O+") == "e8c8")
+        #expect(CastlingSpelling.tree("e1c1", san: "O-O-O") == "e1a1")
+        #expect(CastlingSpelling.tree("e1g1", san: "Kg1") == "e1g1")
+        let ready = try #require(Position(fen: "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"))
+        #expect(CastlingSpelling.board("e1h1", from: ready) == "e1g1")
+        #expect(CastlingSpelling.board("e1a1", from: ready) == "e1c1")
+        #expect(CastlingSpelling.tree("e1g1", from: ready) == "e1h1")
+        #expect(CastlingSpelling.tree("e1f1", from: ready) == "e1f1")
+        let rook = try #require(Position(fen: "4k3/8/8/8/8/8/8/4R1K1 w - - 0 1"))
+        #expect(CastlingSpelling.board("e1h1", from: rook) == "e1h1")
+        #expect(CastlingSpelling.tree("e1h1", from: rook) == "e1h1")
+        // A path in either spelling is the same path.
+        let served1 = Array(castle.dropLast()) + ["e1h1", "g8f6", "d2d3", "e8h8"]
+        #expect(CastlingSpelling.board(path: served1, from: Position.startFEN) == uci("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3 O-O"))
+        #expect(CastlingSpelling.board(path: castle, from: Position.startFEN) == castle)
+        #expect(CastlingSpelling.board(path: ["e2e4", "e1h1"], from: Position.startFEN) == ["e2e4", "e1h1"])
+    }
+
+    /// `truncated` is read; a repertoire cut by the server says so.
+    @Test func aTruncatedRepertoireSaysSo() throws {
+        var example = try #require(try Contract.example("RepertoireDetail") as? [String: Any])
+        #expect(example["truncated"] as? Bool == true)
+        example["truncated"] = false
+        let whole = try APICoding.decoder.decode(RepertoireDetail.self, from: JSONSerialization.data(withJSONObject: example))
+        #expect(!whole.truncated)
+        example["truncated"] = true
+        let cut = try APICoding.decoder.decode(RepertoireDetail.self, from: JSONSerialization.data(withJSONObject: example))
+        #expect(cut.truncated)
+        // The server always sends it: an answer without it is not a repertoire.
+        example["truncated"] = nil
+        #expect(throws: (any Error).self) {
+            _ = try APICoding.decoder.decode(RepertoireDetail.self, from: JSONSerialization.data(withJSONObject: example))
+        }
+    }
+
     @Test func aPathNamesAPosition() throws {
         let tree = tree("e4 e5 Nf3 Nc6 Bc4", "e4 e5 Nf3 d6", "e4 c5")
         #expect(RepertoireTree.moveCount(tree) == 7)
@@ -219,8 +274,10 @@ import Testing
 
 /// The sample data plays a signed-in player. Its answers must have the
 /// shapes of the contract and follow the rules the screens rely on.
-@Suite(.samplePlayer()) struct FixtureOpeningsTests {
-    private let api = FixtureAPI(delay: .zero)
+@Suite struct FixtureOpeningsTests {
+    /// Each test has a sample player of its own, in its first state.
+    private let api = FixtureAPI(delay: .zero, player: FixturePlayer())
+    private let premium = FixtureAPI(delay: .zero, player: FixturePlayer(premium: true))
     private let id = "sample-italian"
 
     private func expectContract(_ value: some Encodable, _ schema: String, sourceLocation: SourceLocation = #_sourceLocation) throws {
@@ -228,7 +285,8 @@ import Testing
         #expect(problems == [], "\(schema)", sourceLocation: sourceLocation)
     }
 
-    @Test(.samplePlayer(premium: true)) func answersHaveTheShapesOfTheContract() async throws {
+    @Test func answersHaveTheShapesOfTheContract() async throws {
+        let api = premium
         try expectContract(try await api.repertoires(token: "t"), "Repertoires")
         let detail = try await api.repertoire(id: id, token: "t")
         try expectContract(detail, "RepertoireDetail")
@@ -389,6 +447,71 @@ import Testing
         #expect(RepertoireTrainingModel.items(of: next).allSatisfy { $0.review == nil })
     }
 
+    /// The sample data spells castling as production does and reads either
+    /// spelling: the screens meet on sample data what they meet live.
+    @Test @MainActor func aLineThatCastlesIsServedLikeTheServerAndTrained() async throws {
+        let castle = uci("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O")
+        let added = try await api.addRepertoireLine(id: id, line: castle + ["g8f6"], token: "t")
+        let node = try #require(RepertoireTree.children(at: Array(castle.dropLast()), in: added.tree)?.first { $0.san == "O-O" })
+        #expect(node.uci == "e1h1")
+        // The other spelling is the same move: nothing is added twice.
+        let served = Array(castle.dropLast()) + ["e1h1"]
+        #expect(try await api.addRepertoireLine(id: id, line: served, token: "t").moves == added.moves)
+        #expect(try await api.addRepertoireLine(id: id, line: castle, token: "t").moves == added.moves)
+
+        // A position asked in the board's spelling is answered in the tree's.
+        let before = try await api.repertoirePosition(id: id, path: Array(castle.dropLast()), ratings: nil, token: "t")
+        #expect(before.covered.contains("e1h1"))
+        #expect(before.lichess?.moves.first { $0.san == "O-O" }?.uci == "e1h1")
+        let after = try await api.repertoirePosition(id: id, path: castle, ratings: nil, token: "t")
+        #expect(after.path == served)
+        #expect(after.inRepertoire)
+        #expect(after.covered == ["g8f6"])
+        #expect(after.boardSpelled.path == castle)
+        #expect(before.boardSpelled.covered.contains("e1g1"))
+
+        // Notes and removal find the move in either spelling.
+        let noted = try await api.annotateRepertoireMove(id: id, path: castle, comment: "King to safety.", glyph: .keep, token: "t")
+        #expect(RepertoireTree.node(at: castle, in: noted.boardSpelled.tree)?.comments == ["King to safety."])
+
+        // The line is trained: the player castles on the board, the grade names the move as the deck does.
+        let session = try await api.repertoireSession(id: id, mode: .learn, token: "t")
+        let line = try #require(session.lines.first { $0.steps.contains { $0.san == "O-O" } })
+        let index = try #require(line.steps.firstIndex { $0.san == "O-O" })
+        #expect(line.steps[index].uci == "e1h1")
+        #expect(line.steps[index].mine)
+        let trainer = LineTrainerModel(line: line, side: session.side, review: [index])
+        trainer.timing = .immediate
+        var graded: [MoveGrade]?
+        trainer.onFinished = { graded = $0 }
+        trainer.start()
+        while graded == nil {
+            await settled { trainer.isOurTurn || graded != nil }
+            guard graded == nil, let step = trainer.currentStep else { break }
+            // The board gives the king's own move.
+            let move = trainer.position.normalized(try #require(Move(uci: step.uci)))
+            if step.san == "O-O" { #expect(move.uci == "e1g1") }
+            #expect(trainer.play(move))
+        }
+        let grades = try #require(graded)
+        #expect(grades.map(\.uci) == ["e1h1"])
+        #expect(grades.allSatisfy { $0.grade == .good })
+        // Graded in either spelling, the move is the same card.
+        let learnedBefore = try await api.repertoire(id: id, token: "t").progress.learned
+        try await api.sendGrades(deck: session.deck, grades: grades, token: "t")
+        // Its other moves were known already: the line is now learned.
+        #expect(try await api.repertoire(id: id, token: "t").progress.learned == learnedBefore + 1)
+        let board = MoveGrade(fen: line.steps[index].fenBefore, uci: "e1g1", grade: .again)
+        try await api.sendGrades(deck: session.deck, grades: [board], token: "t")
+        let review = try await api.repertoireSession(id: id, mode: .review, token: "t")
+        #expect(review.review.contains { item in
+            review.lines.first { $0.id == item.lineId }.map { line in item.test.contains { line.steps[$0].san == "O-O" } } ?? false
+        })
+
+        let removed = try await api.removeRepertoireMove(id: id, path: served, token: "t")
+        #expect(RepertoireTree.node(at: castle, in: removed.boardSpelled.tree) == nil)
+    }
+
     @Test func aPositionSaysWhatIsPlayedAndWhatIsNotAnswered() async throws {
         let position = try await api.repertoirePosition(id: id, path: uci("e4 e5 Nf3"), ratings: "1400", token: "t")
         #expect(position.san == ["e4", "e5", "Nf3"])
@@ -414,7 +537,8 @@ import Testing
         }
     }
 
-    @Test(.samplePlayer(premium: true)) func gamesAreCheckedAgainstTheRepertoire() async throws {
+    @Test func gamesAreCheckedAgainstTheRepertoire() async throws {
+        let api = premium
         let check = try await api.repertoireAdherence(id: id, token: "t")
         #expect(check.hasTree)
         #expect(check.games.count == 30)
@@ -590,6 +714,142 @@ import Testing
         // And the next write goes through.
         await model.add("g1f3")
         #expect(model.path == uci("e4 e5 Nf3"))
+        #expect(model.notice == nil)
+    }
+
+    /// 409: another change reached the server first and nothing was written.
+    /// The repertoire is read again and the change sent once more.
+    @Test func aLostWriteIsReadAgainAndSentOnce() async throws {
+        let (model, server) = await makeModel("e4 e5 Nf3")
+        model.goTo(uci("e4 e5 Nf3"))
+        let readsBefore = server.reads
+        let lost = APIError.server(status: 409, code: "request_failed", message: "The repertoire was changed at the same time. Try again.")
+        // Meanwhile the other device added the Sicilian.
+        server.refuseNextWrite(lost, treeBecomes: tree("e4 e5 Nf3", "e4 c5"))
+        await model.add("b8c6")
+        #expect(server.log.filter { $0.hasPrefix("add ") }.count == 2)
+        #expect(server.reads == readsBefore + 1)
+        #expect(model.notice == nil)
+        // Both changes are in: theirs and ours.
+        #expect(model.detail?.lines == 2)
+        #expect(model.path == uci("e4 e5 Nf3 Nc6"))
+        #expect(model.pending == nil)
+        #expect(!model.isWriting)
+        await model.statsSettled()
+        #expect(server.positionsAsked.last == "e2e4,e7e5,g1f3,b8c6")
+    }
+
+    /// The edit is sent again once: a second 409 is shown, like a refusal.
+    @Test func aWriteLostTwiceIsShown() async throws {
+        nonisolated final class Busy: RepertoiresAPI, @unchecked Sendable {
+            let stored: RepertoireDetail
+            private let lock = NSLock()
+            private var sent = 0
+            var writes: Int { lock.withLock { sent } }
+            init(_ stored: RepertoireDetail) { self.stored = stored }
+            func repertoire(id: String, token: String) async throws -> RepertoireDetail { stored }
+            func addRepertoireLine(id: String, line: [String], token: String) async throws -> RepertoireDetail {
+                lock.withLock { sent += 1 }
+                throw APIError.server(status: 409, code: "request_failed", message: "The repertoire was changed at the same time. Try again.")
+            }
+        }
+        let server = Busy(detail(tree: tree("e4 e5")))
+        let model = RepertoireBuilderModel(id: "rep1", api: server, token: "t", debounce: .zero)
+        await model.load()
+        model.goTo(uci("e4 e5"))
+        await model.add("g1f3")
+        #expect(server.writes == 2)
+        #expect(model.notice == .init(text: "The repertoire was changed at the same time. Try again.", isError: true))
+        #expect(model.path == uci("e4 e5"))
+        #expect(model.pending == nil)
+    }
+
+    /// 422 stays a refusal: its message is shown and nothing is sent again.
+    @Test func aRefusalIsNotSentAgain() async throws {
+        let (model, server) = await makeModel("e4 e5")
+        model.goTo(uci("e4 e5"))
+        server.refuseNextWrite(.server(status: 422, code: "request_failed", message: "That move is not legal in this position."))
+        await model.add("g1f3")
+        #expect(server.log.filter { $0.hasPrefix("add ") }.count == 1)
+        #expect(model.notice == .init(text: "That move is not legal in this position.", isError: true))
+    }
+
+    /// Too many imports or seeds in a minute: the wait is said, nothing is read again.
+    @Test func tooManyImportsSayHowLongToWait() async throws {
+        let (model, server) = await makeModel("e4 e5")
+        let reads = server.reads
+        server.refuseNextWrite(.rateLimited(retryAfter: 60, message: "Too many attempts. Try again in a moment."))
+        #expect(await model.importPGN("1. d4 d5") == false)
+        #expect(model.notice == .init(text: "Too many attempts. Try again in a minute.", isError: true))
+        #expect(server.reads == reads)
+        #expect(model.detail?.moves == 2)
+        server.refuseNextWrite(.rateLimited(retryAfter: 60, message: nil))
+        #expect(await model.seedFromGames() == false)
+        #expect(model.notice?.text == "Too many attempts. Try again in a minute.")
+        #expect(!model.showsPremium)
+    }
+
+    /// The server spells castling as the king taking its rook, in the tree,
+    /// in the path of a position and in its moves; the board gives the
+    /// king's own move. Every comparison is made on respelled moves.
+    @Test func castlingOnTheBoardFindsTheMoveOfTheTree() async throws {
+        let (model, server) = await makeModel("e4 e5 Nf3 Nc6 Bc4 Bc5 O-O Nf6 d3", "e4 e5 Nf3 Nc6 Bc4 Bc5 c3")
+        let before = uci("e4 e5 Nf3 Nc6 Bc4 Bc5")
+        // As the server wrote it.
+        let served = try await server.repertoire(id: "rep1", token: "t")
+        #expect(RepertoireTree.children(at: before, in: served.tree)?.map(\.uci) == ["e1h1", "c2c3"])
+        // As the builder keeps it.
+        #expect(RepertoireTree.children(at: before, in: model.tree)?.map(\.uci) == ["e1g1", "c2c3"])
+
+        model.goTo(before)
+        await model.statsSettled()
+        // "Is this move in my repertoire": castling is, with its numbers, and is not offered again as a move to add.
+        let rows = model.moves
+        #expect(rows.map(\.san) == ["O-O", "c3"])
+        #expect(rows.map(\.inRepertoire) == [true, true])
+        #expect(rows[0].uci == "e1g1")
+        #expect(rows[0].stat?.games == 100)
+        #expect(model.stats?.covered == ["e1g1", "c2c3"])
+
+        // Castling on the board walks into the move; nothing is written.
+        let writes = server.log.count { $0.hasPrefix("add ") }
+        #expect(model.play(move("e1g1")))
+        #expect(model.path == before + ["e1g1"])
+        #expect(model.currentNode?.san == "O-O")
+        #expect(server.log.count { $0.hasPrefix("add ") } == writes)
+        #expect(model.lastMove == move("e1g1"))
+        // The king takes rook form, as some boards send it, is the same move.
+        model.goBack()
+        #expect(model.play(move("e1h1")))
+        #expect(model.path == before + ["e1g1"])
+        #expect(server.log.count { $0.hasPrefix("add ") } == writes)
+
+        // The position after castling: asked in the board's spelling,
+        // answered in the tree's, and still the numbers of this position.
+        await model.statsSettled()
+        #expect(server.positionsAsked.last == (before + ["e1g1"]).joined(separator: ","))
+        #expect(model.statsPhase == .loaded)
+        #expect(model.stats?.path == before + ["e1g1"])
+        #expect(model.stats?.inRepertoire == true)
+        #expect(model.moves.map(\.san) == ["Nf6"])
+
+        // A move added after castling goes below it, and Black's castling is found too.
+        await model.add("d7d6")
+        #expect(model.path == before + ["e1g1", "d7d6"])
+        #expect(model.detail?.lines == 3)
+        model.goTo(before + ["e1g1", "g8f6", "d2d3"])
+        await model.add("e8g8")
+        #expect(model.currentNode?.san == "O-O")
+        #expect(model.path.last == "e8g8")
+        #expect(model.line.map(\.node.san).suffix(2) == ["d3", "O-O"])
+        // Removing it names the move in a spelling the server reads.
+        await model.removeCurrentMove()
+        #expect(model.path == before + ["e1g1", "g8f6", "d2d3"])
+        #expect(RepertoireTree.node(at: before + ["e1g1", "g8f6", "d2d3", "e8g8"], in: model.tree) == nil)
+        // A note on the castling move reaches it.
+        model.goTo(before + ["e1g1"])
+        await model.annotate(comment: "King to safety.", glyph: .set(1))
+        #expect(model.currentNode?.comments == ["King to safety."])
         #expect(model.notice == nil)
     }
 
@@ -775,9 +1035,9 @@ import Testing
 
 // MARK: The list
 
-@Suite(.samplePlayer()) @MainActor struct RepertoiresModelTests {
+@Suite @MainActor struct RepertoiresModelTests {
     @Test func theListFollowsTheSamplePlayer() async throws {
-        let model = RepertoiresModel(api: FixtureAPI(delay: .zero), token: "t")
+        let model = RepertoiresModel(api: FixtureAPI(delay: .zero, player: FixturePlayer()), token: "t")
         await model.load()
         #expect(model.phase == .ready)
         let card = try #require(model.repertoires.first)

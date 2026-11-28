@@ -2,50 +2,9 @@ import ChessCore
 import StockfishEngine
 import SwiftUI
 
-extension View {
-    /// A temporary way into the play hub, until the feature has its place in
-    /// the navigation: a row above the tab bar of the screen it is attached
-    /// to. Also where `-CDRoute play` lands.
-    func playEntry() -> some View {
-        modifier(PlayEntry())
-    }
-}
-
-private struct PlayEntry: ViewModifier {
-    @State private var showsHub = false
-
-    func body(content: Content) -> some View {
-        content
-            .safeAreaInset(edge: .bottom, spacing: 0) {
-                Button {
-                    showsHub = true
-                } label: {
-                    HStack(spacing: CD.Space.s8) {
-                        Text("Play a bot")
-                            .cdFont(.bodyStrong)
-                            .foregroundStyle(CD.ink)
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(CD.ink4)
-                    }
-                    .padding(.horizontal, CD.Space.s16)
-                    .frame(minHeight: 48)
-                    .background(CD.surface2)
-                    .overlay(alignment: .top) { CDHairline(color: CD.lineStrong) }
-                }
-                .buttonStyle(CDPressStyle())
-            }
-            .navigationDestination(isPresented: $showsHub) { PlayHubView() }
-            #if DEBUG
-            .onAppear { if DebugLaunch.route?.first == "play" { showsHub = true } }
-            #endif
-    }
-}
-
 #if DEBUG
     /// Launch arguments for checking the feature in the simulator:
-    /// `-CDRoute play` opens the hub, `-CDRoute play/<bot id>` starts a game
+    /// `-CDRoute play` opens the Play tab, `-CDRoute play/<bot id>` starts a game
     /// against that bot (`play/custom` with `-CDPlayRating 1500`, `play/resume`
     /// for the game in progress), `-CDPlaySide black` takes Black.
     /// `-CDPlayAutopilot engine|random` plays the player's moves, so a whole

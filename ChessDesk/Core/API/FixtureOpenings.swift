@@ -1,27 +1,23 @@
 import ChessCore
 import Foundation
 
-// SYNTHETIC DATA. Nothing in this file was captured from the site: the
-// repertoire and explorer operations are not served yet, so there is no
-// answer to capture. `FixtureOpenings` invents a signed-in player on the free
-// plan, with one small repertoire, a few dozen games and opening statistics
-// made up to look plausible. Its answers have the shapes of the contract
-// (`contracts/openapi-v1.json`; a test checks them against its schemas) and
-// follow the rules of the site as far as they are known from its source, so
-// that the screens can be used, previewed and tested offline. It is what
-// `FixtureAPI` answers with, in Debug builds on sample data only.
+// SYNTHETIC DATA. Nothing in this file was captured from the site: there is no
+// production test account to capture a signed-in player's answers from.
+// `FixtureOpenings` is the opening side of the sample player (`FixturePlayer`):
+// one small repertoire, the opening tree of the player's games, and opening
+// statistics made up to look plausible. Its answers have the shapes of the
+// contract (`contracts/openapi-v1.json`; a test checks them against its
+// schemas) and follow the rules of the site as far as they are known from its
+// source, so that the screens can be used, previewed and tested offline. It
+// is what `FixtureAPI` answers with, in Debug builds on sample data only.
 //
-// Replace it with captured answers once the operations are served.
+// Like the server, it spells castling as the king taking its rook in every
+// answer (`CastlingSpelling`) and accepts either spelling in a request.
 
-/// The invented player of the sample data. One per process, so a change made
-/// on one screen is seen by the next, as with a server.
+/// The repertoires and the explorer of the sample player. One per
+/// `FixturePlayer`, so a change made on one screen is seen by the next, as
+/// with a server.
 actor FixtureOpenings {
-    static let shared = FixtureOpenings()
-    /// A player of its own for the task at hand: tests run side by side, and
-    /// each one starts from the first state.
-    @TaskLocal static var scoped: FixtureOpenings?
-    static var current: FixtureOpenings { scoped ?? shared }
-
     private var premium: Bool
     private var stored: [FixtureRepertoire] = []
     /// Progress keys (`positionKey|uci`) the player has learned, and those due.
@@ -31,14 +27,9 @@ actor FixtureOpenings {
     private var created = 1
     private let games: [FixtureGame]
 
-    init(premium: Bool? = nil) {
-        #if DEBUG
-            // `-CDFixturePremium YES`: the invented player has Premium.
-            self.premium = premium ?? UserDefaults.standard.bool(forKey: "CDFixturePremium")
-        #else
-            self.premium = premium ?? false
-        #endif
-        games = FixtureData.games()
+    init(premium: Bool = false, games: [FixtureGame] = FixtureData.games()) {
+        self.premium = premium
+        self.games = games
         let start = FixtureData.seed()
         stored = [start.repertoire]
         learned = start.learned
@@ -80,11 +71,17 @@ actor FixtureOpenings {
             id: repertoire.id, name: repertoire.name, color: repertoire.color, deck: repertoire.deck,
             lines: lines, moves: RepertoireTree.moveCount(repertoire.tree), progress: progress(repertoire),
             editable: canTrain(repertoire.id), updatedAt: repertoire.updatedAt, startFen: repertoire.startFen,
-            tree: repertoire.tree, rootComment: repertoire.rootComment,
+            tree: repertoire.tree, truncated: false, rootComment: repertoire.rootComment,
             pgn: FixturePGN.write(tree: repertoire.tree, rootComment: repertoire.rootComment),
             lineLimit: premium ? nil : max(FixtureData.freeLines, lines),
             pace: .init(perDay: FixtureData.perDay, newLeft: max(0, FixtureData.perDay - learnedToday))
         )
+        .treeSpelled
+    }
+
+    /// A path of a request, in the spelling the trees are kept in here.
+    private func stored(_ path: [String], in repertoire: FixtureRepertoire) -> [String] {
+        CastlingSpelling.board(path: path, from: repertoire.startFen)
     }
 
     func list() -> RepertoireList {
@@ -149,6 +146,7 @@ actor FixtureOpenings {
     func remove(_ id: String, path: [String]) throws -> RepertoireDetail {
         guard !path.isEmpty else { throw FixtureData.refused("Name the move to remove.") }
         let index = try owned(id)
+        let path = stored(path, in: stored[index])
         guard let next = RepertoireTree.removing(path: path, from: stored[index].tree) else { throw FixtureData.moveNotFound }
         return try write(next, at: index)
     }
@@ -156,6 +154,7 @@ actor FixtureOpenings {
     func annotate(_ id: String, path: [String], comment: String?, glyph: GlyphChange) throws -> RepertoireDetail {
         if case let .set(nag) = glyph, !(1...6).contains(nag) { throw FixtureData.refused("Unknown annotation.") }
         let index = try owned(id)
+        let path = stored(path, in: stored[index])
         let text = comment?.trimmingCharacters(in: .whitespacesAndNewlines)
         if path.isEmpty {
             if case .set = glyph { throw FixtureData.refused("Only a move can carry an annotation glyph.") }
@@ -233,7 +232,7 @@ actor FixtureOpenings {
             }
         }
         let used = Set(learn + review.map(\.lineId))
-        let sessionLines = lines.filter { used.contains($0.id) }
+        let sessionLines = lines.filter { used.contains($0.id) }.map(FixtureData.treeSpelled)
         let known = Set(sessionLines.flatMap(\.steps).filter { $0.mine && learned.contains($0.key) }.map(\.key))
         return CourseSession(
             deck: repertoire.deck, mode: mode, color: repertoire.color, lines: sessionLines, learn: learn,
@@ -248,7 +247,7 @@ actor FixtureOpenings {
         let newBefore = FixtureData.progress(lines, learned: learned, due: due).newLines
         for grade in grades {
             guard let position = Position(fen: grade.fen) else { continue }
-            let key = "\(position.positionKey)|\(grade.uci)"
+            let key = "\(position.positionKey)|\(CastlingSpelling.tree(grade.uci, from: position))"
             learned.insert(key)
             if grade.grade == .good { due.remove(key) } else { due.insert(key) }
         }
@@ -295,11 +294,24 @@ actor FixtureOpenings {
             .sorted { $0.freq > $1.freq }
             .map { RepertoirePosition.Gap(san: $0.san, uci: $0.uci, freq: $0.freq, opening: $0.opening) }
         return RepertoirePosition(
-            fen: position.fen, path: path, san: san, inRepertoire: children != nil, covered: covered,
+            fen: position.fen, path: canonical, san: san, inRepertoire: children != nil, covered: covered,
             masters: masters, lichess: lichess, ratings: band, ratingBands: FixtureData.ratingBands, mine: mine,
             opponentToMove: opponentToMove, gaps: gaps,
             advice: FixtureData.advice(ply: path.count, games: lichess.total, yourTurn: !opponentToMove)
         )
+        .treeSpelled
+    }
+
+    // MARK: What is due (`GET /training/due`)
+
+    /// The repertoires with their progress, as decks of the due summary.
+    func dueDecks() -> [DueSummary.Deck] {
+        stored.map { repertoire in
+            DueSummary.Deck(
+                deck: repertoire.deck, kind: "repertoire", name: repertoire.name, color: repertoire.color,
+                progress: progress(repertoire)
+            )
+        }
     }
 
     // MARK: Games against the repertoire
@@ -355,7 +367,8 @@ actor FixtureOpenings {
         let reaching = dataset.filter { $0.line.starts(with: path) }
         let moves = FixtureData.aggregate(dataset, at: path).map { move in
             ExplorerPosition.Move(
-                san: move.san, uci: position.move(san: move.san).map { position.normalized($0).uci }, games: move.games,
+                san: move.san, uci: position.move(san: move.san).map { CastlingSpelling.tree($0.uci, from: position) },
+                games: move.games,
                 wins: move.wins, draws: move.draws, losses: move.losses, score: move.score, sampleGameId: move.sample
             )
         }
@@ -368,10 +381,6 @@ actor FixtureOpenings {
         )
     }
 
-    /// A game of the invented player, for the game screen.
-    func game(id: String) -> FixtureGame? {
-        games.first { $0.summary.id == id }
-    }
 }
 
 nonisolated struct FixtureRepertoire: Sendable {
@@ -389,11 +398,37 @@ nonisolated struct FixtureRepertoire: Sendable {
 
 nonisolated struct FixtureGame: Sendable {
     let summary: GameSummary
-    /// The opening moves in SAN, as ChessCore writes them.
+    /// The opening moves in SAN, as ChessCore writes them: what the explorer
+    /// and the repertoire's games check read.
     let line: [String]
+    /// The whole game in SAN, the opening included.
+    let moves: [String]
     let side: Side
     /// "win", "draw" or "loss", from the player's side.
     let result: String
+
+    /// The game as `GET /games/{id}` answers it.
+    var detail: GameDetail {
+        var text = ""
+        for (index, san) in moves.enumerated() {
+            if index.isMultiple(of: 2) { text += "\(index / 2 + 1). " }
+            text += san + " "
+        }
+        let pgn = """
+        [Event "\(summary.rated ? "Rated" : "Casual") \(summary.timeClass.lowercased()) game"]
+        [White "\(summary.white)"]
+        [Black "\(summary.black)"]
+        [Result "\(summary.result)"]
+
+        \(text)\(summary.result)
+        """
+        return GameDetail(
+            id: summary.id, source: summary.source, white: summary.white, black: summary.black,
+            whiteElo: summary.whiteElo, blackElo: summary.blackElo, result: summary.result, timeClass: summary.timeClass,
+            opening: summary.opening, userColor: summary.userColor, playedAt: summary.playedAt, ply: summary.ply,
+            starred: summary.starred, reviewed: summary.reviewed, pgn: pgn, url: nil, review: nil
+        )
+    }
 
     var opponent: String { side == .white ? summary.black : summary.white }
     var opponentElo: Int? { side == .white ? summary.blackElo : summary.whiteElo }
@@ -402,6 +437,7 @@ nonisolated struct FixtureGame: Sendable {
 /// The invented data and the site's rules the sample player follows.
 nonisolated enum FixtureData {
     static let freeLines = 20
+    /// Also `freeLimits.explorerGames` of `player-me.json`.
     static let freeGames = 100
     static let perDay = 3
     /// The site stores the first 40 half-moves of each game.
@@ -491,7 +527,8 @@ nonisolated enum FixtureData {
     // MARK: Training lines (lib/training/lines.ts)
 
     /// One line per path to a leaf, depth first; the player's own moves are
-    /// the cards, keyed by the position before the move and the move.
+    /// the cards, keyed by the position before the move and the move as the
+    /// tree spells it.
     static func trainingLines(_ repertoire: FixtureRepertoire) -> [TrainingLine] {
         let mine: Side = repertoire.color == "BLACK" ? .black : .white
         var lines: [TrainingLine] = []
@@ -500,7 +537,7 @@ nonisolated enum FixtureData {
                 let before = Position(fen: fenBefore) ?? .start
                 let step = LineStep(
                     san: node.san, uci: node.uci, fenBefore: fenBefore, fenAfter: node.fen,
-                    key: "\(before.positionKey)|\(node.uci)", mine: before.turn == mine,
+                    key: "\(before.positionKey)|\(CastlingSpelling.tree(node.uci, san: node.san))", mine: before.turn == mine,
                     comments: node.comments, shapes: node.shapes, ply: node.ply
                 )
                 if node.children.isEmpty {
@@ -515,6 +552,21 @@ nonisolated enum FixtureData {
         }
         walk(repertoire.tree, fenBefore: repertoire.startFen, steps: [])
         return lines
+    }
+
+    /// A line as a session answers it: castling spelled as the server's trees do.
+    static func treeSpelled(_ line: TrainingLine) -> TrainingLine {
+        TrainingLine(
+            id: line.id, chapter: line.chapter, index: line.index, startFen: line.startFen,
+            steps: line.steps.map { step in
+                LineStep(
+                    san: step.san, uci: CastlingSpelling.tree(step.uci, san: step.san), fenBefore: step.fenBefore,
+                    fenAfter: step.fenAfter, key: step.key, mine: step.mine, comments: step.comments,
+                    shapes: step.shapes, ply: step.ply
+                )
+            },
+            side: line.side
+        )
     }
 
     static func progress(_ lines: [TrainingLine], learned: Set<String>, due: Set<String>) -> DeckProgress {
@@ -663,34 +715,75 @@ nonisolated enum FixtureData {
 
     // MARK: The player's games (invented)
 
-    private static let templates: [(side: Side, line: String, results: String, opening: String, eco: String)] = [
-        (.white, "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Nc3", "WWLWD", "Italian Game: Giuoco Piano", "C54"),
-        (.white, "e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 c3 d6", "WLWW", "Italian Game: Two Knights Defense", "C55"),
-        (.white, "e4 e5 Nf3 Nc6 Bc4 h6 d4 exd4 Nxd4", "WW", "Italian Game: Anti-Fried Liver Defense", "C50"),
-        (.white, "e4 e5 Nf3 d6 d4 exd4 Nxd4 Nf6 Nc3", "WDW", "Philidor Defense", "C41"),
-        (.white, "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4", "LD", "Petrov's Defense", "C42"),
-        (.white, "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6", "LLWL", "Sicilian Defense: Najdorf Variation", "B90"),
-        (.white, "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6", "LD", "Sicilian Defense: Accelerated Dragon", "B34"),
-        (.white, "e4 e6 d4 d5 Nc3 Bb4 e5 c5", "WL", "French Defense: Winawer Variation", "C16"),
-        (.white, "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5", "WW", "Caro-Kann Defense: Classical Variation", "B18"),
-        (.white, "e4 d5 exd5 Qxd5 Nc3 Qa5 d4", "WW", "Scandinavian Defense", "B01"),
-        (.white, "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6", "L", "Ruy Lopez", "C78"),
-        (.white, "e4 e5 Bc4 Nf6 d3 Bc5", "D", "Bishop's Opening", "C24"),
-        (.black, "e4 c6 d4 d5 e5 Bf5 Nf3 e6", "WWDLW", "Caro-Kann Defense: Advance Variation", "B12"),
-        (.black, "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6", "WLWD", "Caro-Kann Defense: Exchange Variation", "B13"),
-        (.black, "e4 c6 Nf3 d5 Nc3 Bg4", "WLW", "Caro-Kann Defense: Two Knights Attack", "B11"),
-        (.black, "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7", "LLDW", "Queen's Gambit Declined", "D53"),
-        (.black, "d4 d5 Bf4 Nf6 e3 c5 c3 Nc6", "LWL", "London System", "D02"),
-        (.black, "d4 Nf6 c4 e6 Nf3 d5", "DW", "Queen's Gambit Declined", "D37"),
-        (.black, "c4 e5 Nc3 Nf6", "L", "English Opening", "A22"),
+    /// The opening of each kind of game the player has, how the games went
+    /// (one letter per game, from the player's side), and how the game went
+    /// on: known theory, so that a game opened from the list, the explorer
+    /// or a repertoire's check replays and can be reviewed.
+    private static let templates: [(side: Side, line: String, rest: String, results: String, opening: String, eco: String)] = [
+        (.white, "e4 e5 Nf3 Nc6 Bc4 Bc5 c3 Nf6 d4 exd4 cxd4 Bb4+ Nc3",
+         "Nxe4 O-O Bxc3 d5 Bf6 Re1 Ne7 Rxe4 d6 Bg5 Bxg5 Nxg5 O-O", "LWWWD", "Italian Game: Giuoco Piano", "C54"),
+        (.white, "e4 e5 Nf3 Nc6 Bc4 Nf6 d3 Bc5 c3 d6",
+         "O-O O-O Re1 a6 Bb3 Ba7 Nbd2 Be6 Nf1 Bxb3 Qxb3 Qd7 Ng3 Rae8", "WLWW", "Italian Game: Two Knights Defense", "C55"),
+        (.white, "e4 e5 Nf3 Nc6 Bc4 h6 d4 exd4 Nxd4",
+         "Nf6 Nc3 Bb4 O-O O-O Nxc6 bxc6 e5 Bxc3 bxc3 Nd5 Qg4 Kh8", "WW", "Italian Game: Anti-Fried Liver Defense", "C50"),
+        (.white, "e4 e5 Nf3 d6 d4 exd4 Nxd4 Nf6 Nc3",
+         "Be7 Be2 O-O O-O Re8 f4 Bf8 Bf3 Nbd7 Re1 c6", "WDW", "Philidor Defense", "C41"),
+        (.white, "e4 e5 Nf3 Nf6 Nxe5 d6 Nf3 Nxe4 d4",
+         "d5 Bd3 Be7 O-O O-O c4 c6 Nc3 Nxc3 bxc3 dxc4 Bxc4 Nd7", "LD", "Petrov's Defense", "C42"),
+        (.white, "e4 c5 Nf3 d6 d4 cxd4 Nxd4 Nf6 Nc3 a6",
+         "Be2 e5 Nb3 Be7 O-O O-O Be3 Be6 Qd2 Nbd7 a4 Rc8", "LLWL", "Sicilian Defense: Najdorf Variation", "B90"),
+        (.white, "e4 c5 Nf3 Nc6 d4 cxd4 Nxd4 g6",
+         "Nc3 Bg7 Be3 Nf6 Bc4 O-O Bb3 d6 f3 Bd7 Qd2 Rc8", "LD", "Sicilian Defense: Accelerated Dragon", "B34"),
+        (.white, "e4 e6 d4 d5 Nc3 Bb4 e5 c5",
+         "a3 Bxc3+ bxc3 Ne7 Qg4 Qc7 Qxg7 Rg8 Qxh7 cxd4 Ne2 Nbc6 f4 Bd7", "WL", "French Defense: Winawer Variation", "C16"),
+        (.white, "e4 c6 d4 d5 Nc3 dxe4 Nxe4 Bf5",
+         "Ng3 Bg6 h4 h6 Nf3 Nd7 h5 Bh7 Bd3 Bxd3 Qxd3 e6 Bd2 Ngf6 O-O-O Be7", "WW", "Caro-Kann Defense: Classical Variation", "B18"),
+        (.white, "e4 d5 exd5 Qxd5 Nc3 Qa5 d4",
+         "Nf6 Nf3 c6 Bc4 Bf5 Bd2 e6 Nd5 Qd8 Nxf6+ Qxf6 Qe2 Nd7 O-O-O", "WW", "Scandinavian Defense", "B01"),
+        (.white, "e4 e5 Nf3 Nc6 Bb5 a6 Ba4 Nf6",
+         "O-O Be7 Re1 b5 Bb3 d6 c3 O-O h3 Nb8 d4 Nbd7", "L", "Ruy Lopez", "C78"),
+        (.white, "e4 e5 Bc4 Nf6 d3 Bc5",
+         "Nf3 d6 c3 O-O O-O Bb6 Bb3 Be6 Nbd2 Nbd7 Re1 c6 h3 Re8 Nf1 d5", "D", "Bishop's Opening", "C24"),
+        (.black, "e4 c6 d4 d5 e5 Bf5 Nf3 e6",
+         "Be2 c5 Be3 cxd4 Nxd4 Ne7 O-O Nbc6 Bb5 a6 Bxc6+ bxc6 c4 Qd7", "WWDLW", "Caro-Kann Defense: Advance Variation", "B12"),
+        (.black, "e4 c6 d4 d5 exd5 cxd5 Bd3 Nc6",
+         "c3 Nf6 Bf4 Bg4 Qb3 Qd7 Nd2 e6 Ngf3 Bd6 Bxd6 Qxd6 O-O O-O", "WLWD", "Caro-Kann Defense: Exchange Variation", "B13"),
+        (.black, "e4 c6 Nf3 d5 Nc3 Bg4",
+         "h3 Bxf3 Qxf3 e6 d4 Nf6 Bd3 dxe4 Nxe4 Qxd4 c3 Qd8 O-O Nbd7", "WLW", "Caro-Kann Defense: Two Knights Attack", "B11"),
+        (.black, "d4 d5 c4 e6 Nc3 Nf6 Bg5 Be7",
+         "e3 O-O Nf3 h6 Bh4 b6 cxd5 Nxd5 Bxe7 Qxe7 Nxd5 exd5 Rc1 Be6", "LLDW", "Queen's Gambit Declined", "D53"),
+        (.black, "d4 d5 Bf4 Nf6 e3 c5 c3 Nc6",
+         "Nd2 e6 Ngf3 Bd6 Bg3 O-O Bd3 b6 Ne5 Bb7 f4 Ne7", "LWL", "London System", "D02"),
+        (.black, "d4 Nf6 c4 e6 Nf3 d5",
+         "Nc3 Be7 Bf4 O-O e3 c5 dxc5 Bxc5 Qc2 Nc6 a3 Qa5 Rd1 Be7", "DW", "Queen's Gambit Declined", "D37"),
+        (.black, "c4 e5 Nc3 Nf6",
+         "Nf3 Nc6 g3 d5 cxd5 Nxd5 Bg2 Nb6 O-O Be7 d3 O-O a3 Be6 b4 a5 b5 Nd4", "L", "English Opening", "A22"),
     ]
 
-    /// The games, newest first. Dates are counted back from today.
+    /// The player's handle on both game sites (`FixturePlayer.accounts`).
+    static let handle = "quietrook"
+
+    /// The opponents the home, the mistakes and the Daily 5 name
+    /// (`player-*.json`), by the number of their game; the others get a
+    /// handle from the list.
+    private static let namedOpponents: [Int: (name: String, elo: Int)] = [
+        1: ("marta_k", 1371), 12: ("kingside_kai", 1325), 31: ("endgame_eli", 1488), 37: ("pawnstorm77", 1301),
+    ]
+    private static let opponents = [
+        "blitzbaron", "the_tal_fan", "rook_n_roll", "sicilian_sam", "h4h5mate", "quiet_knight", "en_prise", "zugzwang_zoe",
+        "fianchetto_fred", "minor_piece", "tempo_tim", "open_file", "luft_lena", "passed_pawn", "backrank_ben", "gambit_gus",
+    ]
+
+    /// The games, newest first. Dates are counted back from today. The
+    /// newest is `sample-game-1`, the loss the home asks to review.
     static func games(now: Date = .now) -> [FixtureGame] {
-        var drafts: [(side: Side, line: [String], result: Character, opening: String, eco: String)] = []
+        var drafts: [(side: Side, line: [String], moves: [String], result: Character, opening: String, eco: String)] = []
         for template in templates {
             let line = sanLine(template.line)
-            for result in template.results { drafts.append((template.side, line, result, template.opening, template.eco)) }
+            let moves = sanLine(template.line + " " + template.rest)
+            // `sanLine` stops at a move the rules refuse: a template must replay whole.
+            assert(moves.count == (template.line + " " + template.rest).split(separator: " ").count, "\(template.opening) does not replay")
+            for result in template.results { drafts.append((template.side, line, moves, result, template.opening, template.eco)) }
         }
         // Mixed, so that neither colour nor opening comes in blocks.
         let order = drafts.indices.sorted { ($0 * 29) % 53 < ($1 * 29) % 53 }
@@ -699,21 +792,22 @@ nonisolated enum FixtureData {
             let outcome = draft.result == "W" ? "win" : draft.result == "D" ? "draw" : "loss"
             let whiteWon = (draft.side == .white) == (outcome == "win")
             let score = outcome == "draw" ? "1/2-1/2" : whiteWon ? "1-0" : "0-1"
-            let opponent = "opponent_\(100 + index)"
-            let opponentElo = 880 + (index * 37) % 240
-            let mine = 940 + (index * 13) % 60
+            let named = namedOpponents[index + 1]
+            let opponent = named?.name ?? opponents[index % opponents.count]
+            let opponentElo = named?.elo ?? 1250 + (index * 37) % 240
+            let mine = 1310 + (index * 13) % 60
             let timeClass = index % 7 == 0 ? "BULLET" : index % 4 == 0 ? "BLITZ" : "RAPID"
             let summary = GameSummary(
                 id: "sample-game-\(index + 1)", source: index % 3 == 0 ? "LICHESS" : "CHESSCOM",
-                white: draft.side == .white ? "sample_player" : opponent,
-                black: draft.side == .white ? opponent : "sample_player",
+                white: draft.side == .white ? handle : opponent,
+                black: draft.side == .white ? opponent : handle,
                 whiteElo: draft.side == .white ? mine : opponentElo, blackElo: draft.side == .white ? opponentElo : mine,
                 result: score, timeClass: timeClass, timeControl: timeClass == "RAPID" ? "600" : timeClass == "BLITZ" ? "300" : "60",
                 eco: draft.eco, opening: draft.opening, userColor: draft.side == .white ? "white" : "black",
-                playedAt: now.addingTimeInterval(-Double(rank) * 2.4 * 86400 - 5400), ply: 48 + (index * 7) % 40,
-                rated: index % 9 != 0, starred: false, reviewed: false
+                playedAt: now.addingTimeInterval(-Double(rank) * 2.4 * 86400 - 5400), ply: draft.moves.count,
+                rated: index % 9 != 0, starred: index == 30, reviewed: false
             )
-            return FixtureGame(summary: summary, line: draft.line, side: draft.side, result: outcome)
+            return FixtureGame(summary: summary, line: draft.line, moves: draft.moves, side: draft.side, result: outcome)
         }
     }
 

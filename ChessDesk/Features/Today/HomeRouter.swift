@@ -1,7 +1,6 @@
 import Foundation
 
-/// A screen of the app that the home can open. One case per destination;
-/// `HomeRouter` decides which ones this build can open.
+/// A screen of the app that the home can open. One case per destination.
 nonisolated enum HomeRoute: Hashable, Sendable {
     /// Today's Daily 5.
     case daily
@@ -9,21 +8,23 @@ nonisolated enum HomeRoute: Hashable, Sendable {
     case game(id: String)
     /// A learning path (Reach 1000 Elo, Learn chess).
     case path(slug: String)
-    /// An opening course, and the reviews due in it.
+    /// An opening course: its page.
     case course(slug: String)
-    /// The catalogue of courses (the Courses tab).
+    /// The lines of an opening course that are due, in the trainer.
+    case courseReview(slug: String)
+    /// The catalogue of courses (the Learn tab).
     case courses
     /// The positions from the player's mistakes.
     case mistakes
     /// The player's games (the Games tab).
     case games
-    /// Rated puzzles. Built on `feat/puzzles`: the pilot wires it at integration.
+    /// Puzzles (in the Train tab).
     case puzzles
-    /// One repertoire's lines due for review. Built on `feat/repertoires`: wired at integration.
+    /// The moves of one repertoire that are due, in the trainer.
     case repertoire(id: String)
-    /// The repertoires (the deck with the most due moves was not named). Wired at integration.
+    /// The repertoires (in the Learn tab): no deck was named.
     case repertoires
-    /// The bots.
+    /// The bots (the Play tab).
     case play
     /// The drill of one recurring pattern, from Progress.
     case patternDrill(key: String)
@@ -52,30 +53,25 @@ nonisolated enum HomeRouter {
         }
     }
 
-    /// "course:<slug>" opens the course; "repertoire:<id>" the repertoire;
-    /// no deck named, the repertoires.
+    /// "Repeat your opening lines": the review of the deck that is named,
+    /// "course:<slug>" or "repertoire:<id>"; with no deck named, the repertoires.
     static func deck(_ deck: String?) -> HomeRoute? {
         guard let deck else { return .repertoires }
-        if deck.hasPrefix("course:") { return .course(slug: String(deck.dropFirst("course:".count))) }
-        if deck.hasPrefix("repertoire:") { return .repertoire(id: String(deck.dropFirst("repertoire:".count))) }
+        if let slug = suffix(of: deck, after: "course:") { return .courseReview(slug: slug) }
+        if let id = suffix(of: deck, after: "repertoire:") { return .repertoire(id: id) }
         return nil
     }
 
-    /// The destinations this branch has a screen for. The others are built on
-    /// other branches; the pilot adds them here when it connects their screens
-    /// in `HomeDestinations` (`HomeNavigation.swift`).
-    static func opens(_ route: HomeRoute) -> Bool {
-        switch route {
-        case .daily, .game, .path, .course, .courses, .mistakes, .games, .play, .patternDrill, .progress: true
-        case .puzzles, .repertoire, .repertoires: false
-        }
+    private static func suffix(of deck: String, after prefix: String) -> String? {
+        deck.hasPrefix(prefix) && deck.count > prefix.count ? String(deck.dropFirst(prefix.count)) : nil
     }
 
-    /// The steps the app shows, in the server's order. The first one leads
-    /// (the server marks it `primary`); when it is dropped, the next one shown leads.
-    static func plan(_ steps: [TodayStep], opens: (HomeRoute) -> Bool = opens) -> [PlannedStep] {
+    /// The steps the app shows, in the server's order: every step whose
+    /// target has a screen. The first one leads (the server marks it
+    /// `primary`); when it is dropped, the next one shown leads.
+    static func plan(_ steps: [TodayStep]) -> [PlannedStep] {
         let shown = steps.compactMap { step -> PlannedStep? in
-            guard let route = route(step.target), opens(route) else { return nil }
+            guard let route = route(step.target) else { return nil }
             return PlannedStep(step: step, route: route, leads: false)
         }
         guard !shown.isEmpty else { return [] }

@@ -5,8 +5,14 @@ import Foundation
 /// against a repertoire. Every call needs an account.
 ///
 /// `403 premium_required` is the paywall. `422 request_failed` is a rule
-/// saying no, a write that lost against another one included: its message is
-/// shown and the repertoire is read again.
+/// saying no: its message is shown. `409 request_failed` on the three writes
+/// of `/moves` is a change that lost against another one: nothing was
+/// written, the repertoire is read again and the change sent once more.
+/// `429` (with `Retry-After`) limits the position look-ups, the PGN import
+/// and the seed.
+///
+/// Every `uci` of an answer spells castling as the king taking its rook
+/// (`e1h1`); requests may use either spelling. See `CastlingSpelling`.
 nonisolated protocol RepertoiresAPI {
     func repertoires(token: String) async throws -> RepertoireList
     /// An empty repertoire for one colour ("WHITE" or "BLACK").
@@ -39,102 +45,44 @@ nonisolated protocol RepertoiresAPI {
     func repertoireAdherence(id: String, token: String) async throws -> RepertoireAdherence
 }
 
-extension LiveAPI {
-    /// One exchange with the server for the routes of a feature file: the
-    /// transport of `LiveAPI` is private to `ChessDeskAPI.swift`.
-    func exchange<Response: Decodable>(
-        _ method: String,
-        _ path: String,
-        query: [URLQueryItem] = [],
-        token: String?,
-        timeout: TimeInterval = 20
-    ) async throws -> Response {
-        var request = request(method, path, query: query, token: token)
-        request.timeoutInterval = timeout
-        return try await exchange(request)
-    }
-
-    func exchange<Response: Decodable>(
-        _ method: String,
-        _ path: String,
-        token: String?,
-        body: some Encodable,
-        timeout: TimeInterval = 20
-    ) async throws -> Response {
-        var request = request(method, path, query: [], token: token)
-        request.timeoutInterval = timeout
-        request.httpBody = try APICoding.encoder.encode(body)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        return try await exchange(request)
-    }
-
-    private func exchange<Response: Decodable>(_ request: URLRequest) async throws -> Response {
-        var request = request
-        request.url = request.url.map(Self.strictQuery)
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch {
-            throw APIError.offline
-        }
-        guard let http = response as? HTTPURLResponse else { throw APIError.unreadable }
-        return try Self.decode(status: http.statusCode, data: data)
-    }
-
-    /// A "+" is legal in a query, but the server reads it as a space: a check
-    /// in a SAN path ("Bb5+") must travel as "%2B".
-    static func strictQuery(_ url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-              let query = components.percentEncodedQuery, query.contains("+")
-        else { return url }
-        components.percentEncodedQuery = query.replacingOccurrences(of: "+", with: "%2B")
-        return components.url ?? url
-    }
-}
-
 extension LiveAPI: RepertoiresAPI {
     func repertoires(token: String) async throws -> RepertoireList {
-        try await exchange("GET", "repertoires", token: token)
+        try await send("GET", "repertoires", token: token)
     }
 
     func createRepertoire(name: String, color: String, token: String) async throws -> RepertoireDetail {
-        try await exchange("POST", "repertoires", token: token, body: CreateRepertoireRequest(name: name, color: color))
+        try await send("POST", "repertoires", token: token, body: CreateRepertoireRequest(name: name, color: color))
     }
 
     func repertoire(id: String, token: String) async throws -> RepertoireDetail {
-        try await exchange("GET", "repertoires/\(id)", token: token)
+        try await send("GET", "repertoires/\(id)", token: token)
     }
 
     func renameRepertoire(id: String, name: String, token: String) async throws {
-        let _: OkResponse = try await exchange(
+        let _: OkResponse = try await send(
             "PATCH", "repertoires/\(id)", token: token, body: RenameRepertoireRequest(name: name)
         )
     }
 
     func deleteRepertoire(id: String, token: String) async throws {
-        let _: OkResponse = try await exchange("DELETE", "repertoires/\(id)", token: token)
+        let _: OkResponse = try await send("DELETE", "repertoires/\(id)", token: token)
     }
 
     func addRepertoireLine(id: String, line: [String], token: String) async throws -> RepertoireDetail {
-        try await exchange("POST", "repertoires/\(id)/moves", token: token, body: RepertoireLineRequest(line: line))
+        try await send("POST", "repertoires/\(id)/moves", token: token, body: RepertoireLineRequest(line: line))
     }
 
     func annotateRepertoireMove(
         id: String, path: [String], comment: String?, glyph: GlyphChange, token: String
     ) async throws -> RepertoireDetail {
-        try await exchange(
+        try await send(
             "PATCH", "repertoires/\(id)/moves", token: token,
             body: AnnotateRepertoireMoveRequest(path: path, comment: comment, glyph: glyph)
         )
     }
 
     func removeRepertoireMove(id: String, path: [String], token: String) async throws -> RepertoireDetail {
-        try await exchange(
+        try await send(
             "DELETE", "repertoires/\(id)/moves",
             query: [URLQueryItem(name: "path", value: path.joined(separator: ","))], token: token
         )
@@ -142,22 +90,22 @@ extension LiveAPI: RepertoiresAPI {
 
     func importRepertoirePGN(id: String, pgn: String, token: String) async throws -> RepertoireImport {
         // A course PGN can hold hundreds of games to merge.
-        try await exchange(
+        try await send(
             "PUT", "repertoires/\(id)/pgn", token: token, body: ImportRepertoirePgnRequest(pgn: pgn), timeout: 60
         )
     }
 
     func seedRepertoire(id: String, token: String) async throws -> RepertoireSeed {
-        try await exchange("POST", "repertoires/\(id)/seed", token: token, timeout: 60)
+        try await send("POST", "repertoires/\(id)/seed", token: token, timeout: 60)
     }
 
     func repertoireSession(id: String, mode: SessionMode?, token: String) async throws -> CourseSession {
         let query = mode.map { [URLQueryItem(name: "mode", value: $0.rawValue)] } ?? []
-        return try await exchange("GET", "repertoires/\(id)/session", query: query, token: token)
+        return try await send("GET", "repertoires/\(id)/session", query: query, token: token)
     }
 
     func repertoirePosition(id: String, path: [String], ratings: String?, token: String) async throws -> RepertoirePosition {
-        try await exchange(
+        try await send(
             "GET", "repertoires/\(id)/position",
             query: Self.repertoirePositionQuery(path: path, ratings: ratings), token: token
         )
@@ -172,18 +120,18 @@ extension LiveAPI: RepertoiresAPI {
     }
 
     func repertoireAdherence(id: String, token: String) async throws -> RepertoireAdherence {
-        try await exchange("GET", "repertoires/\(id)/adherence", token: token)
+        try await send("GET", "repertoires/\(id)/adherence", token: token)
     }
 }
 
-/// On sample data the repertoires answer for a signed-in player who does not
-/// exist: `FixtureOpenings`, synthetic. The token is not looked at.
+/// On sample data the repertoires are the sample player's (`FixtureOpenings`,
+/// synthetic); a guest is answered `unauthorized`, as by the server.
 extension FixtureAPI: RepertoiresAPI {
     private func player<Value: Sendable>(
         _ work: @Sendable (FixtureOpenings) async throws -> Value
     ) async throws -> Value {
         try await Task.sleep(for: delay)
-        return try await work(FixtureOpenings.current)
+        return try await work(try signedInPlayer().openings)
     }
 
     func repertoires(token: String) async throws -> RepertoireList {

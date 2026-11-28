@@ -177,56 +177,14 @@ private struct EntryRow: View {
     }
 }
 
-/// The way into puzzles from Today, until the pilot decides where the
-/// section hangs. Also opens the debug routes `-CDRoute puzzles`,
-/// `puzzles/free`, `puzzles/rated` and `woodpecker`.
-struct PuzzlesEntryRow: View {
-    @State private var showsHub = false
-
-    var body: some View {
-        Button { showsHub = true } label: {
-            HStack(spacing: CD.Space.s12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Puzzles")
-                        .cdFont(.cardTitle)
-                        .foregroundStyle(CD.ink)
-                    Text("Tactics at your level, and the Woodpecker Method.")
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                        .multilineTextAlignment(.leading)
-                }
-                Spacer(minLength: CD.Space.s8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CD.ink4)
-            }
-            .padding(CD.Space.s16)
-            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
-            .hairline()
-        }
-        .buttonStyle(CDPressStyle())
-        .navigationDestination(isPresented: $showsHub) { PuzzlesHubView() }
-        #if DEBUG
-            .onAppear { if PuzzlesDebug.opensHub, !PuzzlesDebug.handled { showsHub = true } }
-        #endif
-    }
-}
-
 #if DEBUG
     enum PuzzlesDebug {
         /// Set once the route has been followed, so going back stays back.
         static var handled = false
 
-        static var opensHub: Bool {
-            guard let first = DebugLaunch.route?.first else { return false }
-            return first == "puzzles" || first == "woodpecker"
-        }
-
-        /// The screen the hub opens: `puzzles/free`, `puzzles/rated` or `woodpecker`.
+        /// The screen the hub opens: `puzzles/free` or `puzzles/rated`.
         static var screen: PuzzlesRoute? {
             switch DebugLaunch.route ?? [] {
-            case ["woodpecker"]: .woodpecker
             case ["puzzles", "free"]: .free
             case ["puzzles", "rated"]: .rated
             default: nil

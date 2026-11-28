@@ -6,55 +6,44 @@ import SwiftUI
 /// The plan is the screen's plate; before any game is in, the question
 /// "Where do you play?" takes its place.
 struct PlayerTodayView: View {
-    let openCourses: () -> Void
-    let openGames: () -> Void
-
     @Environment(AppModel.self) private var app
-    @State private var navigator = HomeNavigator()
+    @Environment(HomeNavigator.self) private var navigator
+
+    /// The home, and what is due for review when the server says.
+    struct Today {
+        let home: PlayerHome
+        let due: DueSummary?
+        let courses: [CourseCard]
+    }
 
     var body: some View {
         Loadable(
             id: AnyHashable([AnyHashable(app.accountRevision), AnyHashable(navigator.revision)]),
             failureTitle: "Today did not load",
             load: load,
-            content: { home in PlayerHomePage(home: home, reload: { navigator.refresh() }) }
+            content: { today in PlayerHomePage(home: today.home, due: today.due, courses: today.courses, reload: { navigator.refresh() }) }
         )
-        .homeDestinations(navigator)
-        .onAppear {
-            navigator.openCourses = openCourses
-            navigator.openGames = openGames
-        }
-        #if DEBUG
-            .onAppear(perform: openDebugRoute)
-        #endif
     }
 
-    private func load() async throws -> PlayerHome {
+    private func load() async throws -> Today {
         guard let token = app.token else { throw APIError.server(status: 401, code: "unauthorized", message: "Sign in to continue.") }
+        // The reviews due are a bonus on this screen: without them it still works.
+        async let due = try? app.api.due(token: token)
+        async let courses = try? app.api.courses(token: token)
         do {
-            return try await app.api.home(token: token)
+            let home = try await app.api.home(token: token)
+            return Today(home: home, due: await due, courses: await courses ?? [])
         } catch let error as APIError where error.isUnauthorized {
             app.sessionExpired()
             throw error
         }
     }
-
-    #if DEBUG
-        /// `-CDRoute daily | progress | drill/<key>` with the fixture player.
-        private func openDebugRoute() {
-            guard let route = DebugLaunch.route, navigator.cover == nil, !navigator.showsProgress else { return }
-            switch route.first {
-            case "daily": navigator.open(.daily)
-            case "progress": navigator.open(.progress)
-            case "drill": if route.count > 1 { navigator.open(.patternDrill(key: route[1])) }
-            default: break
-            }
-        }
-    #endif
 }
 
 private struct PlayerHomePage: View {
     let home: PlayerHome
+    let due: DueSummary?
+    let courses: [CourseCard]
     let reload: () -> Void
 
     @Environment(AppModel.self) private var app
@@ -70,6 +59,9 @@ private struct PlayerHomePage: View {
                         FirstReportCard(report: report, dismissed: reload)
                     }
                     TodayPlanCard(home: home)
+                    if let due, due.totalDue > 0, !DueRow.rows(due: due, courses: courses).isEmpty {
+                        DueCard(due: due, courses: courses)
+                    }
                     if home.totalGames > 0 {
                         FormSection(home: home)
                     }
@@ -111,8 +103,8 @@ private struct PlayerHomePage: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: CD.Space.s6) {
-            Wordmark(size: 20)
-                .padding(.bottom, CD.Space.s24)
+            TodayTopBar()
+                .padding(.bottom, CD.Space.s16)
             Text(greeting)
                 .cdFont(.display)
                 .foregroundStyle(CD.ink)
@@ -460,11 +452,11 @@ private struct WelcomeQuestion: View {
                     .cdFont(.small)
                     .foregroundStyle(CD.ink2)
                     .fixedSize(horizontal: false, vertical: true)
-                NavigationLink(value: HomeRoute.path(slug: FeaturedPath.slug)) {
-                    Text("Start Reach 1000 Elo")
+                Button("Start Reach 1000 Elo") {
+                    finish(reloads: false)
+                    navigator.open(.path(slug: FeaturedPath.slug))
                 }
                 .buttonStyle(.cd(.secondary, fullWidth: true))
-                .simultaneousGesture(TapGesture().onEnded { finish(reloads: false) })
             }
         }
         .plate(padding: CD.Space.s20)

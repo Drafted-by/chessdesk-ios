@@ -47,7 +47,8 @@ struct RepertoireTrainerScreen: View {
                 side: item.line.learnerSide(deck: session.side),
                 review: item.review,
                 label: model.label,
-                chapter: request.name,
+                // Opened from a step of the plan, the repertoire is known by its id alone.
+                chapter: request.name.isEmpty ? session.chapterTitles.first : request.name,
                 narration: session.narration,
                 following: model.hasNext ? .nextInSession : .none,
                 onGrades: { grades in Task { await model.report(grades) } },

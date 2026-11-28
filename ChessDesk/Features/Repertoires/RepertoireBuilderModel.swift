@@ -55,6 +55,11 @@ nonisolated struct BuilderMove: Hashable, Identifiable, Sendable {
 /// played from there, and the changes sent to the server. The server owns the
 /// tree: every write answers with the repertoire as it now stands, and a
 /// refused write is followed by a fresh read.
+///
+/// The server's trees spell castling as the king taking its rook; everything
+/// kept here (the tree, the path, the statistics) is respelled the board's
+/// way on arrival (`CastlingSpelling`), so a move played on the board finds
+/// its node and its numbers.
 @Observable
 final class RepertoireBuilderModel {
     enum Phase: Equatable {
@@ -85,7 +90,8 @@ final class RepertoireBuilderModel {
     let id: String
     private(set) var phase: Phase = .loading
     private(set) var detail: RepertoireDetail?
-    /// Where the player stands: the moves from the start, in UCI.
+    /// Where the player stands: the moves from the start, in UCI as the board
+    /// spells them.
     private(set) var path: [String] = []
     private(set) var pending: Pending?
     private(set) var stats: RepertoirePosition?
@@ -240,7 +246,7 @@ final class RepertoireBuilderModel {
 
     func load() async {
         do {
-            detail = try await api.repertoire(id: id, token: token)
+            detail = try await read()
             path = RepertoireTree.longestPrefix(of: path, in: tree)
             phase = .ready
             loadStats(after: .zero)
@@ -252,10 +258,15 @@ final class RepertoireBuilderModel {
         }
     }
 
+    /// The repertoire as the server holds it, respelled for the board.
+    private func read() async throws -> RepertoireDetail {
+        try await api.repertoire(id: id, token: token).boardSpelled
+    }
+
     /// Reads the repertoire again without leaving the screen: after a
     /// training session its progress has moved. A failure changes nothing.
     func refresh() async {
-        guard phase == .ready, !isWriting, let fresh = try? await api.repertoire(id: id, token: token) else { return }
+        guard phase == .ready, !isWriting, let fresh = try? await read() else { return }
         detail = fresh
         path = RepertoireTree.longestPrefix(of: path, in: tree)
     }
@@ -320,7 +331,10 @@ final class RepertoireBuilderModel {
             if delay > .zero { try? await Task.sleep(for: delay) }
             guard !Task.isCancelled else { return }
             do {
+                // The answer names its path in the tree's spelling: it is
+                // matched to its request by the path asked for.
                 let position = try await api.repertoirePosition(id: id, path: key.path, ratings: key.ratings, token: token)
+                    .boardSpelled
                 guard !Task.isCancelled, let self, self.path == key.path, self.ratings == key.ratings else { return }
                 self.cache[key] = position
                 self.stats = position
@@ -332,7 +346,7 @@ final class RepertoireBuilderModel {
                 let failure = error as? APIError ?? .unreadable
                 if failure.isUnauthorized { self.onUnauthorized() }
                 self.statsPhase = .failed(
-                    failure.code == "rate_limited"
+                    failure.isRateLimited
                         ? "Too many positions in a minute. The numbers are back in a moment."
                         : failure.message
                 )
@@ -459,7 +473,7 @@ final class RepertoireBuilderModel {
         defer { isWriting = false }
         do {
             try await api.renameRepertoire(id: id, name: name, token: token)
-            detail = try await api.repertoire(id: id, token: token)
+            detail = try await read()
             return true
         } catch {
             await refused(error)
@@ -485,6 +499,10 @@ final class RepertoireBuilderModel {
 
     /// One change of the tree: sends it, takes the answer as the new tree,
     /// and forgets the statistics that the change made stale.
+    ///
+    /// A 409 means another change reached the server first and nothing was
+    /// written: the repertoire is read again and the change sent once more.
+    /// A second 409, like any other refusal, is shown.
     @discardableResult
     private func write(
         invalidating paths: [[String]] = [],
@@ -501,7 +519,13 @@ final class RepertoireBuilderModel {
             pending = nil
         }
         do {
-            detail = try await change(api, id, token)
+            do {
+                detail = try await change(api, id, token).boardSpelled
+            } catch let failure as APIError where failure.isConflict {
+                detail = try await read()
+                cache = [:]
+                detail = try await change(api, id, token).boardSpelled
+            }
             if invalidatingAll {
                 cache = [:]
             } else {
@@ -524,8 +548,9 @@ final class RepertoireBuilderModel {
     }
 
     /// A write that did not go through. The paywall opens the Premium sheet;
-    /// a rule of the server (a lost concurrent write included) shows its
-    /// sentence and the repertoire is read again, since it may have moved.
+    /// a rule of the server (422) shows its sentence, and the repertoire is
+    /// read again since a refusal can come from a tree that moved. Too many
+    /// requests (429) say how long to wait; nothing is read again.
     private func refused(_ error: any Error) async {
         if error is CancellationError { return }
         let failure = error as? APIError ?? .unreadable
@@ -539,7 +564,7 @@ final class RepertoireBuilderModel {
             return
         }
         guard case .server = failure else { return }
-        if let fresh = try? await api.repertoire(id: id, token: token) {
+        if let fresh = try? await read() {
             detail = fresh
             cache = [:]
             path = RepertoireTree.longestPrefix(of: path, in: tree)

@@ -11,15 +11,15 @@ nonisolated protocol SettingsAPI {
 
 extension LiveAPI: SettingsAPI {
     func settings(token: String) async throws -> AccountSettings {
-        try await homeExchange("GET", "settings", token: token)
+        try await send("GET", "settings", token: token)
     }
 
     func updateSettings(_ request: UpdateSettingsRequest, token: String) async throws -> AccountSettings {
-        try await homeExchange("PATCH", "settings", token: token, body: request)
+        try await send("PATCH", "settings", token: token, body: request)
     }
 
     func setPrimaryRating(source: String, format: String, token: String) async throws -> AccountRatings {
-        try await homeExchange(
+        try await send(
             "PUT", "settings/primary-rating", token: token, body: PrimaryRatingRequest(source: source, format: format)
         )
     }

@@ -1,9 +1,0 @@
-{
-  "_synthetic": "Written by hand from the contract (GameDetail). An invented game: a standard Giuoco Piano line.",
-  "id": "g-1", "source": "LICHESS", "white": "quietrook", "black": "marta_k", "whiteElo": 1349, "blackElo": 1371,
-  "result": "0-1", "timeClass": "blitz", "opening": "Italian Game: Giuoco Piano", "userColor": "white",
-  "playedAt": "2026-11-27T20:41:00.000Z", "ply": 24, "starred": false, "reviewed": false,
-  "pgn": "[Event \"Rated blitz game\"]\n[White \"quietrook\"]\n[Black \"marta_k\"]\n[Result \"0-1\"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5 4. c3 Nf6 5. d4 exd4 6. cxd4 Bb4+ 7. Bd2 Bxd2+ 8. Nbxd2 d5 9. exd5 Nxd5 10. Qb3 Nce7 11. O-O O-O 12. Rfe1 c6 0-1",
-  "url": null,
-  "review": null
-}

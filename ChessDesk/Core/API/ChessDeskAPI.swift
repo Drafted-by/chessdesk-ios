@@ -237,41 +237,61 @@ nonisolated struct LiveAPI: ChessDeskAPI {
 
     // MARK: Transport
 
-    private func send<Response: Decodable>(
+    // One transport for every route of the app: the feature files
+    // (`API+<Feature>.swift`) call `send` too.
+
+    /// A request without a body.
+    func send<Response: Decodable>(
         _ method: String,
         _ path: String,
         query: [URLQueryItem] = [],
-        token: String? = nil
+        token: String? = nil,
+        timeout: TimeInterval = LiveAPI.standardTimeout
     ) async throws -> Response {
-        try await perform(request(method, path, query: query, token: token))
+        try await perform(request(method, path, query: query, token: token, timeout: timeout))
     }
 
-    private func send<Response: Decodable>(
+    /// A request with a JSON body.
+    func send<Response: Decodable>(
         _ method: String,
         _ path: String,
         query: [URLQueryItem] = [],
         token: String? = nil,
         body: some Encodable,
-        timeout: TimeInterval = 20
+        timeout: TimeInterval = LiveAPI.standardTimeout
     ) async throws -> Response {
-        var request = request(method, path, query: query, token: token)
-        request.timeoutInterval = timeout
+        var request = request(method, path, query: query, token: token, timeout: timeout)
         request.httpBody = try APICoding.encoder.encode(body)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return try await perform(request)
     }
 
-    func request(_ method: String, _ path: String, query: [URLQueryItem], token: String?) -> URLRequest {
+    static let standardTimeout: TimeInterval = 20
+
+    func request(
+        _ method: String, _ path: String, query: [URLQueryItem], token: String?,
+        timeout: TimeInterval = LiveAPI.standardTimeout
+    ) -> URLRequest {
         var url = baseURL.appending(path: "api/v1").appending(path: path)
-        if !query.isEmpty { url.append(queryItems: query) }
+        if !query.isEmpty { url = Self.strictQuery(url.appending(queryItems: query)) }
         var request = URLRequest(url: url)
         request.httpMethod = method
-        request.timeoutInterval = 20
+        request.timeoutInterval = timeout
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         if let token {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request
+    }
+
+    /// A "+" is legal in a query, but the server reads it as a space: a check
+    /// in a SAN path ("Bb5+") must travel as "%2B".
+    static func strictQuery(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let query = components.percentEncodedQuery, query.contains("+")
+        else { return url }
+        components.percentEncodedQuery = query.replacingOccurrences(of: "+", with: "%2B")
+        return components.url ?? url
     }
 
     private func perform<Response: Decodable>(_ request: URLRequest) async throws -> Response {
@@ -287,14 +307,19 @@ nonisolated struct LiveAPI: ChessDeskAPI {
             throw APIError.offline
         }
         guard let http = response as? HTTPURLResponse else { throw APIError.unreadable }
-        return try Self.decode(status: http.statusCode, data: data)
+        let retryAfter = http.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
+        return try Self.decode(status: http.statusCode, data: data, retryAfter: retryAfter)
     }
 
-    static func decode<Response: Decodable>(status: Int, data: Data) throws -> Response {
+    /// Reads an answer: the value on 2xx, the server's error otherwise.
+    /// `retryAfter` is the `Retry-After` header of a 429, in seconds.
+    static func decode<Response: Decodable>(status: Int, data: Data, retryAfter: Int? = nil) throws -> Response {
         guard (200..<300).contains(status) else {
             if let body = try? APICoding.decoder.decode(APIErrorBody.self, from: data) {
+                if status == 429 { throw APIError.rateLimited(retryAfter: retryAfter, message: body.error.message) }
                 throw APIError.server(status: status, code: body.error.code, message: body.error.message)
             }
+            if status == 429 { throw APIError.rateLimited(retryAfter: retryAfter, message: nil) }
             throw APIError.unreadable
         }
         do {

@@ -314,27 +314,58 @@ nonisolated struct APIErrorBody: Codable, Sendable {
 nonisolated enum APIError: Error, Equatable, Sendable {
     /// The server answered with its error shape.
     case server(status: Int, code: String, message: String)
+    /// 429: too many requests in a short time. `retryAfter` is how long the
+    /// server asks to wait, in seconds, when it says so.
+    case rateLimited(retryAfter: Int?, message: String?)
     /// No answer: offline, timeout, DNS.
     case offline
     /// An answer the app could not read.
     case unreadable
 
     var code: String? {
-        if case let .server(_, code, _) = self { return code }
-        return nil
+        switch self {
+        case let .server(_, code, _): code
+        case .rateLimited: "rate_limited"
+        case .offline, .unreadable: nil
+        }
+    }
+
+    var status: Int? {
+        switch self {
+        case let .server(status, _, _): status
+        case .rateLimited: 429
+        case .offline, .unreadable: nil
+        }
     }
 
     var isUnauthorized: Bool { code == "unauthorized" }
     var isPremiumRequired: Bool { code == "premium_required" }
     var isEmailTaken: Bool { code == "email_taken" }
+    var isRateLimited: Bool { code == "rate_limited" }
+    /// 409: the request lost against another change; nothing was written.
+    var isConflict: Bool { status == 409 }
+
+    /// The wait a 429 asks for, in seconds.
+    var retryAfter: Int? {
+        if case let .rateLimited(retryAfter, _) = self { return retryAfter }
+        return nil
+    }
 
     /// A sentence for the player. Server messages are already written for them.
     var message: String {
         switch self {
         case let .server(_, _, message): message
+        case let .rateLimited(retryAfter, message): Self.waitSentence(retryAfter) ?? message ?? "Too many attempts. Try again in a moment."
         case .offline: "ChessDesk could not be reached. Check your connection and try again."
         case .unreadable: "ChessDesk sent an answer this version of the app cannot read."
         }
+    }
+
+    /// "Too many attempts. Try again in a minute.", from the server's wait.
+    static func waitSentence(_ retryAfter: Int?) -> String? {
+        guard let seconds = retryAfter, seconds > 0 else { return nil }
+        let wait = seconds < 50 ? "\(seconds) seconds" : seconds <= 70 ? "a minute" : "\(Int((Double(seconds) / 60).rounded(.up))) minutes"
+        return "Too many attempts. Try again in \(wait)."
     }
 }
 

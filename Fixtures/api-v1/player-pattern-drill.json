@@ -4,7 +4,7 @@
   "title": "Pieces left hanging",
   "detail": "In 6 of your last 40 games a piece was left where it could be taken for free.",
   "mistakes": [
-    { "id": "m-3", "fen": "4k3/8/8/3q4/8/8/3R4/4K3 w - - 0 19", "bestUci": "d2d5", "bestSan": "Rxd5", "playedSan": "Ke2", "classification": "BLUNDER", "winLoss": 61.0, "moveLabel": "19.", "gameId": "g-1", "opponent": "marta_k", "streak": 0, "firstTime": true },
-    { "id": "m-5", "fen": "7q/8/8/4k3/8/8/8/2B1K3 w - - 0 27", "bestUci": "c1b2", "bestSan": "Bb2+", "playedSan": "Kf2", "classification": "MISTAKE", "winLoss": 22.4, "moveLabel": "27.", "gameId": "g-2", "opponent": "endgame_eli", "streak": 2, "firstTime": false }
+    { "id": "m-3", "fen": "4k3/8/8/3q4/8/8/3R4/4K3 w - - 0 19", "bestUci": "d2d5", "bestSan": "Rxd5", "playedSan": "Ke2", "classification": "BLUNDER", "winLoss": 61.0, "moveLabel": "19.", "gameId": "sample-game-1", "opponent": "marta_k", "streak": 0, "firstTime": true },
+    { "id": "m-5", "fen": "7q/8/8/4k3/8/8/8/2B1K3 w - - 0 27", "bestUci": "c1b2", "bestSan": "Bb2+", "playedSan": "Kf2", "classification": "MISTAKE", "winLoss": 22.4, "moveLabel": "27.", "gameId": "sample-game-31", "opponent": "endgame_eli", "streak": 2, "firstTime": false }
   ]
 }

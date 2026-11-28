@@ -1,8 +1,8 @@
 import ChessCore
 import SwiftUI
 
-/// "Play a bot": the catalogue of opponents, with the game in progress on
-/// top when there is one. This is where the bots' character shows; the game
+/// The Play tab, "Play a bot": the catalogue of opponents, with the game in
+/// progress on top when there is one. This is where the bots' character shows; the game
 /// itself is a plain board.
 struct PlayHubView: View {
     @Environment(AppModel.self) private var app
@@ -36,10 +36,10 @@ struct PlayHubView: View {
                 LoadingView()
             }
         }
-        .navigationTitle("Play a bot")
-        .navigationBarTitleDisplayMode(.inline)
-        // The page carries its own title; the bar keeps the name for the way back.
-        .toolbar { ToolbarItem(placement: .principal) { Text("").accessibilityHidden(true) } }
+        // The first screen of the Play tab: the page carries its own title,
+        // and the name is kept for the way back from a game.
+        .navigationTitle("Play")
+        .toolbar(.hidden, for: .navigationBar)
         .cdPage()
         .task(id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)])) {
             let current = model ?? PlayModel(app: app)

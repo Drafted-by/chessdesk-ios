@@ -1,21 +1,6 @@
 import Foundation
 import Observation
 
-extension AppModel {
-    /// The token the repertoire and explorer screens call with; nil for a
-    /// guest. Sample data has no account, but its client answers these two
-    /// features for an invented signed-in player (`FixtureOpenings`), so that
-    /// the screens can be used offline: any token does there.
-    /// `-CDSampleGuest YES` shows the guest's screens instead.
-    var playerToken: String? {
-        if isSignedIn, let token { return token }
-        #if DEBUG
-            if backend == .sampleData, !UserDefaults.standard.bool(forKey: "CDSampleGuest") { return "sample-player" }
-        #endif
-        return nil
-    }
-}
-
 /// The player's repertoires and what is due in them.
 @Observable
 final class RepertoiresModel {

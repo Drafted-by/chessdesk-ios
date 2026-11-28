@@ -23,86 +23,55 @@ nonisolated protocol HomeAPI {
 
 extension LiveAPI: HomeAPI {
     func home(token: String) async throws -> PlayerHome {
-        try await homeExchange("GET", "home", token: token)
+        try await send("GET", "home", token: token)
     }
 
     func progress(token: String) async throws -> ProgressPage {
-        try await homeExchange("GET", "progress", token: token)
+        try await send("GET", "progress", token: token)
     }
 
     func patternDrill(key: String, token: String) async throws -> PatternDrill {
-        try await homeExchange("GET", "progress/patterns/\(key)", token: token)
+        try await send("GET", "progress/patterns/\(key)", token: token)
     }
 
     func daily(again: Bool, token: String) async throws -> DailyPlan {
         let query = again ? [URLQueryItem(name: "again", value: "1")] : []
-        return try await homeExchange("GET", "daily", query: query, token: token)
+        return try await send("GET", "daily", query: query, token: token)
     }
 
     func startDaily(_ request: DailySessionRequest, token: String) async throws -> DailySessionStart {
-        try await homeExchange("POST", "daily/session", token: token, body: request)
+        try await send("POST", "daily/session", token: token, body: request)
     }
 
     func completeDaily(_ request: DailyCompletionRequest, token: String) async throws -> DailyCompletion {
-        try await homeExchange("POST", "daily/completion", token: token, body: request)
+        try await send("POST", "daily/completion", token: token, body: request)
     }
 
     func setReminder(_ request: ReminderRequest, token: String) async throws -> DailyReminder {
-        try await homeExchange("PUT", "habit/reminder", token: token, body: request)
+        try await send("PUT", "habit/reminder", token: token, body: request)
     }
 
     func dismissReminderOffer(token: String) async throws {
-        let _: OkResponse = try await homeExchange("POST", "habit/reminder/dismiss", token: token)
+        let _: OkResponse = try await send("POST", "habit/reminder/dismiss", token: token)
     }
 
     func setRatingGoal(_ request: RatingGoalRequest, token: String) async throws -> RatingGoal {
-        try await homeExchange("PUT", "habit/goal", token: token, body: request)
+        try await send("PUT", "habit/goal", token: token, body: request)
     }
 
     func completeOnboarding(token: String) async throws {
-        let _: OkResponse = try await homeExchange("POST", "onboarding/complete", token: token)
+        let _: OkResponse = try await send("POST", "onboarding/complete", token: token)
     }
 
     func dismissFirstReport(token: String) async throws {
-        let _: OkResponse = try await homeExchange("POST", "onboarding/first-report/dismiss", token: token)
-    }
-}
-
-extension LiveAPI {
-    /// The transport of `LiveAPI` is private to its file; this is the same
-    /// exchange, for the routes of the home and the settings.
-    func homeExchange<Response: Decodable>(
-        _ method: String,
-        _ path: String,
-        query: [URLQueryItem] = [],
-        token: String?,
-        body: (any Encodable)? = nil
-    ) async throws -> Response {
-        var request = request(method, path, query: query, token: token)
-        if let body {
-            request.httpBody = try APICoding.encoder.encode(body)
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch {
-            throw APIError.offline
-        }
-        guard let http = response as? HTTPURLResponse else { throw APIError.unreadable }
-        return try Self.decode(status: http.statusCode, data: data)
+        let _: OkResponse = try await send("POST", "onboarding/first-report/dismiss", token: token)
     }
 }
 
 extension FixtureAPI: HomeAPI {
     func home(token: String) async throws -> PlayerHome {
         try await Task.sleep(for: delay)
-        return try signedInPlayer().home()
+        return try signedInPlayer().home(due: try await due(token: token))
     }
 
     func progress(token: String) async throws -> ProgressPage {

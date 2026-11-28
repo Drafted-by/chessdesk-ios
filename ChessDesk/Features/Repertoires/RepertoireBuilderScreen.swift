@@ -371,6 +371,7 @@ private struct RepertoireMoveList: View {
                 header
                 if let notice = model.notice { noticeRow(notice) }
                 if let detail = model.detail, !detail.editable { readOnly }
+                if model.detail?.truncated == true { truncatedNote }
                 if !own.isEmpty {
                     caption("In your repertoire")
                     ForEach(own) { RepertoireMoveRow(move: $0, model: model) }
@@ -501,6 +502,16 @@ private struct RepertoireMoveList: View {
         .hairline(notice.isError ? CD.loss.opacity(0.4) : CD.lineStrong, radius: CD.Radius.md)
         .padding(.horizontal, CD.Space.s12)
         .padding(.bottom, CD.Space.s8)
+    }
+
+    /// The server cuts the tree 200 moves deep; the PGN keeps every move.
+    private var truncatedNote: some View {
+        Text("A line of this repertoire is longer than 200 moves. The tree stops there; the exported PGN keeps the whole line.")
+            .cdFont(.meta)
+            .foregroundStyle(CD.ink3)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, CD.Space.s16)
+            .padding(.bottom, CD.Space.s8)
     }
 
     private var readOnly: some View {

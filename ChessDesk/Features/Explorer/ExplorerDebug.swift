@@ -1,14 +1,5 @@
 import SwiftUI
 
-extension View {
-    /// A temporary way into the explorer of the player's own games, until the
-    /// feature has its place in the navigation. Also where `-CDRoute explorer`
-    /// lands.
-    func explorerEntry() -> some View {
-        modifier(FeatureEntry(title: "Explorer of your games", route: "explorer") { ExplorerView() })
-    }
-}
-
 #if DEBUG
     /// Launch arguments for checking the explorer in the simulator, on sample
     /// data: `-CDRoute explorer`, `-CDExplorerSide black`, `-CDExplorerPath

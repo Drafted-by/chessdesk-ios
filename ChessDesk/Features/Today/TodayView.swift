@@ -4,14 +4,11 @@ import SwiftUI
 /// plan for the day (`PlayerTodayView`); a guest, the course to continue or
 /// to start.
 struct TodayView: View {
-    let openCourses: () -> Void
-    var openGames: () -> Void = {}
-
     @Environment(AppModel.self) private var app
+    @Environment(AppNavigator.self) private var navigator
 
     private struct Content {
         let courses: [CourseCard]
-        let due: DueSummary?
         /// The path put forward. Nil when the server does not serve paths yet.
         let path: PathCard?
     }
@@ -22,7 +19,7 @@ struct TodayView: View {
     var body: some View {
         Group {
             if app.isSignedIn {
-                PlayerTodayView(openCourses: openCourses, openGames: openGames)
+                PlayerTodayView()
             } else {
                 Loadable(
                     id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)]),
@@ -37,23 +34,18 @@ struct TodayView: View {
     }
 
     private func load() async throws -> Content {
-        let courses = try await app.api.courses(token: app.token)
-        var due: DueSummary?
-        if let token = app.token, app.isSignedIn {
-            // Reviews are a bonus on this screen: without them it still works.
-            due = try? await app.api.due(token: token)
-        }
         // The featured course leads the screen, but Today works without it.
-        let paths = try? await app.api.paths(token: app.token)
-        return Content(courses: courses, due: due, path: paths?.first { $0.slug == FeaturedPath.slug })
+        async let paths = try? app.api.paths(token: app.token)
+        let courses = try await app.api.courses(token: app.token)
+        return Content(courses: courses, path: await paths?.first { $0.slug == FeaturedPath.slug })
     }
 
     private func page(_ content: Content) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s32) {
                 VStack(alignment: .leading, spacing: CD.Space.s6) {
-                    Wordmark(size: 20)
-                        .padding(.bottom, CD.Space.s24)
+                    TodayTopBar()
+                        .padding(.bottom, CD.Space.s16)
                     Text(greeting)
                         .cdFont(.display)
                         .foregroundStyle(CD.ink)
@@ -61,10 +53,6 @@ struct TodayView: View {
                     Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "en_US"))))
                         .cdFont(.small)
                         .foregroundStyle(CD.ink3)
-                }
-
-                if let due = content.due, due.totalDue > 0 {
-                    DueCard(due: due, courses: content.courses)
                 }
 
                 if let path = content.path {
@@ -83,8 +71,6 @@ struct TodayView: View {
                     WelcomePlate(course: starter(content))
                 }
 
-                PuzzlesEntryRow() // Temporary way in; the pilot decides where puzzles hang.
-
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
                     SectionHeader(
                         title: content.path == nil ? "Good places to start" : "Then, an opening of your own",
@@ -101,7 +87,7 @@ struct TodayView: View {
                             .buttonStyle(CDPressStyle())
                         }
                     }
-                    Button(action: openCourses) {
+                    Button { navigator.show(.learn) } label: {
                         HStack(spacing: CD.Space.s6) {
                             Text("All \(content.courses.count) courses")
                             Image(systemName: "arrow.right").font(.system(size: 12, weight: .semibold))
@@ -186,95 +172,6 @@ private struct WelcomePlate: View {
                     .frame(maxWidth: sizeClass == .regular ? 260 : .infinity)
                 }
             }
-        }
-    }
-}
-
-private struct DueCard: View {
-    let due: DueSummary
-    let courses: [CourseCard]
-
-    var body: some View {
-        CDCard(tone: .raised, padding: CD.Space.s20) {
-            VStack(alignment: .leading, spacing: CD.Space.s16) {
-                VStack(alignment: .leading, spacing: CD.Space.s4) {
-                    Text("Due for review")
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                    HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                        Text(CDFormat.count(due.totalDue))
-                            .cdFont(.metric)
-                            .foregroundStyle(CD.ink)
-                            .cdNumber()
-                        Text(due.totalDue == 1 ? "move" : "moves")
-                            .cdFont(.body)
-                            .foregroundStyle(CD.ink3)
-                    }
-                    .accessibilityElement(children: .combine)
-                }
-                VStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
-                        if index > 0 { CDHairline() }
-                        switch row.target {
-                        case let .course(slug):
-                            NavigationLink(value: CourseRoute.course(slug: slug)) { label(row.deck) }
-                                .buttonStyle(CDPressStyle())
-                        case let .repertoire(request):
-                            // A repertoire's review opens at once, in the trainer.
-                            Button { review = request } label: { label(row.deck) }
-                                .buttonStyle(CDPressStyle())
-                        }
-                    }
-                }
-            }
-        }
-        .fullScreenCover(item: $review) { RepertoireTrainerScreen(request: $0) }
-    }
-
-    @State private var review: RepertoireTrainingRequest?
-
-    private func label(_ deck: DueSummary.Deck) -> some View {
-        HStack {
-            Text(deck.name)
-                .cdFont(.bodyStrong)
-                .foregroundStyle(CD.ink)
-                .lineLimit(1)
-            Spacer()
-            Text(CDFormat.plural(deck.progress.dueLines, "line"))
-                .cdFont(.small)
-                .foregroundStyle(CD.accentStrong)
-                .cdNumber()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(CD.ink4)
-        }
-        .frame(minHeight: 48)
-        .contentShape(Rectangle())
-    }
-
-    private var rows: [DueRow] { DueRow.rows(due: due, courses: courses) }
-}
-
-/// A deck with something due, and what its row opens: the page of a course,
-/// or the review of one of the player's own repertoires.
-struct DueRow {
-    enum Target: Hashable {
-        case course(slug: String)
-        case repertoire(RepertoireTrainingRequest)
-    }
-
-    let deck: DueSummary.Deck
-    let target: Target
-
-    static func rows(due: DueSummary, courses: [CourseCard]) -> [DueRow] {
-        due.decks.compactMap { deck in
-            guard deck.progress.dueLines > 0 else { return nil }
-            if let request = RepertoireTrainingRequest(deck: deck) {
-                return DueRow(deck: deck, target: .repertoire(request))
-            }
-            guard deck.kind == "course", deck.deck.hasPrefix("course:") else { return nil }
-            let slug = String(deck.deck.dropFirst("course:".count))
-            return courses.contains { $0.slug == slug } ? DueRow(deck: deck, target: .course(slug: slug)) : nil
         }
     }
 }

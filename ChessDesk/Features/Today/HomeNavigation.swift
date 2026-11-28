@@ -1,35 +1,45 @@
 import SwiftUI
 
-/// What the home opens over itself: the trainers take the whole screen.
+/// What the home opens over the whole app: the trainers take the screen.
 enum HomeCover: Hashable, Identifiable {
     case daily
     case mistakes
     case patternDrill(key: String)
+    case repertoireReview(id: String)
+    case courseReview(slug: String)
 
     var id: Self { self }
 }
 
-/// Opens the destinations of `HomeRoute` from Today and Progress. Pushed
-/// screens go through `NavigationLink(value:)`; the trainers are covers; the
-/// course catalogue is a tab.
+/// Opens the destinations of `HomeRoute`, from Today, Progress, You and the
+/// Train hub. A trainer is a cover over the whole app; a section is a tab;
+/// a game, a course or Progress is pushed on Today's stack.
 @Observable
 final class HomeNavigator {
     var cover: HomeCover?
-    var showsProgress = false
     /// Bumped when a trainer closes, so the home and progress read again.
     private(set) var revision = 0
-    @ObservationIgnored var openCourses: () -> Void = {}
-    @ObservationIgnored var openGames: () -> Void = {}
+    @ObservationIgnored private let app: AppNavigator
+
+    init(app: AppNavigator) {
+        self.app = app
+    }
 
     func open(_ route: HomeRoute) {
         switch route {
         case .daily: cover = .daily
         case .mistakes: cover = .mistakes
         case let .patternDrill(key): cover = .patternDrill(key: key)
-        case .courses: openCourses()
-        case .games: openGames()
-        case .progress: showsProgress = true
-        case .game, .path, .course, .play, .puzzles, .repertoire, .repertoires: break
+        case let .repertoire(id): cover = .repertoireReview(id: id)
+        case let .courseReview(slug): cover = .courseReview(slug: slug)
+        case .courses: app.show(.learn)
+        case .games: app.show(.games)
+        case .play: app.show(.play)
+        case .puzzles: app.open(AppRoute.puzzles, in: .train)
+        case .repertoires: app.open(AppRoute.repertoires, in: .learn)
+        case .game, .path, .course, .progress:
+            app.push(route, in: .today)
+            app.show(.today)
         }
     }
 
@@ -46,14 +56,6 @@ final class HomeNavigator {
     }
 
     func refresh() { revision += 1 }
-
-    /// Whether a route is a pushed screen (otherwise `open` handles it).
-    static func pushes(_ route: HomeRoute) -> Bool {
-        switch route {
-        case .game, .path, .course, .play, .puzzles, .repertoire, .repertoires: true
-        case .daily, .mistakes, .patternDrill, .courses, .games, .progress: false
-        }
-    }
 }
 
 /// A tappable way to a home destination.
@@ -64,59 +66,88 @@ struct HomeRouteLink<Label: View>: View {
     @Environment(HomeNavigator.self) private var navigator
 
     var body: some View {
-        if HomeNavigator.pushes(route) {
-            NavigationLink(value: route, label: label)
-                .buttonStyle(CDPressStyle())
-        } else {
-            Button { navigator.open(route) } label: { label() }
-                .buttonStyle(CDPressStyle())
-        }
+        Button { navigator.open(route) } label: { label() }
+            .buttonStyle(CDPressStyle())
     }
 }
 
 extension View {
-    /// The screens the home leads to, on the stack of the view it is attached to.
+    /// The screens the home pushes, on Today's stack.
     func homeDestinations(_ navigator: HomeNavigator) -> some View {
-        modifier(HomeDestinations(navigator: navigator))
+        navigationDestination(for: HomeRoute.self) { route in
+            switch route {
+            case let .game(id): GameScreen(id: id, onReviewed: { navigator.refresh() })
+            case let .path(slug): PathView(slug: slug)
+            case let .course(slug): CourseDetailView(slug: slug)
+            case .progress: ProgressScreen()
+            // Covers and sections: `HomeNavigator.open` never pushes them.
+            case .daily, .mistakes, .patternDrill, .repertoire, .courseReview, .courses, .games, .puzzles, .repertoires, .play:
+                EmptyView()
+            }
+        }
+    }
+
+    /// The trainers the home opens, over the whole app: attached once, to the root.
+    func homeCovers(_ navigator: HomeNavigator) -> some View {
+        modifier(HomeCovers(navigator: navigator))
     }
 }
 
-private struct HomeDestinations: ViewModifier {
+private struct HomeCovers: ViewModifier {
     @Bindable var navigator: HomeNavigator
 
     func body(content: Content) -> some View {
-        content
-            .environment(navigator)
-            .navigationDestination(for: HomeRoute.self) { route in
-                screen(route).environment(navigator)
+        content.fullScreenCover(item: $navigator.cover, onDismiss: { navigator.refresh() }) { cover in
+            switch cover {
+            case .daily:
+                DailyScreen { next in navigator.closeCover(then: next) }
+            case .mistakes:
+                MistakeTrainerScreen()
+            case let .patternDrill(key):
+                PatternDrillScreen(key: key) { navigator.closeCover() }
+            case let .repertoireReview(id):
+                RepertoireTrainerScreen(request: RepertoireTrainingRequest(id: id, name: "", mode: .review))
+            case let .courseReview(slug):
+                CourseReviewScreen(slug: slug)
             }
-            .navigationDestination(isPresented: $navigator.showsProgress) {
-                ProgressScreen().environment(navigator)
-            }
-            .fullScreenCover(item: $navigator.cover, onDismiss: { navigator.refresh() }) { cover in
-                switch cover {
-                case .daily:
-                    DailyScreen { next in navigator.closeCover(then: next) }
-                case .mistakes:
-                    MistakeTrainerScreen()
-                case let .patternDrill(key):
-                    PatternDrillScreen(key: key) { navigator.closeCover() }
-                }
-            }
-    }
-
-    /// The pushed screens. Puzzles and repertoires are built on other
-    /// branches: the pilot puts their screens here and turns them on in
-    /// `HomeRouter.opens`.
-    @ViewBuilder private func screen(_ route: HomeRoute) -> some View {
-        switch route {
-        case let .game(id): GameScreen(id: id, onReviewed: { navigator.refresh() })
-        case let .path(slug): PathView(slug: slug)
-        case let .course(slug): CourseDetailView(slug: slug)
-        case .play: PlayHubView()
-        case .progress: ProgressScreen()
-        case .puzzles, .repertoire, .repertoires, .daily, .mistakes, .patternDrill, .courses, .games: EmptyView()
         }
+    }
+}
+
+/// The review of a course opened by its slug alone (a step of the plan, a
+/// row of the due card): reads the course for its name, then runs the trainer.
+struct CourseReviewScreen: View {
+    let slug: String
+
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var trainerIsUp = false
+
+    var body: some View {
+        Loadable(
+            id: AnyHashable(slug),
+            failureTitle: "Your review did not load",
+            load: { try await app.api.course(slug: slug, token: app.token) },
+            content: { course in
+                TrainerScreen(request: TrainerRequest(course: course, mode: .review, line: nil))
+                    .onAppear { trainerIsUp = true }
+            }
+        )
+        .overlay(alignment: .topLeading) {
+            // The trainer brings its own close button once it is there.
+            if !trainerIsUp {
+                Button { dismiss() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(CD.ink2)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Close")
+                .padding(.leading, CD.Space.s4)
+            }
+        }
+        .background(CD.canvas.ignoresSafeArea())
     }
 }
 

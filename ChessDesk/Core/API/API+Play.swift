@@ -23,32 +23,11 @@ extension LiveAPI: PlayAPI {
     var savesBotGames: Bool { true }
 
     func playBots(token: String?) async throws -> PlayCatalogue {
-        try await play(request("GET", PlayEndpoints.catalogue, query: [], token: token))
+        try await send("GET", PlayEndpoints.catalogue, token: token)
     }
 
     func saveBotGame(_ game: SaveBotGameRequest, token: String) async throws -> GameDetail {
-        var request = request("POST", PlayEndpoints.games, query: [], token: token)
-        request.httpBody = try APICoding.encoder.encode(game)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        return try await play(request)
-    }
-
-    /// The transport of `LiveAPI` is private to its file; this is the same
-    /// exchange, for the routes of this feature.
-    private func play<Response: Decodable>(_ request: URLRequest) async throws -> Response {
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch {
-            throw APIError.offline
-        }
-        guard let http = response as? HTTPURLResponse else { throw APIError.unreadable }
-        return try Self.decode(status: http.statusCode, data: data)
+        try await send("POST", PlayEndpoints.games, token: token, body: game)
     }
 }
 

@@ -45,8 +45,8 @@ nonisolated enum Backend: Hashable, Sendable {
     #if DEBUG
         private static let defaultsKey = "cd.debug.backend"
 
-        /// Debug default is the sample data: the app API is merged on the
-        /// site but not released yet, so production answers 404 for now.
+        /// Debug default is the sample data: it works offline and without
+        /// an account. `-CDBackend production` talks to chessdesk.app.
         static var debugDefault: Backend {
             if let argument = UserDefaults.standard.string(forKey: "CDBackend") {
                 return parse(argument)
@@ -127,6 +127,9 @@ final class AppModel {
     }
 
     var isSignedIn: Bool { me != nil }
+    /// The token of the signed-in player; nil for a guest, on sample data
+    /// too. What the screens that need an account call with.
+    var playerToken: String? { isSignedIn ? token : nil }
     var hasPremium: Bool { me?.access.premium ?? false }
 
     // MARK: Session

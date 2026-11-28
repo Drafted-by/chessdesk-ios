@@ -29,94 +29,57 @@ nonisolated protocol PuzzlesAPI {
 
 nonisolated extension LiveAPI: PuzzlesAPI {
     func puzzleOverview(token: String?) async throws -> PuzzleOverview {
-        try await call("GET", "puzzles", token: token)
+        try await send("GET", "puzzles", token: token)
     }
 
     func freePuzzles(theme: String?, band: String?, token: String?) async throws -> FreePuzzles {
         var query: [URLQueryItem] = []
         if let theme { query.append(URLQueryItem(name: "theme", value: theme)) }
         if let band { query.append(URLQueryItem(name: "band", value: band)) }
-        return try await call("GET", "puzzles/free", query: query, token: token)
+        return try await send("GET", "puzzles/free", query: query, token: token)
     }
 
     func nextPuzzle(theme: String?, token: String) async throws -> Puzzle {
-        try await call("POST", "puzzles/next", token: token, body: NextPuzzleRequest(theme: theme))
+        try await send("POST", "puzzles/next", token: token, body: NextPuzzleRequest(theme: theme))
     }
 
     func recordPuzzleAttempt(_ puzzleId: String, solved: Bool, ms: Int?, token: String) async throws -> PuzzleAttempt {
-        try await call(
+        try await send(
             "POST", "puzzles/\(puzzleId)/attempts", token: token,
             body: PuzzleAttemptRequest(solved: solved, ms: ms)
         )
     }
 
     func woodpecker(token: String) async throws -> WoodpeckerOverview {
-        try await call("GET", "woodpecker", token: token)
+        try await send("GET", "woodpecker", token: token)
     }
 
     func createWoodpeckerSet(size: Int?, theme: String?, token: String) async throws -> WoodpeckerOverview {
         // Building a set draws hundreds of puzzles: give it time.
-        try await call("POST", "woodpecker/set", token: token, body: WoodpeckerSetRequest(size: size, theme: theme), timeout: 60)
+        try await send("POST", "woodpecker/set", token: token, body: WoodpeckerSetRequest(size: size, theme: theme), timeout: 60)
     }
 
     func closeWoodpeckerSet(_ status: WoodpeckerSetStatus, token: String) async throws -> WoodpeckerOverview {
-        try await call("PUT", "woodpecker/set", token: token, body: WoodpeckerSetStatusRequest(status: status))
+        try await send("PUT", "woodpecker/set", token: token, body: WoodpeckerSetStatusRequest(status: status))
     }
 
     func recordWoodpeckerSolve(puzzleId: String, correct: Bool, ms: Int, token: String) async throws -> WoodpeckerStep {
-        try await call(
+        try await send(
             "POST", "woodpecker/set/solves", token: token,
             body: WoodpeckerSolveRequest(puzzleId: puzzleId, correct: correct, ms: ms)
         )
     }
 
     func startWoodpeckerCycle(token: String) async throws -> WoodpeckerRun {
-        try await call("POST", "woodpecker/set/cycles", token: token)
+        try await send("POST", "woodpecker/set/cycles", token: token)
     }
 
     func retireWoodpeckerPuzzle(_ puzzleId: String, token: String) async throws -> WoodpeckerStep {
-        try await call("DELETE", "woodpecker/set/puzzles/\(puzzleId)", token: token)
+        try await send("DELETE", "woodpecker/set/puzzles/\(puzzleId)", token: token)
     }
 
     func woodpeckerReport(token: String) async throws -> WoodpeckerReport {
-        try await call("GET", "woodpecker/report", token: token)
-    }
-
-    // MARK: Transport
-
-    // The transport of `LiveAPI` is private to its file; these go through its
-    // shared pieces (`request`, `decode`) so this feature leaves that file alone.
-
-    private func call<Response: Decodable>(
-        _ method: String, _ path: String, query: [URLQueryItem] = [], token: String?
-    ) async throws -> Response {
-        try await perform(request(method, path, query: query, token: token))
-    }
-
-    private func call<Response: Decodable>(
-        _ method: String, _ path: String, token: String?, body: some Encodable, timeout: TimeInterval = 20
-    ) async throws -> Response {
-        var request = request(method, path, query: [], token: token)
-        request.timeoutInterval = timeout
-        request.httpBody = try APICoding.encoder.encode(body)
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        return try await perform(request)
-    }
-
-    private func perform<Response: Decodable>(_ request: URLRequest) async throws -> Response {
-        let data: Data
-        let response: URLResponse
-        do {
-            (data, response) = try await session.data(for: request)
-        } catch is CancellationError {
-            throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
-            throw CancellationError()
-        } catch {
-            throw APIError.offline
-        }
-        guard let http = response as? HTTPURLResponse else { throw APIError.unreadable }
-        return try Self.decode(status: http.statusCode, data: data)
+        try await send("GET", "woodpecker/report", token: token)
     }
 }
 

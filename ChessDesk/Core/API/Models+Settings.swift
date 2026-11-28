@@ -72,8 +72,10 @@ nonisolated struct AccountSettings: Codable, Hashable, Sendable {
     }
 
     nonisolated struct Preferences: Codable, Hashable, Sendable {
-        let engineLines: Double
-        let engineDepth: Double
+        /// 1 to 5.
+        let engineLines: Int
+        /// 16, 22 or 28: a value stored outside the set is answered as the nearest one.
+        let engineDepth: Int
         var newLinesPerDay: Int
         let newLinesPerDayChoices: [Int]
         /// Review new games automatically (on the site, in the browser).

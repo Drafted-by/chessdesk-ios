@@ -157,7 +157,7 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
     @Test func everyFixtureDecodes() throws {
         _ = try player.me()
         _ = try player.games()
-        _ = try player.game(id: "g-1")
+        _ = try player.game(id: "sample-game-1")
         _ = try player.mistakes()
         _ = try player.settings()
         _ = try player.patternDrill(key: "hanging")
@@ -180,8 +180,12 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
     }
 
     @Test func theFixtureGameReplays() throws {
-        let line = GameLine(pgn: try player.game(id: "g-1").pgn)
-        #expect(line.moves.count == 24)
+        let game = try player.game(id: "sample-game-1")
+        let line = GameLine(pgn: game.pgn)
+        #expect(line.moves.count == 26)
+        #expect(line.moves.count == game.ply)
+        #expect(line.headers["White"] == "quietrook")
+        #expect(line.headers["Black"] == "marta_k")
     }
 
     @Test func theDailyFiveMovesTheStreakOnceADay() throws {
@@ -210,7 +214,9 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
         #expect(HomeRouter.route(target("course")) == .courses)
         #expect(HomeRouter.route(target("courses")) == .courses)
         #expect(HomeRouter.route(target("mistakes")) == .mistakes)
-        #expect(HomeRouter.route(target("deck", deck: "course:aggressive-1e4")) == .course(slug: "aggressive-1e4"))
+        #expect(HomeRouter.route(target("deck", deck: "course:aggressive-1e4")) == .courseReview(slug: "aggressive-1e4"))
+        #expect(HomeRouter.route(target("deck", deck: "course:")) == nil)
+        #expect(HomeRouter.route(target("deck", deck: "repertoire:")) == nil)
         #expect(HomeRouter.route(target("deck", deck: "repertoire:r1")) == .repertoire(id: "r1"))
         #expect(HomeRouter.route(target("deck")) == .repertoires)
         #expect(HomeRouter.route(target("deck", deck: "study:s1")) == nil)
@@ -233,6 +239,8 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
         for kind in kinds { #expect(TodayStep.Kind(rawValue: kind) != nil, "\(kind) is known") }
     }
 
+    /// Every step the app has a screen for shows, in the server's order; a
+    /// coach's assignment and a kind added on the site later are dropped.
     @Test func thePlanKeepsTheServersOrderAndDropsWhatCannotOpen() {
         let steps = [
             step("coach", "coach", primary: true),
@@ -241,25 +249,62 @@ private func target(_ kind: String, gameId: String? = nil, slug: String? = nil, 
             step("review", "review", gameId: "g1"),
             step("puzzles", "puzzles"),
             step("repertoire", "deck", deck: "repertoire:r1"),
+            step("course", "deck", deck: "course:practical-caro-kann"),
+            step("lines", "deck"),
             step("play", "play"),
         ]
         let plan = HomeRouter.plan(steps)
-        #expect(plan.map(\.step.key) == ["daily", "review", "play"])
-        #expect(plan.map(\.route) == [.daily, .game(id: "g1"), .play])
+        #expect(plan.map(\.step.key) == ["daily", "review", "puzzles", "repertoire", "course", "lines", "play"])
+        #expect(plan.map(\.route) == [
+            .daily, .game(id: "g1"), .puzzles, .repertoire(id: "r1"), .courseReview(slug: "practical-caro-kann"),
+            .repertoires, .play,
+        ])
         // The coach's step led; the first step shown leads instead.
-        #expect(plan.map(\.leads) == [true, false, false])
+        #expect(plan.map(\.leads) == [true, false, false, false, false, false, false])
     }
 
-    @Test func oncePuzzlesAndRepertoiresAreWiredTheirStepsShow() {
-        let steps = [step("daily", "daily", primary: true), step("puzzles", "puzzles"), step("rep", "deck", deck: "repertoire:r1")]
-        let plan = HomeRouter.plan(steps, opens: { _ in true })
-        #expect(plan.map(\.step.key) == ["daily", "puzzles", "rep"])
-        #expect(plan.filter(\.leads).map(\.step.key) == ["daily"])
+    /// Where each destination goes: a trainer over the app, a section, or a
+    /// screen pushed on Today.
+    @Test @MainActor func everyDestinationOpensSomewhere() {
+        let app = AppNavigator()
+        let home = HomeNavigator(app: app)
+        let covers: [(HomeRoute, HomeCover)] = [
+            (.daily, .daily), (.mistakes, .mistakes), (.patternDrill(key: "hanging"), .patternDrill(key: "hanging")),
+            (.repertoire(id: "r1"), .repertoireReview(id: "r1")), (.courseReview(slug: "c1"), .courseReview(slug: "c1")),
+        ]
+        for (route, cover) in covers {
+            home.open(route)
+            #expect(home.cover == cover)
+            #expect(app.section == .today)
+            home.closeCover()
+            #expect(home.cover == nil)
+        }
+        #expect(home.revision == covers.count)
+
+        home.open(.courses)
+        #expect(app.section == .learn && app.learn.isEmpty)
+        home.open(.repertoires)
+        #expect(app.section == .learn && app.learn.count == 1)
+        home.open(.play)
+        #expect(app.section == .play && app.play.isEmpty)
+        home.open(.puzzles)
+        #expect(app.section == .train && app.train.count == 1)
+        home.open(.games)
+        #expect(app.section == .games && app.games.isEmpty)
+
+        // A game, a path, a course and Progress are pushed on Today, over what is there.
+        home.open(.game(id: "g1"))
+        #expect(app.section == .today && app.today.count == 1)
+        home.open(.progress)
+        home.open(.path(slug: "reach-1000-elo"))
+        home.open(.course(slug: "practical-caro-kann"))
+        #expect(app.today.count == 4)
+        #expect(home.cover == nil)
     }
 
     @Test func thePatternsLeadToTheirDrillTheirGameOrTheGames() throws {
         let patterns = try FixturePlayer().progress().progress.patterns
-        #expect(patterns.map { PatternRows.route($0) } == [.patternDrill(key: "hanging"), .game(id: "g-1"), .games])
+        #expect(patterns.map { PatternRows.route($0) } == [.patternDrill(key: "hanging"), .game(id: "sample-game-1"), .games])
     }
 }
 

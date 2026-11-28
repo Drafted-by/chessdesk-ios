@@ -61,7 +61,11 @@ nonisolated struct RepertoireDetail: Codable, Hashable, Identifiable, Sendable {
     let editable: Bool
     let updatedAt: Date
     let startFen: String
-    let tree: [RepertoireNode]
+    /// Never nested deeper than 200 moves: see `truncated`.
+    var tree: [RepertoireNode]
+    /// True when a line was longer than the 200 moves `tree` holds. Nothing
+    /// is lost: `pgn` always has the whole line, and edits apply to it.
+    let truncated: Bool
     /// The note before the first move.
     let rootComment: String
     let pgn: String
@@ -128,20 +132,22 @@ nonisolated struct RepertoirePosition: Codable, Hashable, Sendable {
     }
 
     let fen: String
-    let path: [String]
+    /// The moves to the position, in the spelling of the tree (see
+    /// `CastlingSpelling`), not as the request wrote them.
+    var path: [String]
     let san: [String]
     let inRepertoire: Bool
     /// The moves the repertoire holds from here, in UCI.
-    let covered: [String]
+    var covered: [String]
     /// Nil when the reference explorer could not be reached.
-    let masters: Database?
-    let lichess: Database?
+    var masters: Database?
+    var lichess: Database?
     /// The rating band the Lichess numbers are for.
     let ratings: String
     let ratingBands: [RatingBand]
-    let mine: [Mine]
+    var mine: [Mine]
     let opponentToMove: Bool
-    let gaps: [Gap]
+    var gaps: [Gap]
     let advice: Advice
 }
 

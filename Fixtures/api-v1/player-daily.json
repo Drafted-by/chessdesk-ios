@@ -4,11 +4,11 @@
   "doneToday": false,
   "source": "mistakes",
   "items": [
-    { "id": "m-1", "kind": "mistake", "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 24", "bestUci": "d1d8", "bestSan": "Rd8#", "label": "vs marta_k", "classification": "BLUNDER", "moveLabel": "24.", "playedSan": "h3", "gameId": "g-1", "firstTime": true },
-    { "id": "m-2", "kind": "mistake", "fen": "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 31", "bestUci": "d5c7", "bestSan": "Nc7+", "label": "vs endgame_eli", "classification": "MISTAKE", "moveLabel": "31.", "playedSan": "Kd2", "gameId": "g-2", "firstTime": false },
-    { "id": "m-3", "kind": "mistake", "fen": "4k3/8/8/3q4/8/8/3R4/4K3 w - - 0 19", "bestUci": "d2d5", "bestSan": "Rxd5", "label": "vs marta_k", "classification": "BLUNDER", "moveLabel": "19.", "playedSan": "Ke2", "gameId": "g-1", "firstTime": true },
-    { "id": "m-4", "kind": "mistake", "fen": "r7/8/8/8/8/6k1/8/7K b - - 0 40", "bestUci": "a8a1", "bestSan": "Ra1#", "label": "vs pawnstorm77", "classification": "BLUNDER", "moveLabel": "40…", "playedSan": "Kh3", "gameId": "g-3", "firstTime": true },
-    { "id": "m-5", "kind": "mistake", "fen": "7q/8/8/4k3/8/8/8/2B1K3 w - - 0 27", "bestUci": "c1b2", "bestSan": "Bb2+", "label": "vs endgame_eli", "classification": "MISTAKE", "moveLabel": "27.", "playedSan": "Kf2", "gameId": "g-2", "firstTime": false }
+    { "id": "m-1", "kind": "mistake", "fen": "6k1/5ppp/8/8/8/8/5PPP/3R2K1 w - - 0 24", "bestUci": "d1d8", "bestSan": "Rd8#", "label": "vs marta_k", "classification": "BLUNDER", "moveLabel": "24.", "playedSan": "h3", "gameId": "sample-game-1", "firstTime": true },
+    { "id": "m-2", "kind": "mistake", "fen": "r3k3/8/8/3N4/8/8/8/4K3 w - - 0 31", "bestUci": "d5c7", "bestSan": "Nc7+", "label": "vs endgame_eli", "classification": "MISTAKE", "moveLabel": "31.", "playedSan": "Kd2", "gameId": "sample-game-31", "firstTime": false },
+    { "id": "m-3", "kind": "mistake", "fen": "4k3/8/8/3q4/8/8/3R4/4K3 w - - 0 19", "bestUci": "d2d5", "bestSan": "Rxd5", "label": "vs marta_k", "classification": "BLUNDER", "moveLabel": "19.", "playedSan": "Ke2", "gameId": "sample-game-1", "firstTime": true },
+    { "id": "m-4", "kind": "mistake", "fen": "r7/8/8/8/8/6k1/8/7K b - - 0 40", "bestUci": "a8a1", "bestSan": "Ra1#", "label": "vs pawnstorm77", "classification": "BLUNDER", "moveLabel": "40…", "playedSan": "Kh3", "gameId": "sample-game-37", "firstTime": true },
+    { "id": "m-5", "kind": "mistake", "fen": "7q/8/8/4k3/8/8/8/2B1K3 w - - 0 27", "bestUci": "c1b2", "bestSan": "Bb2+", "label": "vs endgame_eli", "classification": "MISTAKE", "moveLabel": "27.", "playedSan": "Kf2", "gameId": "sample-game-31", "firstTime": false }
   ],
   "streak": { "current": 4, "longest": 9, "freezes": 1, "doneToday": false, "coveredByFreeze": 0, "nextFreezeIn": 3 },
   "line": "Day 4 · next freeze day in 3 days"

@@ -2,11 +2,11 @@
   "_synthetic": "Written by hand from the contract (Home), following lib/player/today.ts for the plan. Invented player, games and figures. See FixturePlayer.swift.",
   "totalGames": 412,
   "stats": { "gamesThisWeek": 13, "accuracy": 71.4, "errorsPerGame": 2.3, "reviewedGames": 38 },
-  "toReview": { "gameId": "g-1", "opponent": "marta_k", "result": "L", "playedAt": "2026-11-27T20:41:00.000Z" },
+  "toReview": { "gameId": "sample-game-1", "opponent": "marta_k", "result": "L", "playedAt": "2026-11-27T20:41:00.000Z" },
   "mistakes": { "due": 9, "total": 23, "mastered": 6 },
   "today": [
     { "key": "daily", "title": "Daily 5", "detail": "5 positions from your games · Day 4", "minutes": 5, "cta": "Start", "primary": true, "target": { "kind": "daily", "gameId": null, "slug": null, "deck": null, "assignmentId": null } },
-    { "key": "review", "title": "Review your last game", "detail": "Lost to marta_k · yesterday", "minutes": 10, "cta": "Review game", "primary": false, "target": { "kind": "review", "gameId": "g-1", "slug": null, "deck": null, "assignmentId": null } },
+    { "key": "review", "title": "Review your last game", "detail": "Lost to marta_k · 1 hour ago", "minutes": 10, "cta": "Review game", "primary": false, "target": { "kind": "review", "gameId": "sample-game-1", "slug": null, "deck": null, "assignmentId": null } },
     { "key": "path", "title": "Continue Reach 1000 Elo", "detail": "7 of 42 stages", "minutes": 5, "cta": "Continue", "primary": false, "target": { "kind": "path", "gameId": null, "slug": "reach-1000-elo", "deck": null, "assignmentId": null } },
     { "key": "mistakes", "title": "Fix your mistakes", "detail": "4 more positions due after your Daily 5", "minutes": 3, "cta": "Start drill", "primary": false, "target": { "kind": "mistakes", "gameId": null, "slug": null, "deck": null, "assignmentId": null } },
     { "key": "puzzles", "title": "Rated puzzles", "detail": "Puzzle rating 1,388", "minutes": 5, "cta": "Solve puzzles", "primary": false, "target": { "kind": "puzzles", "gameId": null, "slug": null, "deck": null, "assignmentId": null } }
@@ -31,7 +31,7 @@
         { "at": "2026-11-27T20:20:00.000Z", "rating": 1349, "opponent": "kingside_kai", "opponentElo": 1325, "result": "W" }
       ]
     },
-    "bestWin": { "opponent": "endgame_eli", "elo": 1488, "gameId": "g-2", "playedAt": "2026-11-21T19:05:00.000Z" }
+    "bestWin": { "opponent": "endgame_eli", "elo": 1488, "gameId": "sample-game-31", "playedAt": "2026-11-21T19:05:00.000Z" }
   },
   "progress": {
     "mastered": {
@@ -45,7 +45,7 @@
     },
     "patterns": [
       { "key": "hanging", "kind": "hanging", "title": "Pieces left hanging", "detail": "In 6 of your last 40 games a piece was left where it could be taken for free.", "count": 6, "positions": 2, "action": "drill", "gameId": null, "cta": "Drill them" },
-      { "key": "time", "kind": "time", "title": "Time trouble", "detail": "4 losses on time or after a move played with under 10 seconds left.", "count": 4, "positions": 0, "action": "review", "gameId": "g-1", "cta": "Review a game" },
+      { "key": "time", "kind": "time", "title": "Time trouble", "detail": "4 losses on time or after a move played with under 10 seconds left.", "count": 4, "positions": 0, "action": "review", "gameId": "sample-game-1", "cta": "Review a game" },
       { "key": "opening:caro-kann", "kind": "opening", "title": "Caro-Kann Defence as Black", "detail": "2 wins in 9 games: most of your losses with Black start here.", "count": 9, "positions": 0, "action": "games", "gameId": null, "cta": "See the games" }
     ],
     "goal": {
@@ -67,7 +67,7 @@
     "reviewQueue": [],
     "firstReport": {
       "batchGames": 10, "reviewedGames": 10, "accuracy": 71.4,
-      "blunder": { "gameId": "g-1", "ply": 47, "san": "h3", "moveLabel": "24.", "bestSan": "Rd8#", "classification": "BLUNDER", "winLoss": 48.2, "opponent": "marta_k" },
+      "blunder": { "gameId": "sample-game-1", "ply": 47, "san": "h3", "moveLabel": "24.", "bestSan": "Rd8#", "classification": "BLUNDER", "winLoss": 48.2, "opponent": "marta_k" },
       "opening": { "name": "Caro-Kann Defence", "games": 9, "wins": 2, "draws": 1, "losses": 6, "pct": 27.8 },
       "drillPositions": 14,
       "provider": "LICHESS",

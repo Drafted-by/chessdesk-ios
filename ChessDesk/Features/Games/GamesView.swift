@@ -6,14 +6,15 @@ enum GameRoute: Hashable {
 }
 
 /// "Games": the player's own games from Chess.com and Lichess, each one
-/// reviewable by the engine on the phone, and the mistakes to practise.
-/// A working screen: lists and rows, no ornament.
+/// reviewable by the engine on the phone, and the mistakes to practise; and
+/// the ways to the explorer of those games, the analysis board and the
+/// tools. A working screen: lists and rows, no ornament.
 struct GamesView: View {
     @Environment(AppModel.self) private var app
+    @Environment(HomeNavigator.self) private var home
     @State private var model: GamesModel?
     @State private var signIn: SignInView.Mode?
     @State private var showsAccounts = false
-    @State private var showsMistakes = false
     @State private var showsSample = false
 
     var body: some View {
@@ -38,6 +39,8 @@ struct GamesView: View {
             model = fresh
             await fresh.load()
         }
+        // A drill done elsewhere (Today, Train) has moved the count of mistakes.
+        .onChange(of: home.revision) { Task { await model?.refreshMistakes() } }
         .sheet(item: $signIn) { SignInView(mode: $0) }
         #if DEBUG
             .navigationDestination(isPresented: $showsSample) { SampleGameScreen() }
@@ -63,6 +66,7 @@ struct GamesView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s24) {
                 title("Games")
+                GamesTools()
                 CDCard(tone: .raised, padding: CD.Space.s20) {
                     VStack(alignment: .leading, spacing: CD.Space.s12) {
                         Text("Review your own games")
@@ -106,11 +110,12 @@ struct GamesView: View {
                                 .tint(CD.ink2)
                         }
                     }
+                    GamesTools()
                     if model.accounts.isEmpty {
                         LinkAccountsCard(model: model)
                     } else {
                         if let counts = model.mistakes, counts.total > 0 {
-                            MistakesCard(counts: counts) { showsMistakes = true }
+                            MistakesCard(counts: counts) { home.open(.mistakes) }
                         }
                         status(model)
                         list(model)
@@ -120,9 +125,6 @@ struct GamesView: View {
             }
             .refreshable { await model.sync() }
             .sheet(isPresented: $showsAccounts) { AccountsSheet(model: model) }
-            .fullScreenCover(isPresented: $showsMistakes, onDismiss: { Task { await model.refreshMistakes() } }) {
-                MistakeTrainerScreen()
-            }
         }
     }
 
@@ -184,6 +186,52 @@ private extension View {
             .padding(.bottom, CD.Space.s56)
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
+    }
+}
+
+/// The ways from Games to the explorer of the player's games, the analysis
+/// board and the other tools: three tiles in one row, above the list.
+private struct GamesTools: View {
+    private struct Tile {
+        let title: String
+        let symbol: String
+        let route: AppRoute
+        let label: String
+    }
+
+    private let tiles = [
+        Tile(title: "Explorer", symbol: "point.3.connected.trianglepath.dotted", route: .explorer,
+             label: "Explorer: your openings, from your own games"),
+        Tile(title: "Analysis", symbol: "magnifyingglass", route: .tool(.analysis),
+             label: "Analysis board"),
+        Tile(title: "Tools", symbol: "wrench.and.screwdriver", route: .tools,
+             label: "Tools: best move in a position, Elo calculator"),
+    ]
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(tiles.enumerated()), id: \.offset) { index, tile in
+                if index > 0 { Rectangle().fill(CD.line).frame(width: 1) }
+                NavigationLink(value: tile.route) {
+                    VStack(spacing: CD.Space.s6) {
+                        Image(systemName: tile.symbol)
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(CD.accent)
+                            .frame(height: 22)
+                        Text(tile.title)
+                            .cdFont(.small)
+                            .foregroundStyle(CD.ink)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 68)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(CDPressStyle())
+                .accessibilityLabel(tile.label)
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+        .hairline()
     }
 }
 

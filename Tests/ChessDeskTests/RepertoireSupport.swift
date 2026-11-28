@@ -220,13 +220,14 @@ nonisolated func detail(
         id: id, name: name, color: color, deck: "repertoire:\(id)", lines: lines, moves: RepertoireTree.moveCount(tree),
         progress: DeckProgress(lines: lines, learned: 0, newLines: lines, dueLines: 0, solidLines: 0, dueMoves: 0, moves: 0),
         editable: editable, updatedAt: Date(timeIntervalSince1970: 1_800_000_000), startFen: Position.startFEN, tree: tree,
-        rootComment: "", pgn: "", lineLimit: lineLimit, pace: .init(perDay: 3, newLeft: 3)
+        truncated: false, rootComment: "", pgn: "", lineLimit: lineLimit, pace: .init(perDay: 3, newLeft: 3)
     )
 }
 
 /// A server holding one repertoire, in memory: it applies the changes the
 /// way the site does, records every call, and can be told to refuse the next
-/// write or to let another device change the tree first.
+/// write or to let another device change the tree first. Like the site, it
+/// answers castling as the king taking its rook and reads either spelling.
 nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
     private let lock = NSLock()
     private var stored: RepertoireDetail
@@ -242,7 +243,10 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
     }
 
     var log: [String] { lock.withLock { calls } }
+    /// The repertoire as it is kept: castling in the board's spelling.
     var current: RepertoireDetail { lock.withLock { stored } }
+
+    private func stored(_ path: [String]) -> [String] { CastlingSpelling.board(path: path, from: Position.startFEN) }
     /// The positions asked for, as "e2e4,e7e5" ("" is the start).
     var positionsAsked: [String] { log.filter { $0.hasPrefix("position ") }.map { String($0.dropFirst("position ".count)) } }
     var reads: Int { log.count { $0 == "read" } }
@@ -271,14 +275,14 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
                 throw refusal
             }
             stored = detail(name: stored.name, tree: try change(stored), editable: stored.editable, lineLimit: stored.lineLimit)
-            return stored
+            return stored.treeSpelled
         }
     }
 
     func repertoire(id: String, token: String) async throws -> RepertoireDetail {
         lock.withLock {
             calls.append("read")
-            return stored
+            return stored.treeSpelled
         }
     }
 
@@ -301,7 +305,7 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
     ) async throws -> RepertoireDetail {
         try write("annotate \(path.joined(separator: ",")) [\(comment ?? "-")] \(glyph)") { current in
             guard !path.isEmpty else { return current.tree }
-            let changed = RepertoireTree.updating(path: path, in: current.tree) { node in
+            let changed = RepertoireTree.updating(path: self.stored(path), in: current.tree) { node in
                 let nags: [Int] = switch glyph {
                 case .keep: node.nags
                 case .clear: []
@@ -316,7 +320,7 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
 
     func removeRepertoireMove(id: String, path: [String], token: String) async throws -> RepertoireDetail {
         try write("remove \(path.joined(separator: ","))") { current in
-            guard let next = RepertoireTree.removing(path: path, from: current.tree) else {
+            guard let next = RepertoireTree.removing(path: self.stored(path), from: current.tree) else {
                 throw APIError.server(status: 404, code: "not_found", message: "That move is not in the repertoire.")
             }
             return next
@@ -341,38 +345,30 @@ nonisolated final class RepertoireServer: RepertoiresAPI, @unchecked Sendable {
         }
         if delay > .zero { try await Task.sleep(for: delay) }
         if let failure { throw failure }
+        let path = stored(path)
+        var position = Position.start
+        var san: [String] = []
+        for uci in path {
+            guard let move = Move(uci: uci), let name = position.san(for: move), let next = position.playing(move) else { break }
+            san.append(name)
+            position = next
+        }
         let children = RepertoireTree.children(at: path, in: tree)
         func move(_ uci: String, _ freq: Double) -> RepertoirePosition.Move {
-            .init(san: uci, uci: uci, games: 100, white: 50, draws: 10, black: 40, freq: freq, whiteScore: 0.55, opening: nil)
+            let name = Move(uci: uci).flatMap { position.san(for: $0) } ?? uci
+            return .init(san: name, uci: uci, games: 100, white: 50, draws: 10, black: 40, freq: freq, whiteScore: 0.55, opening: nil)
         }
         let played = (children ?? []).map { move($0.uci, 0.5) } + gaps.map { move($0, 0.2) }
         return RepertoirePosition(
-            fen: Position.startFEN, path: path, san: [], inRepertoire: children != nil, covered: (children ?? []).map(\.uci),
+            fen: position.fen, path: path, san: san, inRepertoire: children != nil, covered: (children ?? []).map(\.uci),
             masters: .init(total: 1000, moves: played), lichess: .init(total: 5000, moves: played), ratings: ratings ?? "1000",
             ratingBands: [.init(ratings: "1000", label: "1000–1200"), .init(ratings: "1400", label: "1400–1600")],
             mine: [], opponentToMove: !path.count.isMultiple(of: 2),
-            gaps: gaps.map { .init(san: $0, uci: $0, freq: 0.2, opening: nil) },
+            gaps: gaps.map { .init(san: move($0, 0.2).san, uci: $0, freq: 0.2, opening: nil) },
             advice: .init(kind: "keep", title: "Keep going", detail: "Add your move.", moveNumber: path.count / 2 + 1)
         )
+        .treeSpelled
     }
-}
-
-/// Gives a test a sample player of its own, in its first state: tests run
-/// side by side and must not see each other's changes.
-nonisolated struct SamplePlayerTrait: TestTrait, SuiteTrait, TestScoping {
-    var premium = false
-    var isRecursive: Bool { true }
-
-    func provideScope(
-        for test: Test, testCase: Test.Case?, performing function: @concurrent @Sendable () async throws -> Void
-    ) async throws {
-        guard testCase != nil else { return try await function() }
-        try await FixtureOpenings.$scoped.withValue(FixtureOpenings(premium: premium)) { try await function() }
-    }
-}
-
-extension Trait where Self == SamplePlayerTrait {
-    static func samplePlayer(premium: Bool = false) -> Self { SamplePlayerTrait(premium: premium) }
 }
 
 /// Waits for a condition that scheduled work brings about.

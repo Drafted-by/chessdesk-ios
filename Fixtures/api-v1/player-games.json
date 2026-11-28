@@ -1,9 +1,0 @@
-{
-  "_synthetic": "Written by hand from the contract (GamesPage). Invented games and opponents.",
-  "games": [
-    { "id": "g-1", "source": "LICHESS", "white": "quietrook", "black": "marta_k", "whiteElo": 1349, "blackElo": 1371, "result": "0-1", "timeClass": "blitz", "timeControl": "300+3", "eco": "C54", "opening": "Italian Game: Giuoco Piano", "userColor": "white", "playedAt": "2026-11-27T20:41:00.000Z", "ply": 24, "rated": true, "starred": false, "reviewed": false },
-    { "id": "g-2", "source": "LICHESS", "white": "endgame_eli", "black": "quietrook", "whiteElo": 1488, "blackElo": 1330, "result": "0-1", "timeClass": "blitz", "timeControl": "300+3", "eco": "B12", "opening": "Caro-Kann Defense: Advance Variation", "userColor": "black", "playedAt": "2026-11-21T19:05:00.000Z", "ply": 62, "rated": true, "starred": true, "reviewed": true },
-    { "id": "g-3", "source": "LICHESS", "white": "pawnstorm77", "black": "quietrook", "whiteElo": 1301, "blackElo": 1318, "result": "1-0", "timeClass": "rapid", "timeControl": "600+0", "eco": "B10", "opening": "Caro-Kann Defense", "userColor": "black", "playedAt": "2026-11-19T18:12:00.000Z", "ply": 80, "rated": true, "starred": false, "reviewed": true }
-  ],
-  "nextCursor": null
-}

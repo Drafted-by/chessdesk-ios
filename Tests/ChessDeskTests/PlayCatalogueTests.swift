@@ -15,47 +15,6 @@ nonisolated extension ChessDeskAPI {
     }
 }
 
-/// Answers one canned response and remembers the request it was asked.
-nonisolated private final class PlayTransport: URLProtocol, @unchecked Sendable {
-    nonisolated(unsafe) static var answer: (status: Int, body: Data) = (200, Data())
-    nonisolated(unsafe) static var requests: [(request: URLRequest, body: Data?)] = []
-
-    static func session() -> URLSession {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [PlayTransport.self]
-        return URLSession(configuration: configuration)
-    }
-
-    override class func canInit(with request: URLRequest) -> Bool { true }
-    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
-
-    override func startLoading() {
-        var body = request.httpBody
-        if body == nil, let stream = request.httpBodyStream {
-            stream.open()
-            var data = Data()
-            var buffer = [UInt8](repeating: 0, count: 4096)
-            while stream.hasBytesAvailable {
-                let read = stream.read(&buffer, maxLength: buffer.count)
-                if read <= 0 { break }
-                data.append(buffer, count: read)
-            }
-            stream.close()
-            body = data
-        }
-        Self.requests.append((request, body))
-        let response = HTTPURLResponse(
-            url: request.url.unsafelyUnwrapped, statusCode: Self.answer.status, httpVersion: "HTTP/1.1",
-            headerFields: ["Content-Type": "application/json"]
-        ).unsafelyUnwrapped
-        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
-        client?.urlProtocol(self, didLoad: Self.answer.body)
-        client?.urlProtocolDidFinishLoading(self)
-    }
-
-    override func stopLoading() {}
-}
-
 /// The expectations of the site's `authed-bots.test.ts`, on what production answers.
 @Suite struct PlayCatalogueTests {
     private let catalogue: PlayCatalogue
@@ -169,44 +128,37 @@ nonisolated private final class PlayTransport: URLProtocol, @unchecked Sendable 
 }
 
 /// The live client on the two routes of the feature, against a canned server.
-/// Serialized: the canned answer is shared.
-@Suite(.serialized) struct PlayLiveClientTests {
-    private func client() throws -> LiveAPI {
-        PlayTransport.requests = []
-        var api = LiveAPI(baseURL: try #require(URL(string: "https://chessdesk.app")))
-        api.session = PlayTransport.session()
-        return api
-    }
+@Suite struct PlayLiveClientTests {
+    private let server = CannedServer()
 
     @Test func theCatalogueIsReadFromTheServerWithOrWithoutASession() async throws {
-        let api = try client()
+        let api = server.api
         #expect(api.savesBotGames)
-        PlayTransport.answer = (200, try FixtureAPI.data("play-bots"))
+        server.answer(200, try FixtureAPI.data("play-bots"))
         let guest = try await api.playBots(token: nil)
         #expect(guest == (try FixtureAPI.playCatalogue()))
         _ = try await api.playBots(token: "abc")
-        let sent = PlayTransport.requests.map(\.request)
+        let sent = server.requests.map(\.request)
         #expect(sent.map(\.httpMethod) == ["GET", "GET"])
-        #expect(sent.map(\.url?.absoluteString) == Array(repeating: "https://chessdesk.app/api/v1/play/bots", count: 2))
+        #expect(sent.map(\.url?.path) == Array(repeating: "/api/v1/play/bots", count: 2))
         #expect(sent[0].value(forHTTPHeaderField: "Authorization") == nil)
         #expect(sent[1].value(forHTTPHeaderField: "Authorization") == "Bearer abc")
     }
 
     @Test func aGameIsPostedAndTheSavedGameComesBack() async throws {
-        let api = try client()
-        PlayTransport.answer = (200, Data("""
+        server.answer(200, json: """
         {"id":"g_123","source":"BOT","white":"Ana Silva","black":"Maria","whiteElo":null,"blackElo":446,
          "result":"1-0","timeClass":"casual","opening":null,"userColor":"white","playedAt":"2026-11-28T04:14:12.000Z",
          "ply":7,"starred":false,"reviewed":false,"pgn":"1. e4 e5 1-0","url":null,"review":null}
-        """.utf8))
+        """)
         let request = SaveBotGameRequest(bot: "philippines", rating: nil, userColor: "white", result: "1-0", engine: "maia-3", pgn: "1. e4 e5 1-0")
-        let saved = try await api.saveBotGame(request, token: "abc")
+        let saved = try await server.api.saveBotGame(request, token: "abc")
         // Its id is the one the review screen opens.
         #expect(saved.id == "g_123")
         #expect(saved.source == "BOT")
-        let sent = try #require(PlayTransport.requests.first)
+        let sent = try #require(server.requests.first)
         #expect(sent.request.httpMethod == "POST")
-        #expect(sent.request.url?.absoluteString == "https://chessdesk.app/api/v1/play/games")
+        #expect(sent.request.url?.path == "/api/v1/play/games")
         #expect(sent.request.value(forHTTPHeaderField: "Authorization") == "Bearer abc")
         #expect(sent.request.value(forHTTPHeaderField: "Content-Type") == "application/json")
         let posted = try #require(sent.body)
@@ -215,13 +167,16 @@ nonisolated private final class PlayTransport: URLProtocol, @unchecked Sendable 
     }
 
     @Test func whatTheServerRefusesIsSaidInItsWords() async throws {
-        let api = try client()
-        PlayTransport.answer = (400, Data(#"{"error":{"code":"invalid_request","message":"Unknown bot, or a rating outside the range of the custom bot."}}"#.utf8))
+        let message = "Unknown bot, or a rating outside the range of the custom bot."
+        server.answer(
+            .init(status: 400, body: CannedServer.error("invalid_request", message)),
+            .init(status: 401, body: CannedServer.error("unauthorized", "Sign in to continue."))
+        )
+        let api = server.api
         let request = SaveBotGameRequest(bot: "nobody", rating: nil, userColor: "white", result: "1-0", engine: "maia-3", pgn: "1. e4")
-        await #expect(throws: APIError.server(status: 400, code: "invalid_request", message: "Unknown bot, or a rating outside the range of the custom bot.")) {
+        await #expect(throws: APIError.server(status: 400, code: "invalid_request", message: message)) {
             _ = try await api.saveBotGame(request, token: "abc")
         }
-        PlayTransport.answer = (401, Data(#"{"error":{"code":"unauthorized","message":"Sign in to continue."}}"#.utf8))
         await #expect(throws: APIError.self) { _ = try await api.saveBotGame(request, token: "expired") }
     }
 }

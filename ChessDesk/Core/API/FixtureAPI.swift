@@ -1,12 +1,14 @@
 import Foundation
 
 /// Answers from the captured files in `Fixtures/api-v1` (real answers of the
-/// site's dev server, guest viewer). It is what Debug builds use until the API
-/// is served in production, and what previews and tests always use.
+/// site's dev server, guest viewer). It is what Debug builds start on, and
+/// what previews and tests always use.
 ///
-/// It plays a guest: routes that need an account answer `unauthorized`, and a
-/// Premium line answers `premium_required`, as the server does. With a
-/// `player`, it plays that signed-in player instead (synthetic data).
+/// It plays a guest, everywhere: routes that need an account answer
+/// `unauthorized`, and a Premium line answers `premium_required`, as the
+/// server does. With a `player`, it plays that signed-in player instead: the
+/// sample player (`FixturePlayer`, synthetic data), whose home, games,
+/// repertoire and explorer speak of the same games.
 nonisolated struct FixtureAPI: ChessDeskAPI {
     /// Simulated latency, so loading states are visible while developing.
     var delay: Duration = .milliseconds(250)
@@ -69,7 +71,7 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
 
     func courses(token: String?) async throws -> [CourseCard] {
         let response: CoursesResponse = try await load("courses")
-        return response.courses
+        return player?.courses(response.courses) ?? response.courses
     }
 
     func course(slug: String, token: String?) async throws -> CourseDetail {
@@ -81,13 +83,18 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
                 message: "Sample data holds three courses: the Caro-Kann Bunker, the Buccaneer 1.e4 and the Big Ben London."
             )
         }
-        return try await load("course-\(slug)")
+        let course: CourseDetail = try await load("course-\(slug)")
+        return player?.course(course) ?? course
     }
 
     func courseSession(slug: String, mode: SessionMode, line: String?, token: String?) async throws -> CourseSession {
         guard mode == .learn else {
-            try await Task.sleep(for: delay)
-            throw APIError.server(status: 401, code: "unauthorized", message: "Sign in to review your lines.")
+            // A review belongs to an account: the sample player has one course to review.
+            guard let player, slug == FixturePlayer.courseSlug else {
+                try await Task.sleep(for: delay)
+                throw APIError.server(status: 401, code: "unauthorized", message: "Sign in to review your lines.")
+            }
+            return player.courseReview(from: try await load("session-learn-\(slug)"))
         }
         let session: CourseSession = try await load("session-learn-\(slug)")
         if let line, !session.lines.contains(where: { $0.id == line }) {
@@ -98,14 +105,21 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
 
     func setEnrollment(slug: String, status: EnrollmentStatus, token: String) async throws { throw signInNeeded }
     func importLocalProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { throw signInNeeded }
+    /// The sample player keeps the grades of their repertoires and of their course.
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws {
-        // The sample repertoires (FixtureOpenings) keep their grades.
-        guard deck.hasPrefix("repertoire:") else { throw signInNeeded }
-        await FixtureOpenings.current.record(deck: deck, grades: grades)
+        let player = try signedInPlayer()
+        if deck == FixturePlayer.courseDeck {
+            player.recordCourseGrades()
+        } else {
+            await player.openings.record(deck: deck, grades: grades)
+        }
     }
+
     func due(token: String) async throws -> DueSummary {
-        _ = try signedInPlayer()
-        return DueSummary(totalDue: 0, decks: [], top: nil, learnNext: nil)
+        let player = try signedInPlayer()
+        let courses: CoursesResponse = try LiveAPI.decode(status: 200, data: Self.data("courses"))
+        let title = courses.courses.first { $0.slug == FixturePlayer.courseSlug }?.title ?? ""
+        return await player.due(courseTitle: title)
     }
 
     // MARK: The player's own games (an account is needed)
@@ -121,10 +135,14 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
         try await Task.sleep(for: delay)
         return ImportChunk(imported: 0, totalSoFar: 0, nextCursor: nil, done: true)
     }
-    func games(cursor: String?, token: String) async throws -> GamesPage { try signedInPlayer().games() }
+    func games(cursor: String?, token: String) async throws -> GamesPage { try signedInPlayer().games(cursor: cursor) }
     func game(id: String, token: String) async throws -> GameDetail { try signedInPlayer().game(id: id) }
-    func setStar(game: String, starred: Bool, token: String) async throws { _ = try signedInPlayer() }
-    func saveReview(game: String, review: GameReview, token: String) async throws { _ = try signedInPlayer() }
+    func setStar(game: String, starred: Bool, token: String) async throws {
+        try signedInPlayer().setStar(game: game, starred: starred)
+    }
+    func saveReview(game: String, review: GameReview, token: String) async throws {
+        try signedInPlayer().noteReviewed(game: game)
+    }
     func mistakes(token: String) async throws -> MistakeQueue { try signedInPlayer().mistakes() }
     func recordMistakeAttempt(_ mistake: String, result: MistakeResult, token: String) async throws -> MistakeAttempt {
         _ = try signedInPlayer()
