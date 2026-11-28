@@ -2321,6 +2321,942 @@
           }
         }
       }
+    },
+    "/api/v1/puzzles": {
+      "get": {
+        "operationId": "getPuzzleOverview",
+        "summary": "The puzzle rating of the player and what they did lately (null for a visitor), and the themes to filter on.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PuzzleOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/puzzles/free": {
+      "get": {
+        "operationId": "getFreePuzzles",
+        "summary": "The free puzzle set, easiest first: unrated, open to a visitor, progress kept on the device.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "parameters": [
+          {
+            "name": "theme",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          },
+          {
+            "name": "band",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 20
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FreePuzzles"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/puzzles/next": {
+      "post": {
+        "operationId": "serveNextPuzzle",
+        "summary": "Serve the next rated puzzle, just above the rating of the player; it becomes the one an attempt is accepted for.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NextPuzzleRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Puzzle"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/puzzles/{puzzleId}/attempts": {
+      "post": {
+        "operationId": "recordPuzzleAttempt",
+        "summary": "Record the outcome of the served puzzle, once; returns the new puzzle rating. 409 when it is not the served puzzle.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "puzzleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PuzzleAttemptRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PuzzleAttempt"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker": {
+      "get": {
+        "operationId": "getWoodpecker",
+        "summary": "The Woodpecker Method for the player: the screen to show, the set being worked, the rules for a new one, the saved results.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerOverview"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker/set": {
+      "post": {
+        "operationId": "createWoodpeckerSet",
+        "summary": "Build the set and open cycle 1: the free discovery set once, then sets of a chosen size and theme with Premium. 403 premium_required is the paywall.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WoodpeckerSetRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "closeWoodpeckerSet",
+        "summary": "Finish the set being worked (two completed cycles at least) or abandon it; its results stay saved.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WoodpeckerSetStatusRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerOverview"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker/set/solves": {
+      "post": {
+        "operationId": "recordWoodpeckerSolve",
+        "summary": "Record the answer to the expected puzzle of the open cycle, with its time; the last one closes the cycle. 409 when the run has moved on.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WoodpeckerSolveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerStep"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker/set/cycles": {
+      "post": {
+        "operationId": "startWoodpeckerCycle",
+        "summary": "Start the next cycle of the set. 403 premium_required past the free cycles.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerRun"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker/set/puzzles/{puzzleId}": {
+      "delete": {
+        "operationId": "retireWoodpeckerPuzzle",
+        "summary": "Retire a flawed puzzle from the set, for this cycle and every later one. Cannot be undone.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "puzzleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerStep"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/woodpecker/report": {
+      "get": {
+        "operationId": "getWoodpeckerReport",
+        "summary": "The report of the latest set, whatever its status: the cycle table, the time saved, the trouble spots.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WoodpeckerReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not found.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/play/bots": {
+      "get": {
+        "operationId": "listBots",
+        "summary": "The bots to play against, and the engines and parameters the device runs to move them.",
+        "security": [
+          {
+            "bearer": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BotCatalogue"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/play/games": {
+      "post": {
+        "operationId": "saveBotGame",
+        "summary": "Save a finished game against a bot to the games of the player; returns it as GET /api/v1/games/{gameId} would.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BotGameRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameDetail"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -4808,6 +5744,1436 @@
         },
         "required": [
           "newLinesPerDay"
+        ]
+      },
+      "PuzzleTheme": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "label"
+        ]
+      },
+      "PuzzleThemeGroup": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string"
+          },
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PuzzleTheme"
+            }
+          }
+        },
+        "required": [
+          "group",
+          "themes"
+        ]
+      },
+      "Puzzle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "moves": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PuzzleTheme"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "fen",
+          "moves",
+          "rating",
+          "themes"
+        ]
+      },
+      "PuzzlePlayer": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "deviation": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "solved": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "attempts": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "last30Days": {
+            "type": "object",
+            "properties": {
+              "attempts": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "solved": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "attempts",
+              "solved"
+            ]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "at": {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                "rating": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 5000
+                },
+                "solved": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "at",
+                "rating",
+                "solved"
+              ]
+            }
+          }
+        },
+        "required": [
+          "rating",
+          "deviation",
+          "solved",
+          "attempts",
+          "last30Days",
+          "history"
+        ]
+      },
+      "PuzzleOverview": {
+        "type": "object",
+        "properties": {
+          "player": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PuzzlePlayer"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "themeGroups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PuzzleThemeGroup"
+            }
+          },
+          "free": {
+            "type": "object",
+            "properties": {
+              "puzzles": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "puzzles"
+            ]
+          }
+        },
+        "required": [
+          "player",
+          "themeGroups",
+          "free"
+        ]
+      },
+      "FreePuzzles": {
+        "type": "object",
+        "properties": {
+          "puzzles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Puzzle"
+            }
+          },
+          "themes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PuzzleTheme"
+            }
+          },
+          "bands": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                },
+                "min": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 5000
+                },
+                "max": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 5000
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "min",
+                "max"
+              ]
+            }
+          }
+        },
+        "required": [
+          "puzzles",
+          "themes",
+          "bands"
+        ]
+      },
+      "NextPuzzleRequest": {
+        "type": "object",
+        "properties": {
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "PuzzleAttemptRequest": {
+        "type": "object",
+        "properties": {
+          "solved": {
+            "type": "boolean"
+          },
+          "ms": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 100000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "solved"
+        ]
+      },
+      "PuzzleAttempt": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "delta": {
+            "type": "integer",
+            "minimum": -5000,
+            "maximum": 5000
+          },
+          "deviation": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "solved": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          }
+        },
+        "required": [
+          "rating",
+          "delta",
+          "deviation",
+          "solved"
+        ]
+      },
+      "WoodpeckerPuzzle": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "fen": {
+            "type": "string"
+          },
+          "moves": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          }
+        },
+        "required": [
+          "id",
+          "fen",
+          "moves",
+          "rating"
+        ]
+      },
+      "WoodpeckerCycle": {
+        "type": "object",
+        "properties": {
+          "cycleNumber": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "durationMs": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100000000000
+          },
+          "correct": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "accuracy": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "targetMs": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100000000000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "targetBeaten": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "cycleNumber",
+          "durationMs",
+          "correct",
+          "total",
+          "accuracy",
+          "targetMs",
+          "targetBeaten"
+        ]
+      },
+      "WoodpeckerRun": {
+        "type": "object",
+        "properties": {
+          "set": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "theme": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/PuzzleTheme"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "baseRating": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              "spread": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "retired": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "remaining": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "discovery": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "size",
+              "theme",
+              "baseRating",
+              "spread",
+              "createdAt",
+              "retired",
+              "remaining",
+              "discovery"
+            ]
+          },
+          "cycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WoodpeckerCycle"
+            }
+          },
+          "openCycle": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "cycleNumber": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "startedAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "solved": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "total": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "targetMs": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "cycleNumber",
+                  "startedAt",
+                  "solved",
+                  "total",
+                  "targetMs"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedPuzzleId": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "puzzles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WoodpeckerPuzzle"
+            }
+          },
+          "between": {
+            "type": "object",
+            "properties": {
+              "nextCycle": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "allowed",
+                      "after_cycle",
+                      "premium_required",
+                      "unavailable"
+                    ]
+                  },
+                  "cycleNumber": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "targetMs": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 100000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "message": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "cycleNumber",
+                  "targetMs",
+                  "message"
+                ]
+              },
+              "canComplete": {
+                "type": "boolean"
+              },
+              "cyclesToComplete": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "cycleLimit": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "nextCycle",
+              "canComplete",
+              "cyclesToComplete",
+              "cycleLimit"
+            ]
+          }
+        },
+        "required": [
+          "set",
+          "cycles",
+          "openCycle",
+          "expectedPuzzleId",
+          "puzzles",
+          "between"
+        ]
+      },
+      "WoodpeckerStep": {
+        "type": "object",
+        "properties": {
+          "cycleDone": {
+            "type": "boolean"
+          },
+          "run": {
+            "$ref": "#/components/schemas/WoodpeckerRun"
+          }
+        },
+        "required": [
+          "cycleDone",
+          "run"
+        ]
+      },
+      "WoodpeckerSavedSet": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "status": {
+            "type": "string"
+          },
+          "cycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WoodpeckerCycle"
+            }
+          },
+          "unfinished": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "cycleNumber": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                },
+                "correct": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                },
+                "total": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                }
+              },
+              "required": [
+                "cycleNumber",
+                "correct",
+                "total"
+              ]
+            }
+          }
+        },
+        "required": [
+          "id",
+          "size",
+          "status",
+          "cycles",
+          "unfinished"
+        ]
+      },
+      "WoodpeckerOverview": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "run",
+              "discovery",
+              "premium_required",
+              "calibrate",
+              "create"
+            ]
+          },
+          "premium": {
+            "type": "boolean"
+          },
+          "calibration": {
+            "type": "object",
+            "properties": {
+              "attempts": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "required": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "calibrated": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "attempts",
+              "required",
+              "calibrated"
+            ]
+          },
+          "discovery": {
+            "type": "object",
+            "properties": {
+              "used": {
+                "type": "boolean"
+              },
+              "size": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              },
+              "cycles": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "used",
+              "size",
+              "cycles"
+            ]
+          },
+          "completedSets": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "creation": {
+            "type": "object",
+            "properties": {
+              "sizes": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "default": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "presets": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 10000000
+                    }
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "default",
+                  "presets"
+                ]
+              },
+              "themeGroups": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/PuzzleThemeGroup"
+                }
+              }
+            },
+            "required": [
+              "sizes",
+              "themeGroups"
+            ]
+          },
+          "run": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/WoodpeckerRun"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WoodpeckerSavedSet"
+            }
+          }
+        },
+        "required": [
+          "state",
+          "premium",
+          "calibration",
+          "discovery",
+          "completedSets",
+          "creation",
+          "run",
+          "history"
+        ]
+      },
+      "WoodpeckerSetRequest": {
+        "type": "object",
+        "properties": {
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 100000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 40
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "WoodpeckerSetStatusRequest": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "completed",
+              "abandoned"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "WoodpeckerSolveRequest": {
+        "type": "object",
+        "properties": {
+          "puzzleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "correct": {
+            "type": "boolean"
+          },
+          "ms": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 100000000000
+          }
+        },
+        "required": [
+          "puzzleId",
+          "correct",
+          "ms"
+        ]
+      },
+      "WoodpeckerReport": {
+        "type": "object",
+        "properties": {
+          "setId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "size": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "theme": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PuzzleTheme"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "retired": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000000
+          },
+          "cycles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WoodpeckerCycle"
+            }
+          },
+          "timeSavedPercent": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 100
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "troubleSpots": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "puzzleId": {
+                  "type": "string"
+                },
+                "wrong": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 10000000
+                },
+                "avgMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 100000000000
+                },
+                "rating": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 5000
+                },
+                "fen": {
+                  "type": "string"
+                },
+                "orientation": {
+                  "type": "string",
+                  "enum": [
+                    "white",
+                    "black"
+                  ]
+                }
+              },
+              "required": [
+                "puzzleId",
+                "wrong",
+                "avgMs",
+                "rating",
+                "fen",
+                "orientation"
+              ]
+            }
+          }
+        },
+        "required": [
+          "setId",
+          "status",
+          "size",
+          "theme",
+          "retired",
+          "cycles",
+          "timeSavedPercent",
+          "troubleSpots"
+        ]
+      },
+      "Bot": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "beginner",
+              "club",
+              "advanced",
+              "expert"
+            ]
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "tagline": {
+            "type": "string"
+          },
+          "portraitUrl": {
+            "type": "string"
+          },
+          "flagUrl": {
+            "type": "string"
+          },
+          "firstMove": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wildness": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "temperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10
+          },
+          "stockfishElo": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 5000
+          },
+          "requiresAccount": {
+            "type": "boolean"
+          },
+          "requiresPremium": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "country",
+          "tier",
+          "rating",
+          "tagline",
+          "portraitUrl",
+          "flagUrl",
+          "firstMove",
+          "wildness",
+          "temperature",
+          "stockfishElo",
+          "requiresAccount",
+          "requiresPremium"
+        ]
+      },
+      "BotCatalogue": {
+        "type": "object",
+        "properties": {
+          "tiers": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "enum": [
+                    "beginner",
+                    "club",
+                    "advanced",
+                    "expert"
+                  ]
+                },
+                "label": {
+                  "type": "string"
+                },
+                "blurb": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "blurb"
+              ]
+            }
+          },
+          "bots": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Bot"
+            }
+          },
+          "custom": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "portraitUrl": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "object",
+                "properties": {
+                  "min": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5000
+                  },
+                  "max": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5000
+                  },
+                  "step": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "default": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5000
+                  }
+                },
+                "required": [
+                  "min",
+                  "max",
+                  "step",
+                  "default"
+                ]
+              },
+              "wildness": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "temperature": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 10
+              },
+              "requiresAccount": {
+                "type": "boolean"
+              },
+              "requiresPremium": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "portraitUrl",
+              "rating",
+              "wildness",
+              "temperature",
+              "requiresAccount",
+              "requiresPremium"
+            ]
+          },
+          "engines": {
+            "type": "object",
+            "properties": {
+              "order": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "maia-3",
+                    "stockfish"
+                  ]
+                }
+              },
+              "maia": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "maia-3"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "modelUrl": {
+                    "type": "string"
+                  },
+                  "opset": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "inputs": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "dims": {
+                          "type": "array",
+                          "items": {
+                            "type": "integer",
+                            "minimum": -9007199254740991,
+                            "maximum": 9007199254740991
+                          }
+                        },
+                        "type": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "dims",
+                        "type"
+                      ]
+                    }
+                  },
+                  "policyOutput": {
+                    "type": "string"
+                  },
+                  "policySize": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "history": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "planeOrder": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "eloMax": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "sampling": {
+                    "type": "object",
+                    "properties": {
+                      "topP": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "defaultTemperature": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 10
+                      }
+                    },
+                    "required": [
+                      "topP",
+                      "defaultTemperature"
+                    ]
+                  },
+                  "initBudgetMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  },
+                  "warmupBudgetMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  }
+                },
+                "required": [
+                  "kind",
+                  "model",
+                  "modelUrl",
+                  "opset",
+                  "inputs",
+                  "policyOutput",
+                  "policySize",
+                  "history",
+                  "planeOrder",
+                  "eloMax",
+                  "sampling",
+                  "initBudgetMs",
+                  "warmupBudgetMs"
+                ]
+              },
+              "stockfish": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "const": "stockfish"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "version": {
+                    "type": "string"
+                  },
+                  "build": {
+                    "type": "string"
+                  },
+                  "limitStrength": {
+                    "type": "boolean"
+                  },
+                  "minElo": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5000
+                  },
+                  "maxElo": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 5000
+                  },
+                  "moveTimeMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 10000000
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name",
+                  "version",
+                  "build",
+                  "limitStrength",
+                  "minElo",
+                  "maxElo",
+                  "moveTimeMs"
+                ]
+              },
+              "moveTimeoutMs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 10000000
+              }
+            },
+            "required": [
+              "order",
+              "maia",
+              "stockfish",
+              "moveTimeoutMs"
+            ]
+          },
+          "canSaveGames": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "tiers",
+          "bots",
+          "custom",
+          "engines",
+          "canSaveGames"
+        ]
+      },
+      "BotGameRequest": {
+        "type": "object",
+        "properties": {
+          "bot": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 40
+          },
+          "rating": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 5000
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "userColor": {
+            "type": "string",
+            "enum": [
+              "white",
+              "black"
+            ]
+          },
+          "result": {
+            "type": "string",
+            "enum": [
+              "1-0",
+              "0-1",
+              "1/2-1/2"
+            ]
+          },
+          "engine": {
+            "type": "string",
+            "enum": [
+              "maia-3",
+              "stockfish"
+            ]
+          },
+          "pgn": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100000
+          }
+        },
+        "required": [
+          "bot",
+          "userColor",
+          "result",
+          "engine",
+          "pgn"
         ]
       }
     }

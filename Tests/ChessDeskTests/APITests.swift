@@ -166,6 +166,14 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         try decodeExample("GameDetail", as: GameDetail.self)
         try decodeExample("MistakeQueue", as: MistakeQueue.self)
         try decodeExample("MistakeAttempt", as: MistakeAttempt.self)
+        try decodeExample("PuzzleOverview", as: PuzzleOverview.self)
+        try decodeExample("FreePuzzles", as: FreePuzzles.self)
+        try decodeExample("Puzzle", as: Puzzle.self)
+        try decodeExample("PuzzleAttempt", as: PuzzleAttempt.self)
+        try decodeExample("WoodpeckerOverview", as: WoodpeckerOverview.self)
+        try decodeExample("WoodpeckerRun", as: WoodpeckerRun.self)
+        try decodeExample("WoodpeckerStep", as: WoodpeckerStep.self)
+        try decodeExample("WoodpeckerReport", as: WoodpeckerReport.self)
     }
 
     @Test func contractServesEveryRouteTheAppCalls() throws {
@@ -181,6 +189,9 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
             "/api/v1/courses", "/api/v1/courses/{slug}", "/api/v1/courses/{slug}/session",
             "/api/v1/courses/{slug}/enrollment", "/api/v1/courses/{slug}/local-progress",
             "/api/v1/training/grades", "/api/v1/training/due",
+            "/api/v1/puzzles", "/api/v1/puzzles/free", "/api/v1/puzzles/next", "/api/v1/puzzles/{puzzleId}/attempts",
+            "/api/v1/woodpecker", "/api/v1/woodpecker/set", "/api/v1/woodpecker/set/solves",
+            "/api/v1/woodpecker/set/cycles", "/api/v1/woodpecker/set/puzzles/{puzzleId}", "/api/v1/woodpecker/report",
         ]
         for path in used { #expect(paths[path] != nil, "\(path) is in the contract") }
     }
@@ -207,6 +218,25 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         let paths = try #require(contract["paths"] as? [String: Any])
         let me = try #require(paths["/api/v1/me"] as? [String: Any])
         #expect(me["delete"] != nil, "DELETE /api/v1/me is in the contract")
+    }
+
+    /// The puzzle and Woodpecker bodies carry what the contract requires.
+    @Test func puzzleRequestsCarryWhatTheContractRequires() throws {
+        let contract = try Self.contract()
+        let components = try #require(contract["components"] as? [String: Any])
+        let schemas = try #require(components["schemas"] as? [String: Any])
+        func check(_ body: some Encodable, _ name: String) throws {
+            let object = try JSONSerialization.jsonObject(with: APICoding.encoder.encode(body))
+            let keys = Set(try #require(object as? [String: Any]).keys)
+            let schema = try #require(schemas[name] as? [String: Any], "schema \(name) is in the contract")
+            let required = Set(schema["required"] as? [String] ?? [])
+            #expect(required.isSubset(of: keys), "\(name) carries \(required)")
+        }
+        try check(PuzzleAttemptRequest(solved: true, ms: 4200), "PuzzleAttemptRequest")
+        try check(NextPuzzleRequest(theme: nil), "NextPuzzleRequest")
+        try check(WoodpeckerSetRequest(size: nil, theme: nil), "WoodpeckerSetRequest")
+        try check(WoodpeckerSetStatusRequest(status: .completed), "WoodpeckerSetStatusRequest")
+        try check(WoodpeckerSolveRequest(puzzleId: "p1", correct: false, ms: 900), "WoodpeckerSolveRequest")
     }
 
     @Test func requestsAreBuiltAsTheContractSays() throws {
