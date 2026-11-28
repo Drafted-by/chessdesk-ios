@@ -149,6 +149,8 @@ struct LineTrainerView: View {
             }
         }
         .padding(.horizontal, CD.Space.s4)
+        // Air between the title and the board: the board is not the header's.
+        .padding(.bottom, CD.Space.s8)
         .background(CD.canvas)
     }
 
@@ -177,7 +179,7 @@ struct LineTrainerView: View {
             ScrollView {
                 plate
                     .padding(.horizontal, CD.Space.s20)
-                    .padding(.vertical, CD.Space.s20)
+                    .padding(.vertical, CD.Space.s16)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             .scrollBounceBehavior(.basedOnSize)
@@ -389,23 +391,28 @@ private struct ReadingPlate: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s12) {
             if !hidesMove {
+                // One line: the move, and across from it whose move it is.
                 HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                    Text(step.numberLabel)
-                        .font(.custom("Newsreader72pt-Regular", size: 26, relativeTo: .title2))
-                        .foregroundStyle(CD.ink4)
-                        .cdNumber()
-                    Text(step.san)
-                        .font(.custom("Newsreader72pt-Medium", size: 26, relativeTo: .title2))
-                        .foregroundStyle(CD.ink)
-                }
-                .accessibilityElement(children: .combine)
-                .accessibilityAddTraits(.isHeader)
-
-                HStack(spacing: CD.Space.s6) {
-                    SideSwatch(side: moverSide)
-                    Text("\(moverSide == .white ? "White" : "Black") · \(step.mine ? "your move" : "the reply")")
-                        .cdFont(.meta)
-                        .foregroundStyle(CD.ink3)
+                    HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
+                        Text(step.numberLabel)
+                            .font(.custom("Newsreader72pt-Regular", size: 26, relativeTo: .title2))
+                            .foregroundStyle(CD.ink4)
+                            .cdNumber()
+                        Text(step.san)
+                            .font(.custom("Newsreader72pt-Medium", size: 26, relativeTo: .title2))
+                            .foregroundStyle(CD.ink)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isHeader)
+                    Spacer(minLength: CD.Space.s8)
+                    HStack(spacing: CD.Space.s6) {
+                        SideSwatch(side: moverSide)
+                        Text("\(moverSide == .white ? "White" : "Black") · \(step.mine ? "your move" : "the reply")")
+                            .cdFont(.small)
+                            .foregroundStyle(CD.ink3)
+                            .lineLimit(1)
+                    }
+                    .alignmentGuide(.firstTextBaseline) { $0[.firstTextBaseline] }
                 }
                 CDHairline()
             }

@@ -20,7 +20,7 @@ struct BotGameScreen: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
-                    VStack(spacing: CD.Space.s6) {
+                    VStack(spacing: CD.Space.s8) {
                         opponentBar
                         BoardView(
                             position: game.position,
@@ -30,6 +30,7 @@ struct BotGameScreen: View {
                             onMove: { model.play($0) }
                         )
                         .frame(maxWidth: 560)
+                        .boardBleed()
                         playerBar
                     }
                     .frame(maxWidth: 560)
@@ -68,7 +69,7 @@ struct BotGameScreen: View {
                     #endif
                 }
                 .pageGutter()
-                .padding(.top, CD.Space.s8)
+                .padding(.top, CD.Space.s16)
                 .padding(.bottom, CD.Space.s32)
                 .frame(maxWidth: 720)
                 .frame(maxWidth: .infinity)
