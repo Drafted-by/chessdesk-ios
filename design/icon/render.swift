@@ -392,6 +392,11 @@ enum Render {
             renderRound2(into: directory.appendingPathComponent("round2", isDirectory: true))
             return
         }
+        if arguments.count > 2, arguments[2] == "inlaid-mark" {
+            // The chosen icon, in its three appearances (round2.swift).
+            renderChosen(into: directory)
+            return
+        }
         let fill = systemDarkFill()
         for candidate in Candidate.allCases {
             let name = candidate.rawValue

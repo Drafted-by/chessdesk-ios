@@ -392,7 +392,8 @@ struct CDMeter: View {
 
 // MARK: Brand
 
-/// The 2×2 mark: two brass squares on the long diagonal, two outlined.
+/// The 2×2 mark, a flat reduction of the app icon: brass top left, paper bottom right, the two
+/// dark squares a shade above the canvas. No relief at this size.
 struct LogoMark: View {
     var size: CGFloat = 22
 
@@ -406,10 +407,9 @@ struct LogoMark: View {
                 )
             }
             context.fill(square(2, 2), with: .color(CD.accent))
-            context.fill(square(12.5, 12.5), with: .color(CD.accent))
-            let outline = StrokeStyle(lineWidth: 1.5 * unit)
-            context.stroke(square(12.5, 2), with: .color(CD.ink4), style: outline)
-            context.stroke(square(2, 12.5), with: .color(CD.ink4), style: outline)
+            context.fill(square(12.5, 12.5), with: .color(CD.ink))
+            context.fill(square(12.5, 2), with: .color(CD.surface4))
+            context.fill(square(2, 12.5), with: .color(CD.surface4))
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)

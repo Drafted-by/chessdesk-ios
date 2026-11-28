@@ -404,17 +404,93 @@ func engravedKnight(_ c: CGContext) {
 }
 
 // 3. The mark, with material: brass and paper inlays, two engraved recesses.
-func inlaidMark(_ c: CGContext) {
-    Metal.ground(c)
+func inlaidMark(_ c: CGContext) { inlaidMark(c, .standard) }
+
+/// The chosen icon in one of the three appearances of iOS 18.
+///
+/// - `standard`: the inlays on the warm graphite ground.
+/// - `dark`: the four squares alone on a transparent ground. The system's dark fill is lighter
+///   than the graphite, so the recesses carry their own near-black floor, a brighter hatch and a
+///   lit lower lip: they stay cut into whatever lies under them.
+/// - `tinted`: grayscale on a dark ground. The system multiplies it by the tint, so brass and
+///   paper are told apart by value alone: brass sits at mid-gray, paper near white.
+func inlaidMark(_ c: CGContext, _ appearance: Appearance) {
     let size: CGFloat = 372
     let gap: CGFloat = 44
     let radius: CGFloat = 78
     let near = (side - 2 * size - gap) / 2
     let far = near + size + gap
-    Metal.recess(c, rect(far, near, size, size, radius), depth: 13, pitch: 50, hatch: 13)
-    Metal.recess(c, rect(near, far, size, size, radius), depth: 13, pitch: 50, hatch: 13)
-    Metal.brass(c, rect(near, near, size, size, radius), depth: 15, shade: 0.7)
-    Metal.paper(c, rect(far, far, size, size, radius), depth: 15, shade: 0.7)
+    let recesses = [rect(far, near, size, size, radius), rect(near, far, size, size, radius)]
+    let brass = rect(near, near, size, size, radius)
+    let paper = rect(far, far, size, size, radius)
+
+    switch appearance {
+    case .standard:
+        Metal.ground(c)
+        for recess in recesses { Metal.recess(c, recess, depth: 13, pitch: 50, hatch: 13) }
+        Metal.brass(c, brass, depth: 15, shade: 0.7)
+        Metal.paper(c, paper, depth: 15, shade: 0.7)
+
+    case .dark:
+        for recess in recesses {
+            c.wash(recess, [rgb(0x070605), rgb(0x0E0D0B)])
+            c.hatch(recess, pitch: 50, width: 13, rgb(0xA39C93, 0.62))
+            c.edge(recess, dx: 12, dy: 17, blur: 23, rgb(0x000000, 0.85))
+            // The lip of the cut, catching the light on its lower right.
+            c.clipped(to: outline(recess, 14)) { c.line(moved(recess, 4, 5), rgb(0xFFF6E6, 0.34), 6) }
+        }
+        Metal.brass(c, brass, depth: 15, shade: 0.7)
+        Metal.paper(c, paper, depth: 15, shade: 0.7)
+
+    case .tinted:
+        Metal.ground(c, [0x2B2B2B, 0x1A1A1A, 0x0F0F0F])
+        for recess in recesses {
+            c.wash(recess, [gray(0.03), gray(0.06)])
+            c.hatch(recess, pitch: 50, width: 13, gray(0.52, 0.5))
+            c.edge(recess, dx: 12, dy: 17, blur: 23, gray(0, 0.8))
+            c.line(moved(recess, 3, 4), gray(1, 0.12), 5)
+        }
+        // Brass, a clear step under the paper.
+        c.shade(brass, dx: 10, dy: 24, blur: 33, 0.7)
+        c.wash(brass, [gray(0.66), gray(0.56), gray(0.44)], [0, 0.48, 1])
+        c.edge(brass, dx: -13, dy: -16, blur: 24, gray(0.22, 0.7))
+        c.edge(brass, dx: 8, dy: 10, blur: 5, gray(0.80, 0.95))
+        c.shade(paper, dx: 10, dy: 24, blur: 33, 0.7)
+        c.wash(paper, [gray(1), gray(0.95), gray(0.84)], [0, 0.45, 1])
+        c.edge(paper, dx: -13, dy: -16, blur: 27, gray(0.55, 0.7))
+        c.edge(paper, dx: 7, dy: 9, blur: 4, gray(1, 0.9))
+    }
+}
+
+/// Renders the chosen icon (no. 3, `inlaid-mark`) in its three appearances, with its sheets.
+func renderChosen(into directory: URL) {
+    func image(_ appearance: Appearance) -> CGImage {
+        let context = bitmap(Int(side), Int(side))
+        inlaidMark(context, appearance)
+        return context.makeImage()!
+    }
+    let name = "inlaid-mark"
+    let standard = image(.standard)
+    let dark = image(.dark)
+    let tinted = image(.tinted)
+    write(standard, to: directory.appendingPathComponent("\(name).png"), opaque: true)
+    write(dark, to: directory.appendingPathComponent("\(name)-dark.png"), opaque: false)
+    write(tinted, to: directory.appendingPathComponent("\(name)-tinted.png"), opaque: true)
+    write(
+        sheet([
+            (standard, nil, true, "\(name) · dark wallpaper"),
+            (standard, nil, false, "\(name) · light wallpaper"),
+        ]),
+        to: directory.appendingPathComponent("\(name)-sheet.png"), opaque: true
+    )
+    write(
+        sheet([
+            (dark, systemDarkFill(), true, "\(name) · dark appearance, on the system's fill"),
+            (dark, systemDarkFill(), false, "\(name) · dark appearance, light wallpaper"),
+            (tinted, nil, true, "\(name) · tinted appearance, before the tint"),
+        ]),
+        to: directory.appendingPathComponent("\(name)-appearances-sheet.png"), opaque: true
+    )
 }
 
 // 4. Monogram: "cd" in Newsreader over the rule with its brass lozenge. A book plate.

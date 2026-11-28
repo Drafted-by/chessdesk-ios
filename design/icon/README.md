@@ -24,7 +24,7 @@ each candidate, into this folder:
 
 ## Candidates
 
-- `knight` (installed): the knight of the puzzles emblem in front of a 2 × 2 board laid out
+- `knight`: the knight of the puzzles emblem in front of a 2 × 2 board laid out
   like the mark of the logo, the lit square in brass.
 - `mark`: the mark of the logo as an engraved board: one square brass, one paper, two hatched.
 - `cameo`: a king in an oval frame, the frame in brass, the ground hatched.
@@ -73,5 +73,30 @@ writes into `design/icon/round2/`:
 | 9 | `seal` | A struck brass coin bearing the knight |
 | 10 | `promotion` | The pawn that earns its brass crown |
 
-Round 2 renders the standard appearance only. The dark and tinted appearances of iOS 18 are
-to be drawn for the candidate that is chosen, before it is installed.
+Round 2 renders the standard appearance only.
+
+## The installed icon: no. 3, `inlaid-mark`
+
+JD chose candidate 3. Its three appearances are drawn by `inlaidMark(_:_:)` in `round2.swift`:
+
+```bash
+design/icon/render.sh inlaid-mark
+```
+
+writes `inlaid-mark.png`, `inlaid-mark-dark.png`, `inlaid-mark-tinted.png`, `inlaid-mark-sheet.png`
+and `inlaid-mark-appearances-sheet.png` into this folder.
+
+- Dark: the four squares on a transparent ground. The system's dark fill is lighter than the
+  graphite, so each recess carries its own near-black floor, a brighter hatch and a lit lower lip.
+- Tinted: grayscale. The system multiplies it by the tint, so brass sits at mid-gray and paper
+  near white: the two stay apart by value alone.
+
+```bash
+icons=ChessDesk/Resources/Assets.xcassets/AppIcon.appiconset
+cp design/icon/inlaid-mark.png "$icons/AppIcon.png"
+cp design/icon/inlaid-mark-dark.png "$icons/AppIcon-Dark.png"
+cp design/icon/inlaid-mark-tinted.png "$icons/AppIcon-Tinted.png"
+```
+
+The mark inside the app (`LogoMark` in `ChessDesk/UI/Components.swift`) is the flat reduction of
+the same four squares: brass top left, paper bottom right, two dark squares.
