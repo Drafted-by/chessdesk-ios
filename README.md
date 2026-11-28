@@ -53,6 +53,14 @@ with Stockfish 19 running on the device.
   out, the opening named, Stockfish's best lines live with an evaluation bar), the best move
   of a pasted position, a coordinates trainer and an Elo calculator. Any game in Games opens
   on the analysis board at its current move.
+- **Play a bot.** 41 human-like opponents from 400 to 2400, each with a face, a country and
+  an opening it likes, or an opponent built at the exact rating you want, from the usual
+  start or from any FEN or PGN. The moves are computed on the phone: Maia, a network trained
+  on human games, plays at the bot's rating, and Stockfish held to a rating takes over where
+  Maia cannot run. The roster and every engine setting come from the server
+  (`GET /api/v1/play/bots`) and are kept on the device, so a game can be played without a
+  connection. A game in progress survives leaving the app. With an account, a finished game
+  is saved and opens in the review; a guest plays it out and is told what an account adds.
 - **Your board.** Piece sets, board textures, square colours and move sounds, as on the site,
   in You › Board and sound. Every board in the app follows them.
 
@@ -129,7 +137,18 @@ scripts/sim.sh iphone -CDRoute analysis -CDCanvas 1180x820    # the iPad layout,
 scripts/sim.sh iphone -CDRoute bestmove
 scripts/sim.sh iphone -CDRoute coordinates
 scripts/sim.sh iphone -CDRoute elo
+scripts/sim.sh iphone -CDRoute play                            # the bots
+scripts/sim.sh iphone -CDRoute play/peru                       # a game against that bot (its id in the catalogue)
+scripts/sim.sh iphone -CDRoute play/peru -CDPlaySide black     # the bot opens
+scripts/sim.sh iphone -CDRoute play/custom -CDPlayRating 1500  # the opponent built at a rating
+scripts/sim.sh iphone -CDRoute play/resume                     # the game in progress on the device
+scripts/sim.sh iphone -CDRoute play/peru -CDPlayEngine stockfish   # without Maia: the fallback engine
 ```
+
+`play/<bot id>` with a game already in progress starts a new one; `-CDPlayAutopilot engine`
+(or `random`) plays the player's moves, to watch a whole game unattended.
+`scripts/sync-play-bots.sh` captures production's catalogue into `Fixtures/api-v1/play-bots.json`,
+which sample data and the tests read.
 
 ## Tests
 
@@ -163,9 +182,19 @@ It embeds [Stockfish](https://stockfishchess.org) 19, also GPL-3.0. Its source i
 `Packages/StockfishEngine/Sources/CStockfish/stockfish`, with its `Copying.txt` and
 `AUTHORS`. The engine is linked into the app and driven over UCI text through `bridge.cpp`.
 
+The bots are moved by **Maia-3** (the 5M network of [CSSLab/maia3](https://github.com/CSSLab/maia3)).
+Its weights are **not in this repository and not in the app**: the app downloads the ONNX
+file at run time from the site's storage, at the URL the bot catalogue gives
+(`engines.maia.modelUrl`), and keeps it on the device. The site's notes give their licence
+as AGPL ("AGPL weights, not committed", `apps/web/public/engine/maia-model-meta.json`).
+The code that runs the network here (`ChessDesk/Core/Play/Onnx`, `MaiaEncoding.swift`) is
+ChessDesk's own, under this repository's GPL-3.0.
+
 **Not covered by the GPL**, and not free to reuse:
 
 - The ChessDesk name, logo and app icon.
+- The bots' names, portraits and taglines (`Fixtures/api-v1/play-bots.json` and the images
+  the site serves): © Drafted-by, all rights reserved.
 - The course content in `Fixtures/api-v1` (lines, explanations, exercises): © Drafted-by,
   all rights reserved. It is here so the app builds and its tests run.
 - The board texture, an asset of Drafted-by.

@@ -23,12 +23,11 @@ struct ChessDeskApp: App {
                 .environment(narration)
                 .preferredColorScheme(.dark)
                 .tint(CD.accent)
-                .task {
-                    store.start()
-                    await app.restoreSession()
-                }
-                // After the session is restored and after each sign-in: what the
-                // Apple Account holds is presented to the server.
+                .task { await app.restoreSession() }
+                // After the session is restored and after each account change.
+                // Signed in: the store listens for transactions and presents
+                // what the Apple Account holds to the server. A guest: StoreKit
+                // is not called at launch at all (see `PremiumStore.start`).
                 .task(id: app.accountRevision) { await store.syncEntitlements() }
         }
     }

@@ -173,6 +173,31 @@ struct PremiumStoreTests {
 
 }
 
+/// A guest costs the App Store nothing: these never reach StoreKit, so they
+/// run everywhere, CI included.
+@Suite struct PremiumStoreGuestTests {
+    private func guest() -> AppModel {
+        let tokens = MemoryTokenStore()
+        let file = FileManager.default.temporaryDirectory.appending(path: "cd-store-\(UUID().uuidString).json")
+        return AppModel(
+            backend: .sampleData, api: FixtureAPI(delay: .zero), guestStore: GuestProgressStore(url: file),
+            makeTokenStore: { _ in tokens }
+        )
+    }
+
+    /// At launch as a guest, the store neither listens for transactions nor
+    /// reads entitlements: nothing can ask for the Apple Account.
+    @Test func aGuestsLaunchMakesNoStoreKitCall() async {
+        let store = PremiumStore(app: guest())
+        store.start()
+        #expect(!store.isListening)
+        await store.syncEntitlements()
+        #expect(!store.isListening)
+        // The catalogue of offers is only asked when the Premium sheet opens.
+        #expect(store.catalogue == .loading)
+    }
+}
+
 @Suite struct PremiumWordingTests {
     @Test func periodsReadAsAPersonSaysThem() {
         #expect(PremiumStore.each(1, .year) == "a year")
