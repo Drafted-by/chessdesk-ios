@@ -82,6 +82,7 @@ struct BotGameScreen: View {
                                     .foregroundStyle(CD.ink4)
                             #endif
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .pageGutter()
                         .padding(.bottom, CD.Space.s8)
                         .frame(maxWidth: 600)
