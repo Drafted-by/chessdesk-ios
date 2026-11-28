@@ -109,3 +109,38 @@ struct LearnLeadTests {
         #expect(LearnView.dueLine(mine) == "4 moves to review today.")
     }
 }
+
+/// Continue with Google: the secret, its challenge, and the reading of the
+/// address the sign-in sheet comes back to.
+struct GoogleHandoffTests {
+    /// The example of RFC 7636, appendix B.
+    @Test func theChallengeIsTheOneOfTheRFC() {
+        #expect(GoogleHandoff.challenge(for: "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk") == "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+    }
+
+    @Test func aVerifierIs43CharactersOfThePKCEAlphabet() {
+        let verifier = GoogleHandoff.makeVerifier()
+        #expect(verifier.count == 43)
+        #expect(verifier.allSatisfy { $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" })
+        #expect(verifier != GoogleHandoff.makeVerifier())
+    }
+
+    @Test func theSheetOpensTheSitesStart() throws {
+        let url = GoogleHandoff.startURL(server: try #require(URL(string: "https://chessdesk.app")), challenge: "abc")
+        #expect(url.absoluteString == "https://chessdesk.app/api/v1/auth/google/start?code_challenge=abc")
+    }
+
+    @Test func theWayBackIsReadStrictly() throws {
+        func read(_ text: String) throws -> Result<GoogleCredential, GoogleSignInError> {
+            GoogleHandoff.read(try #require(URL(string: text)), verifier: "v")
+        }
+        #expect(try read("chessdesk://auth/google?code=one-time") == .success(GoogleCredential(code: "one-time", codeVerifier: "v")))
+        #expect(try read("chessdesk://auth/google?error=coach") == .failure(.coach))
+        #expect(try read("chessdesk://auth/google?error=unavailable") == .failure(.unavailable))
+        #expect(try read("chessdesk://auth/google?error=whatever") == .failure(.failed))
+        #expect(try read("chessdesk://auth/google") == .failure(.failed))
+        // Another address of the scheme is not this exchange.
+        #expect(try read("chessdesk://auth/other?code=one-time") == .failure(.failed))
+        #expect(try read("https://chessdesk.app/auth/google?code=one-time") == .failure(.failed))
+    }
+}

@@ -20,6 +20,7 @@ struct SignInView: View {
     @State private var error: String?
     @State private var isWorking = false
     @FocusState private var focus: Field?
+    @State private var google = GoogleAuthorizer()
 
     private enum Field { case firstName, lastName, email, password }
 
@@ -50,6 +51,17 @@ struct SignInView: View {
                 .frame(height: 52)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .disabled(isWorking)
+
+                if app.googleSignInServer != nil {
+                    Button(action: continueWithGoogle) {
+                        HStack(spacing: CD.Space.s8) {
+                            GoogleMark(size: 17)
+                            Text(mode == .signIn ? "Sign in with Google" : "Sign up with Google")
+                        }
+                    }
+                    .buttonStyle(ProviderButtonStyle())
+                    .disabled(isWorking)
+                }
 
                 HStack(spacing: CD.Space.s12) {
                     CDHairline(color: CD.lineStrong)
@@ -216,6 +228,22 @@ struct SignInView: View {
         }
     }
 
+    private func continueWithGoogle() {
+        guard !isWorking, let server = app.googleSignInServer else { return }
+        error = nil
+        Task {
+            do {
+                let credential = try await google.authorize(server: server)
+                run { try await app.signIn(with: credential) }
+            } catch let failure as GoogleSignInError {
+                // Closing the sheet is a choice, not an error.
+                if failure != .cancelled { error = failure.message }
+            } catch {
+                self.error = GoogleSignInError.failed.message
+            }
+        }
+    }
+
     private func run(_ work: @escaping () async throws -> Void) {
         isWorking = true
         error = nil
@@ -230,6 +258,44 @@ struct SignInView: View {
                 self.error = APIError.unreadable.message
             }
         }
+    }
+}
+
+/// The button of another sign-in provider, drawn to sit under Apple's white
+/// one: same height, same corner, the provider's own mark and wording.
+private struct ProviderButtonStyle: ButtonStyle {
+    @Environment(\.isEnabled) private var isEnabled
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.system(size: 19, weight: .medium))
+            .foregroundStyle(Color.black)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .opacity(configuration.isPressed ? 0.8 : isEnabled ? 1 : 0.5)
+            .contentShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+}
+
+/// Google's "G", in Google's colours and on Google's 18 grid: a trademark,
+/// drawn as Google publishes it and never restyled to the app's palette.
+private struct GoogleMark: View {
+    let size: CGFloat
+
+    private static let parts: [(Color, String)] = [
+        (Color(hex: 0x4285F4), "M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z"),
+        (Color(hex: 0x34A853), "M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z"),
+        (Color(hex: 0xFBBC05), "M3.964 10.707A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.707V4.961H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.039l3.007-2.332z"),
+        (Color(hex: 0xEA4335), "M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.961L3.964 7.293C4.672 5.166 6.656 3.58 9 3.58z"),
+    ]
+
+    var body: some View {
+        Canvas { context, canvasSize in
+            context.scaleBy(x: canvasSize.width / 18, y: canvasSize.height / 18)
+            for (color, data) in Self.parts { context.fill(Path(svg: data), with: .color(color)) }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 

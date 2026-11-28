@@ -6,6 +6,7 @@ import Testing
 /// Test stubs implement what they exercise; the games and mistakes calls
 /// default to "not signed in".
 extension ChessDeskAPI {
+    func signInWithGoogle(code: String, codeVerifier: String) async throws -> AuthSession { throw APIError.offline }
     private var notStubbed: APIError { .server(status: 401, code: "unauthorized", message: "Not stubbed.") }
     func accounts(token: String) async throws -> [LinkedAccount] { throw notStubbed }
     func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount { throw notStubbed }

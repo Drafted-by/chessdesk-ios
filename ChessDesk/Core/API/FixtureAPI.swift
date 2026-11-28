@@ -60,6 +60,11 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
         throw noAccounts
     }
 
+    func signInWithGoogle(code: String, codeVerifier: String) async throws -> AuthSession {
+        try await Task.sleep(for: delay)
+        throw noAccounts
+    }
+
     func resendVerification(token: String) async throws { throw signInNeeded }
     func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws {
         throw signInNeeded

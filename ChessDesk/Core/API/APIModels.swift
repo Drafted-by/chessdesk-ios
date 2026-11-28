@@ -276,6 +276,11 @@ nonisolated struct AppleSignInRequest: Codable, Sendable {
     let lastName: String?
 }
 
+nonisolated struct GoogleSignInRequest: Codable, Sendable {
+    let code: String
+    let codeVerifier: String
+}
+
 nonisolated struct ApplePurchaseRequest: Codable, Sendable {
     /// `jwsRepresentation` of a StoreKit transaction.
     let signedTransaction: String

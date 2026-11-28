@@ -172,6 +172,17 @@ final class AppModel {
         try await open(session, withApple: true)
     }
 
+    /// Signs in, or creates the account, with what the Google sheet returned.
+    func signIn(with google: GoogleCredential) async throws {
+        try await open(api.signInWithGoogle(code: google.code, codeVerifier: google.codeVerifier), withApple: false)
+    }
+
+    /// The server whose Google sign-in the app can open; nil on sample data.
+    var googleSignInServer: URL? {
+        if case let .server(url) = backend { return url }
+        return nil
+    }
+
     private func open(_ session: AuthSession, withApple: Bool) async throws {
         tokens.write(session.token)
         do {

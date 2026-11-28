@@ -11,6 +11,9 @@ nonisolated protocol ChessDeskAPI: Sendable, PlayAPI, PuzzlesAPI, HomeAPI, Setti
     func signup(firstName: String, lastName: String, email: String, password: String) async throws -> AuthSession
     /// Signs in, or creates the account, from a Sign in with Apple identity token.
     func signInWithApple(identityToken: String, firstName: String?, lastName: String?) async throws -> AuthSession
+    /// Signs in, or creates the account, from the one-time code the site's
+    /// Google sign-in handed to the app, with the secret that goes with it.
+    func signInWithGoogle(code: String, codeVerifier: String) async throws -> AuthSession
     func resendVerification(token: String) async throws
     /// Deletes the account for good. The password when it has one; an Apple
     /// authorisation code when there is one, so Apple is told too.
@@ -105,6 +108,10 @@ nonisolated struct LiveAPI: ChessDeskAPI {
 
     func resendVerification(token: String) async throws {
         let _: OkResponse = try await send("POST", "auth/verification", token: token)
+    }
+
+    func signInWithGoogle(code: String, codeVerifier: String) async throws -> AuthSession {
+        try await send("POST", "auth/google", body: GoogleSignInRequest(code: code, codeVerifier: codeVerifier))
     }
 
     func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws {
