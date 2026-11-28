@@ -120,6 +120,37 @@ public actor StockfishEngine {
         return latest.keys.sorted().compactMap { latest[$0] }
     }
 
+    /// The strength range `UCI_Elo` accepts (Stockfish 16 and later).
+    public static let limitedEloRange = 1320...3190
+
+    /// The move of an engine held to a rating: `UCI_LimitStrength` at `elo`
+    /// (clamped to what the engine accepts), thinking for `moveTime`. Nil
+    /// when the position has no legal move. Full strength is restored before
+    /// the next search, so reviews and trainers are never weakened.
+    public func bestMove(fen: String, limitedTo elo: Int, moveTime: Duration) async throws -> String? {
+        guard isReady else { throw EngineError.notStarted }
+        await acquire()
+        defer { release() }
+        let parts = moveTime.components
+        let milliseconds = max(10, Int(parts.seconds) * 1000 + Int(parts.attoseconds / 1_000_000_000_000_000))
+        let range = Self.limitedEloRange
+        send("setoption name UCI_LimitStrength value true")
+        send("setoption name UCI_Elo value \(max(range.lowerBound, min(range.upperBound, elo)))")
+        send("position fen \(fen)")
+        send("go movetime \(milliseconds)")
+        var line = await mailbox.next()
+        while !line.hasPrefix("bestmove") { line = await mailbox.next() }
+        send("setoption name UCI_LimitStrength value false")
+        return Self.parseBestMove(line)
+    }
+
+    /// The move of a "bestmove e2e4 ponder e7e5" line; nil for "(none)".
+    static func parseBestMove(_ line: String) -> String? {
+        let tokens = line.split(separator: " ")
+        guard tokens.count >= 2, tokens[0] == "bestmove", tokens[1] != "(none)" else { return nil }
+        return String(tokens[1])
+    }
+
     /// More threads and memory for a game review, back to one for the trainer.
     public func configure(threads: Int, hashMegabytes: Int) async {
         guard isReady else { return }

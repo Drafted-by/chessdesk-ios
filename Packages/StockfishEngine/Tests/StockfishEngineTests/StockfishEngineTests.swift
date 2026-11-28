@@ -22,6 +22,14 @@ private let network = URL(fileURLWithPath: #filePath)
         #expect(StockfishEngine.parseInfo("bestmove e2e4 ponder e7e5") == nil)
     }
 
+    /// The expectations of the site's `stockfish-bot-engine.test.ts`.
+    @Test func readsTheBestMoveLine() {
+        #expect(StockfishEngine.parseBestMove("bestmove e2e4 ponder e7e5") == "e2e4")
+        #expect(StockfishEngine.parseBestMove("bestmove g1f3") == "g1f3")
+        #expect(StockfishEngine.parseBestMove("bestmove (none)") == nil)
+        #expect(StockfishEngine.parseBestMove("info depth 3 score cp 10 pv e2e4") == nil)
+    }
+
     @Test func refusesToStartWithoutItsNetwork() async {
         await #expect(throws: EngineError.networkMissing("missing.nnue")) {
             try await StockfishEngine.shared.start(network: URL(fileURLWithPath: "/nonexistent/missing.nnue"))
@@ -46,6 +54,17 @@ private let network = URL(fileURLWithPath: #filePath)
         // A queen up is winning by a wide margin.
         let queenUp = try await engine.evaluate(fen: "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
         #expect(queenUp.comparable > 500)
+
+        // Held to a rating, it still answers with a legal move, and quickly.
+        let limited = try await engine.bestMove(
+            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", limitedTo: 400, moveTime: .milliseconds(300)
+        )
+        #expect(limited?.count == 4)
+        let stalemated = try await engine.bestMove(fen: "7k/5Q2/6K1/8/8/8/8/8 b - - 0 1", limitedTo: 1500, moveTime: .milliseconds(100))
+        #expect(stalemated == nil)
+        // The limit does not outlive the bot's move: the mate is still found at once.
+        let after = try await engine.evaluate(fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1")
+        #expect(after.mate == 1)
 
         // Searches asked at the same time are answered one after the other.
         async let first = engine.evaluate(fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1", depth: 6)
