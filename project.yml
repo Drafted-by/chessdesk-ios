@@ -116,6 +116,9 @@ targets:
       - path: contracts
         type: folder
         buildPhase: resources
+      # The two subscriptions, for StoreKit testing (never shipped in the app).
+      - path: StoreKit/Premium.storekit
+        buildPhase: resources
     dependencies:
       - target: ChessDesk
       - package: ChessCore
@@ -132,6 +135,7 @@ schemes:
         ChessDesk: all
     run:
       config: Debug
+      storeKitConfiguration: StoreKit/Premium.storekit
     test:
       config: Debug
       targets:

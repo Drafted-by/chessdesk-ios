@@ -60,6 +60,7 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
         throw signInNeeded
     }
 
+    func recordApplePurchase(signedTransaction: String, token: String) async throws -> Me { throw signInNeeded }
     func refresh(token: String) async throws -> AuthSession { throw signInNeeded }
     func me(token: String) async throws -> Me { throw signInNeeded }
 

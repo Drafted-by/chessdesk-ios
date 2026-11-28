@@ -168,6 +168,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         let used = [
             "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/me",
             "/api/v1/auth/signup", "/api/v1/auth/apple", "/api/v1/auth/verification",
+            "/api/v1/purchases/apple",
             "/api/v1/courses", "/api/v1/courses/{slug}", "/api/v1/courses/{slug}/session",
             "/api/v1/courses/{slug}/enrollment", "/api/v1/courses/{slug}/local-progress",
             "/api/v1/training/grades", "/api/v1/training/due",

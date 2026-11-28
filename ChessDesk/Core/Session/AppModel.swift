@@ -201,6 +201,14 @@ final class AppModel {
         setAccount(.signedIn(me))
     }
 
+    /// Sends a StoreKit transaction to the server, which verifies it with
+    /// Apple and answers with what the account may now use.
+    func recordApplePurchase(_ signedTransaction: String) async throws {
+        guard let token else { throw APIError.server(status: 401, code: "unauthorized", message: "Sign in to continue.") }
+        let me = try await api.recordApplePurchase(signedTransaction: signedTransaction, token: token)
+        setAccount(.signedIn(me))
+    }
+
     /// Deletes the account on the server, then forgets the session here.
     func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?) async throws {
         guard let token else { return }

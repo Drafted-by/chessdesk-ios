@@ -428,6 +428,99 @@
         }
       }
     },
+    "/api/v1/purchases/apple": {
+      "post": {
+        "operationId": "recordApplePurchase",
+        "summary": "Attach an App Store subscription to the account, from a StoreKit transaction; returns the updated access.",
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplePurchaseRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "The request body is not valid.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing, expired or revoked session; or wrong credentials at sign-in.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "The email address must be verified first, or this needs Premium (see the code).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Error.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request could not be carried out; the message says why.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too many attempts; see the Retry-After header.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/accounts": {
       "get": {
         "operationId": "listAccounts",
@@ -2452,6 +2545,9 @@
           "viaCoachPlan": {
             "type": "boolean"
           },
+          "viaAppStore": {
+            "type": "boolean"
+          },
           "trial": {
             "type": "object",
             "properties": {
@@ -2499,6 +2595,7 @@
           "premium",
           "paid",
           "viaCoachPlan",
+          "viaAppStore",
           "trial"
         ]
       },
@@ -2554,6 +2651,19 @@
         },
         "required": [
           "ok"
+        ]
+      },
+      "ApplePurchaseRequest": {
+        "type": "object",
+        "properties": {
+          "signedTransaction": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16384
+          }
+        },
+        "required": [
+          "signedTransaction"
         ]
       },
       "LinkedAccount": {

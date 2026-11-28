@@ -1,3 +1,4 @@
+import StoreKit
 import SwiftUI
 
 /// "You": the account, the plan, and what the app is made of.
@@ -5,6 +6,8 @@ struct AccountView: View {
     @Environment(AppModel.self) private var app
     @State private var signIn: SignInView.Mode?
     @State private var showsDeletion = false
+    @State private var showsPremium = false
+    @State private var managesSubscription = false
 
     var body: some View {
         ScrollView {
@@ -14,7 +17,13 @@ struct AccountView: View {
                     .foregroundStyle(CD.ink)
                     .accessibilityAddTraits(.isHeader)
                 if let me = app.me {
-                    SignedInCard(me: me, signOut: { app.signOut() }, delete: { showsDeletion = true })
+                    SignedInCard(
+                        me: me,
+                        signOut: { app.signOut() },
+                        delete: { showsDeletion = true },
+                        premium: { showsPremium = true },
+                        manage: { managesSubscription = true }
+                    )
                 } else {
                     GuestCard { signIn = $0 }
                 }
@@ -34,6 +43,8 @@ struct AccountView: View {
         .cdPage()
         .sheet(item: $signIn) { SignInView(mode: $0) }
         .sheet(isPresented: $showsDeletion) { DeleteAccountView() }
+        .sheet(isPresented: $showsPremium) { PremiumSheet() }
+        .manageSubscriptionsSheet(isPresented: $managesSubscription)
         #if DEBUG
             .onAppear {
                 if DebugLaunch.opensSignIn { signIn = .signIn }
@@ -81,6 +92,8 @@ private struct SignedInCard: View {
     let me: Me
     let signOut: () -> Void
     let delete: () -> Void
+    let premium: () -> Void
+    let manage: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s16) {
@@ -117,6 +130,13 @@ private struct SignedInCard: View {
                     }
                 }
             }
+            if !me.access.premium {
+                Button("See Premium", action: premium)
+                    .buttonStyle(.cd(.primary, fullWidth: true))
+            } else if me.access.viaAppStore == true {
+                Button("Manage subscription", action: manage)
+                    .buttonStyle(.cd(.secondary, fullWidth: true))
+            }
             Button("Sign out", action: signOut)
                 .buttonStyle(.cd(.secondary, fullWidth: true))
             Button("Delete account", action: delete)
@@ -129,6 +149,8 @@ private struct SignedInCard: View {
             return "Free trial, \(CDFormat.plural(days, "day")) left."
         }
         if me.access.viaCoachPlan { return "Included with your coach's plan." }
+        if me.access.viaAppStore == true { return "Subscribed through the App Store." }
+        if me.access.paid { return "Subscribed on chessdesk.app: manage it there." }
         if !me.access.premium { return "The first line of every course is free." }
         return nil
     }

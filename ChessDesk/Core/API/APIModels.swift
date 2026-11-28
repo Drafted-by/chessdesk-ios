@@ -31,6 +31,8 @@ nonisolated struct Me: Codable, Hashable, Sendable {
         let premium: Bool
         let paid: Bool
         let viaCoachPlan: Bool
+        /// Paying through the App Store. Nil from a server older than in-app purchase.
+        let viaAppStore: Bool?
         let trial: Trial
     }
 
@@ -272,6 +274,11 @@ nonisolated struct AppleSignInRequest: Codable, Sendable {
     /// Apple gives the name once, at the first authorisation.
     let firstName: String?
     let lastName: String?
+}
+
+nonisolated struct ApplePurchaseRequest: Codable, Sendable {
+    /// `jwsRepresentation` of a StoreKit transaction.
+    let signedTransaction: String
 }
 
 nonisolated struct DeleteAccountRequest: Codable, Sendable {

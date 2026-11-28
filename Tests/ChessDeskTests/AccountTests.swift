@@ -53,6 +53,11 @@ private final class AccountServer: ChessDeskAPI, @unchecked Sendable {
 
     func refresh(token: String) async throws -> AuthSession { session(token, verified: true) }
 
+    func recordApplePurchase(signedTransaction: String, token: String) async throws -> Me {
+        note("purchase \(token)")
+        return try await me(token: token)
+    }
+
     func me(token: String) async throws -> Me {
         note("me \(token)")
         if failMe { throw APIError.offline }
@@ -60,7 +65,7 @@ private final class AccountServer: ChessDeskAPI, @unchecked Sendable {
             user: session(token, verified: token != "signup-token").user,
             hasPassword: hasPassword,
             access: .init(
-                premium: false, paid: false, viaCoachPlan: false,
+                premium: false, paid: false, viaCoachPlan: false, viaAppStore: false,
                 trial: .init(status: "available", endsAt: nil, daysLeft: nil)
             ),
             freeLimits: .init(repertoireLines: 20, explorerGames: 100)

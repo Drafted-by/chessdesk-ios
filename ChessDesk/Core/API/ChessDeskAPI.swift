@@ -15,6 +15,9 @@ nonisolated protocol ChessDeskAPI: Sendable {
     /// Deletes the account for good. The password when it has one; an Apple
     /// authorisation code when there is one, so Apple is told too.
     func deleteAccount(currentPassword: String?, appleAuthorizationCode: String?, token: String) async throws
+    /// Presents a StoreKit transaction; the server verifies Apple's signature
+    /// and answers with the account's access.
+    func recordApplePurchase(signedTransaction: String, token: String) async throws -> Me
     func refresh(token: String) async throws -> AuthSession
     func me(token: String) async throws -> Me
 
@@ -87,6 +90,13 @@ nonisolated struct LiveAPI: ChessDeskAPI {
         let _: OkResponse = try await send(
             "DELETE", "me", token: token,
             body: DeleteAccountRequest(currentPassword: currentPassword, appleAuthorizationCode: appleAuthorizationCode)
+        )
+    }
+
+    func recordApplePurchase(signedTransaction: String, token: String) async throws -> Me {
+        try await send(
+            "POST", "purchases/apple", token: token,
+            body: ApplePurchaseRequest(signedTransaction: signedTransaction)
         )
     }
 

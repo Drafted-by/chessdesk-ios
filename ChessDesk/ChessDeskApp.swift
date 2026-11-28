@@ -4,6 +4,7 @@ import UIKit
 @main
 struct ChessDeskApp: App {
     @State private var app: AppModel
+    @State private var store: PremiumStore
     @State private var narration = NarrationPlayer()
 
     init() {
@@ -11,16 +12,24 @@ struct ChessDeskApp: App {
         let app = AppModel()
         app.judge = EngineJudge()
         _app = State(initialValue: app)
+        _store = State(initialValue: PremiumStore(app: app))
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(app)
+                .environment(store)
                 .environment(narration)
                 .preferredColorScheme(.dark)
                 .tint(CD.accent)
-                .task { await app.restoreSession() }
+                .task {
+                    store.start()
+                    await app.restoreSession()
+                }
+                // After the session is restored and after each sign-in: what the
+                // Apple Account holds is presented to the server.
+                .task(id: app.accountRevision) { await store.syncEntitlements() }
         }
     }
 }

@@ -41,8 +41,11 @@ with Stockfish 19 running on the device.
   and moves to their account when they sign in.
 - **Accounts.** Create a player account in the app, with Sign in with Apple or an email and
   a password, and delete it there too.
+- **Premium in the app.** An App Store subscription (StoreKit 2), yearly or monthly. The
+  ChessDesk server verifies each purchase with Apple and opens Premium on the account; the
+  app never unlocks anything on its own.
 
-Not built yet: buying Premium in the app, and reviewing your own games with the engine.
+Not built yet: reviewing your own games with the engine.
 
 ## How it is built
 
@@ -103,7 +106,7 @@ Debug launch arguments also open a screen directly:
 ```bash
 scripts/sim.sh iphone -CDRoute path
 scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
-scripts/sim.sh iphone -CDRoute premium
+scripts/sim.sh iphone -CDRoute premium -CDPremiumPreview YES
 scripts/sim.sh iphone -CDRoute account/signin
 scripts/sim.sh iphone -CDRoute account/signup
 scripts/sim.sh iphone -CDRoute account/delete
