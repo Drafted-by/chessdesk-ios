@@ -75,6 +75,8 @@ struct TodayView: View {
                     WelcomePlate(course: starter(content))
                 }
 
+                PuzzlesEntryRow() // Temporary way in; the pilot decides where puzzles hang.
+
                 VStack(alignment: .leading, spacing: CD.Space.s12) {
                     SectionHeader(
                         title: content.path == nil ? "Good places to start" : "Then, an opening of your own",

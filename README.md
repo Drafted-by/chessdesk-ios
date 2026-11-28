@@ -129,6 +129,9 @@ scripts/sim.sh iphone -CDRoute analysis -CDCanvas 1180x820    # the iPad layout,
 scripts/sim.sh iphone -CDRoute bestmove
 scripts/sim.sh iphone -CDRoute coordinates
 scripts/sim.sh iphone -CDRoute elo
+scripts/sim.sh iphone -CDRoute puzzles
+scripts/sim.sh iphone -CDRoute puzzles/free
+scripts/sim.sh iphone -CDRoute woodpecker
 ```
 
 ## Tests
