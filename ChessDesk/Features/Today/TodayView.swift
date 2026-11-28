@@ -203,40 +203,68 @@ private struct DueCard: View {
                     .accessibilityElement(children: .combine)
                 }
                 VStack(spacing: 0) {
-                    ForEach(Array(dueCourses.enumerated()), id: \.offset) { index, entry in
+                    ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
                         if index > 0 { CDHairline() }
-                        NavigationLink(value: CourseRoute.course(slug: entry.slug)) {
-                            HStack {
-                                Text(entry.deck.name)
-                                    .cdFont(.bodyStrong)
-                                    .foregroundStyle(CD.ink)
-                                    .lineLimit(1)
-                                Spacer()
-                                Text(CDFormat.plural(entry.deck.progress.dueLines, "line"))
-                                    .cdFont(.small)
-                                    .foregroundStyle(CD.accentStrong)
-                                    .cdNumber()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(CD.ink4)
-                            }
-                            .frame(minHeight: 48)
-                            .contentShape(Rectangle())
+                        switch row.target {
+                        case let .course(slug):
+                            NavigationLink(value: CourseRoute.course(slug: slug)) { label(row.deck) }
+                                .buttonStyle(CDPressStyle())
+                        case let .repertoire(request):
+                            // A repertoire's review opens at once, in the trainer.
+                            Button { review = request } label: { label(row.deck) }
+                                .buttonStyle(CDPressStyle())
                         }
-                        .buttonStyle(CDPressStyle())
                     }
                 }
             }
         }
+        .fullScreenCover(item: $review) { RepertoireTrainerScreen(request: $0) }
     }
 
-    /// Course decks with something due. Repertoires are not in the app yet,
-    /// so their decks are counted in the total but have no row to open.
-    private var dueCourses: [(slug: String, deck: DueSummary.Deck)] {
+    @State private var review: RepertoireTrainingRequest?
+
+    private func label(_ deck: DueSummary.Deck) -> some View {
+        HStack {
+            Text(deck.name)
+                .cdFont(.bodyStrong)
+                .foregroundStyle(CD.ink)
+                .lineLimit(1)
+            Spacer()
+            Text(CDFormat.plural(deck.progress.dueLines, "line"))
+                .cdFont(.small)
+                .foregroundStyle(CD.accentStrong)
+                .cdNumber()
+            Image(systemName: "chevron.right")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(CD.ink4)
+        }
+        .frame(minHeight: 48)
+        .contentShape(Rectangle())
+    }
+
+    private var rows: [DueRow] { DueRow.rows(due: due, courses: courses) }
+}
+
+/// A deck with something due, and what its row opens: the page of a course,
+/// or the review of one of the player's own repertoires.
+struct DueRow {
+    enum Target: Hashable {
+        case course(slug: String)
+        case repertoire(RepertoireTrainingRequest)
+    }
+
+    let deck: DueSummary.Deck
+    let target: Target
+
+    static func rows(due: DueSummary, courses: [CourseCard]) -> [DueRow] {
         due.decks.compactMap { deck in
-            guard deck.kind == "course", deck.progress.dueLines > 0, deck.deck.hasPrefix("course:") else { return nil }
+            guard deck.progress.dueLines > 0 else { return nil }
+            if let request = RepertoireTrainingRequest(deck: deck) {
+                return DueRow(deck: deck, target: .repertoire(request))
+            }
+            guard deck.kind == "course", deck.deck.hasPrefix("course:") else { return nil }
             let slug = String(deck.deck.dropFirst("course:".count))
-            return courses.contains { $0.slug == slug } ? (slug, deck) : nil
+            return courses.contains { $0.slug == slug } ? DueRow(deck: deck, target: .course(slug: slug)) : nil
         }
     }
 }
