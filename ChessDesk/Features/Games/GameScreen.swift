@@ -58,6 +58,9 @@ private struct GameDesk: View {
         _starred = State(initialValue: game.starred)
     }
 
+    /// The widest the board and what belongs to it get on an iPad.
+    private static let deskWidth: CGFloat = 760
+
     /// The board is seen from the player's side; their bar is under it.
     private var orientation: Side { game.userColor == "black" ? .black : .white }
     private var position: Position { Position(fen: line.fen(atPly: ply)) ?? .start }
@@ -138,14 +141,16 @@ private struct GameDesk: View {
                 .layoutPriority(1)
                 playerBar(orientation)
             }
-            .frame(maxWidth: 600)
+            .frame(maxWidth: Self.deskWidth)
             Spacer(minLength: CD.Space.s4)
             feedback
                 .pageGutter()
+                .frame(maxWidth: Self.deskWidth)
             controls
                 .pageGutter()
                 .padding(.top, CD.Space.s8)
                 .padding(.bottom, CD.Space.s8)
+                .frame(maxWidth: Self.deskWidth)
         }
         .frame(maxWidth: .infinity)
         .animation(CD.Motion.state, value: ply)
