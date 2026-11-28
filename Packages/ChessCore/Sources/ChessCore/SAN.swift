@@ -44,8 +44,12 @@ extension Position {
     /// glyphs are ignored; "0-0" is accepted for castling.
     public func move(san: String) -> Move? {
         let wanted = Self.bareSAN(san)
+        let castles = wanted.hasPrefix("O-O")
         return legalMoves().first { move in
-            guard let piece = self[move.from] else { return false }
+            // Only the moves to the square the SAN names need their SAN written.
+            guard castles ? isCastling(move) : wanted.contains(move.to.description),
+                  let piece = self[move.from]
+            else { return false }
             return sanBody(for: move, piece: piece) == wanted
         }
     }
