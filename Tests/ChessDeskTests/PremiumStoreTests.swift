@@ -76,8 +76,13 @@ private final class PurchaseServer: ChessDeskAPI, @unchecked Sendable {
 
 /// Runs against the local StoreKit configuration (`StoreKit/Premium.storekit`):
 /// the App Store of these tests is on the simulator, the server is the stub.
+///
+/// StoreKit testing needs a signed app. The GitHub runner builds unsigned
+/// (`CODE_SIGNING_ALLOWED=NO`) and its test store answers `notEntitled`, so
+/// the workflow sets `CD_SKIP_STOREKIT_TESTS`; everywhere else they run.
 @MainActor
-@Suite(.serialized) struct PremiumStoreTests {
+@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["CD_SKIP_STOREKIT_TESTS"] == nil))
+struct PremiumStoreTests {
     private func session() throws -> SKTestSession {
         let url = try #require(Bundle(for: StoreBundleToken.self).url(forResource: "Premium", withExtension: "storekit"))
         let session = try SKTestSession(contentsOf: url)
@@ -112,6 +117,7 @@ private final class PurchaseServer: ChessDeskAPI, @unchecked Sendable {
         await store.load()
         let list = try offers(store)
         #expect(list.map(\.id) == [PremiumStore.yearly, PremiumStore.monthly])
+        try #require(list.count == 2)
         #expect(list.map(\.name) == ["Yearly", "Monthly"])
         #expect(list[0].terms == "3 days free, then $49.00 a year")
         #expect(list[1].terms == "3 days free, then $6.99 a month")
@@ -165,12 +171,22 @@ private final class PurchaseServer: ChessDeskAPI, @unchecked Sendable {
         #expect(app.hasPremium)
     }
 
+}
+
+@Suite struct PremiumWordingTests {
     @Test func periodsReadAsAPersonSaysThem() {
         #expect(PremiumStore.each(1, .year) == "a year")
         #expect(PremiumStore.each(1, .month) == "a month")
         #expect(PremiumStore.each(3, .month) == "every 3 months")
         #expect(PremiumStore.length(3, .day) == "3 days")
         #expect(PremiumStore.length(1, .week) == "1 week")
+    }
+
+    @Test func termsNameTheTrialThenThePrice() {
+        let yearly = PremiumOffer(id: "y", name: "Yearly", price: "$49.00", period: "a year", trial: "3 days free")
+        #expect(yearly.terms == "3 days free, then $49.00 a year")
+        let monthly = PremiumOffer(id: "m", name: "Monthly", price: "$6.99", period: "a month", trial: nil)
+        #expect(monthly.terms == "$6.99 a month")
     }
 }
 

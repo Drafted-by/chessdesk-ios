@@ -52,6 +52,9 @@ jobs:
             -derivedDataPath "$RUNNER_TEMP/ChessDeskDerivedData" \
             -parallel-testing-enabled NO \
             CODE_SIGNING_ALLOWED=NO
+        env:
+          # The unsigned CI build has no StoreKit test store (see PremiumStoreTests).
+          TEST_RUNNER_CD_SKIP_STOREKIT_TESTS: "1"
 env:
   DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
 concurrency:
