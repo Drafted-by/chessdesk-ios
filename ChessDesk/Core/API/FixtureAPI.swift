@@ -95,7 +95,11 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
 
     func setEnrollment(slug: String, status: EnrollmentStatus, token: String) async throws { throw signInNeeded }
     func importLocalProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { throw signInNeeded }
-    func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws { throw signInNeeded }
+    func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws {
+        // The sample player of the repertoires (FixturePlayer) keeps its grades.
+        guard deck.hasPrefix("repertoire:") else { throw signInNeeded }
+        await FixturePlayer.current.record(deck: deck, grades: grades)
+    }
     func due(token: String) async throws -> DueSummary { throw signInNeeded }
 
     // MARK: The player's own games (an account is needed)
