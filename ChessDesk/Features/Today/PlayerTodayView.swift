@@ -672,8 +672,10 @@ private struct FirstReportCard: View {
                 }
                 if let blunder = report.blunder {
                     CDHairline()
-                    HStack(alignment: .top, spacing: CD.Space.s12) {
-                    MoveSeal(.blunder, size: 26)
+                    // The engraved emblem of the mistakes (the move played,
+                    // crossed, and the better one in brass), like the other cards.
+                    HStack(alignment: .center, spacing: CD.Space.s12) {
+                    Emblem(kind: .mistakes, size: 40, surface: CD.surface2)
                     VStack(alignment: .leading, spacing: CD.Space.s2) {
                         Text("Costliest move").cdFont(.meta).foregroundStyle(CD.ink3)
                         Text("\(blunder.moveLabel)\(blunder.moveLabel.hasSuffix("…") ? "" : " ")\(blunder.san)\(blunder.winLoss > 0 ? String(format: ", −%.0f%% win chance", blunder.winLoss) : "")")
