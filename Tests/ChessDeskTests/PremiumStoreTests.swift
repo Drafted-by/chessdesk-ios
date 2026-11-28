@@ -74,14 +74,73 @@ private final class PurchaseServer: ChessDeskAPI, @unchecked Sendable {
     func importLocalPathProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { grades.count }
 }
 
+/// Whether the local test store answers. StoreKit testing needs a signed app
+/// and a simulator whose store daemon talks to the test session; where it
+/// does not (an unsigned build on a CI runner, a simulator left waiting on a
+/// "Sign in to Apple Account" alert), asking for the products never comes
+/// back, and every test of the suite would wait for ever.
+///
+/// Asked once per run: the two subscriptions of `StoreKit/Premium.storekit`
+/// must load from a test session within a few seconds. `CD_SKIP_STOREKIT_TESTS`
+/// answers no without asking.
+nonisolated enum StoreKitTesting {
+    static let wait: Duration = .seconds(3)
+
+    static var isAvailable: Bool {
+        get async { await probe.value }
+    }
+
+    private static let probe = Task<Bool, Never>.detached {
+        guard ProcessInfo.processInfo.environment["CD_SKIP_STOREKIT_TESTS"] == nil else { return false }
+        return await answers(within: wait) {
+            guard let url = Bundle(for: StoreBundleToken.self).url(forResource: "Premium", withExtension: "storekit"),
+                  let session = try? SKTestSession(contentsOf: url)
+            else { return false }
+            session.disableDialogs = true
+            let found = try? await Product.products(for: PremiumStore.productIDs)
+            return Set(found?.map(\.id) ?? []) == Set(PremiumStore.productIDs)
+        }
+    }
+
+    /// What `question` answers, or false when it has not answered in time.
+    /// Not a task group: a group waits for a child that never returns, which
+    /// is exactly what a store that does not answer does.
+    static func answers(within wait: Duration, _ question: @escaping @Sendable () async -> Bool) async -> Bool {
+        await withCheckedContinuation { continuation in
+            let answer = Once(continuation)
+            Task.detached { answer.give(await question()) }
+            Task.detached {
+                try? await Task.sleep(for: wait)
+                answer.give(false)
+            }
+        }
+    }
+
+    /// The first answer wins; the other one is dropped.
+    private final class Once: @unchecked Sendable {
+        private let lock = NSLock()
+        private var continuation: CheckedContinuation<Bool, Never>?
+
+        init(_ continuation: CheckedContinuation<Bool, Never>) { self.continuation = continuation }
+
+        func give(_ value: Bool) {
+            let waiting = lock.withLock { () -> CheckedContinuation<Bool, Never>? in
+                defer { continuation = nil }
+                return continuation
+            }
+            waiting?.resume(returning: value)
+        }
+    }
+}
+
 /// Runs against the local StoreKit configuration (`StoreKit/Premium.storekit`):
 /// the App Store of these tests is on the simulator, the server is the stub.
 ///
-/// StoreKit testing needs a signed app. The GitHub runner builds unsigned
-/// (`CODE_SIGNING_ALLOWED=NO`) and its test store answers `notEntitled`, so
-/// the workflow sets `CD_SKIP_STOREKIT_TESTS`; everywhere else they run.
+/// The suite skips itself where the test store does not answer (see
+/// `StoreKitTesting`); the GitHub workflow sets `CD_SKIP_STOREKIT_TESTS`, since
+/// its runner builds unsigned. Everywhere else every test runs.
 @MainActor
-@Suite(.serialized, .enabled(if: ProcessInfo.processInfo.environment["CD_SKIP_STOREKIT_TESTS"] == nil))
+@Suite(.serialized, .enabled("StoreKit testing is not available here") { await StoreKitTesting.isAvailable })
 struct PremiumStoreTests {
     private func session() throws -> SKTestSession {
         let url = try #require(Bundle(for: StoreBundleToken.self).url(forResource: "Premium", withExtension: "storekit"))
@@ -169,8 +228,19 @@ struct PremiumStoreTests {
         await store.syncEntitlements()
         #expect(server.received.count == 1)
         #expect(app.hasPremium)
+        // The listener and a second reading come across the same transaction:
+        // the server has it already and is not asked again.
+        await store.syncEntitlements()
+        try await Task.sleep(for: .milliseconds(200))
+        #expect(server.received.count == 1)
+        // Another account on this device is presented what the Apple Account holds.
+        app.signOut()
+        await store.syncEntitlements()
+        #expect(!store.isListening)
+        try await app.signIn(email: "ben@example.com", password: "pw")
+        await store.syncEntitlements()
+        #expect(server.received.count == 2)
     }
-
 }
 
 /// A guest costs the App Store nothing: these never reach StoreKit, so they
@@ -195,6 +265,32 @@ struct PremiumStoreTests {
         #expect(!store.isListening)
         // The catalogue of offers is only asked when the Premium sheet opens.
         #expect(store.catalogue == .loading)
+    }
+}
+
+/// The probe that lets the StoreKit suite skip itself must itself never hang.
+@Suite struct StoreKitProbeTests {
+    @Test func aStoreThatNeverAnswersIsGivenUpOn() async {
+        let clock = ContinuousClock()
+        let started = clock.now
+        let answered = await StoreKitTesting.answers(within: .milliseconds(150)) {
+            // Like `Product.products` on a simulator waiting for an Apple Account.
+            try? await Task.sleep(for: .seconds(600))
+            return true
+        }
+        #expect(!answered)
+        #expect(clock.now - started < .seconds(5))
+    }
+
+    @Test func aStoreThatAnswersIsBelieved() async {
+        #expect(await StoreKitTesting.answers(within: .seconds(5)) { true })
+        #expect(await StoreKitTesting.answers(within: .seconds(5)) { false } == false)
+    }
+
+    @Test func theFlagOfTheWorkflowSkipsWithoutAsking() async {
+        if ProcessInfo.processInfo.environment["CD_SKIP_STOREKIT_TESTS"] != nil {
+            #expect(await StoreKitTesting.isAvailable == false)
+        }
     }
 }
 

@@ -59,7 +59,7 @@ The design system is the site's `apps/web/docs/design.md`. In short: warm graphi
 
 Swift Testing. Every feature comes with tests of its logic (models decode from the contract's examples, rules ported from the site give the site's results, the model of a screen goes through its states with a stub API). Stubs implement only what they exercise: `Tests/ChessDeskTests/ReviewTests.swift` holds default implementations for the rest; add yours next to them.
 
-`PremiumStoreTests` needs a signed app and is skipped on CI; it has failed once in parallel runs on a Mac and passed on rerun.
+`PremiumStoreTests` runs against the local StoreKit configuration. It skips itself where the test store does not answer within three seconds (an unsigned build, a simulator left on a "Sign in to Apple Account" alert) and when `TEST_RUNNER_CD_SKIP_STOREKIT_TESTS=1` is set, as on CI. If a simulator shows that alert, restart it (`xcrun simctl shutdown` then `boot`).
 
 ## Git
 

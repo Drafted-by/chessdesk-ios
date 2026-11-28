@@ -41,15 +41,21 @@ final class PremiumStore {
         case cancelled
     }
 
-    static let yearly = "app.chessdesk.ios.premium.yearly"
-    static let monthly = "app.chessdesk.ios.premium.monthly"
-    static let productIDs = [yearly, monthly]
+    nonisolated static let yearly = "app.chessdesk.ios.premium.yearly"
+    nonisolated static let monthly = "app.chessdesk.ios.premium.monthly"
+    nonisolated static let productIDs = [yearly, monthly]
 
     private(set) var catalogue: Catalogue = .loading
 
     private let app: AppModel
     private var products: [String: Product] = [:]
     private var updates: Task<Void, Never>?
+    /// Transactions on their way to the server, and those it has recorded
+    /// for the account signed in: each one is presented once. The listener
+    /// and the reading of the entitlements both come across an unfinished
+    /// transaction; without this the server was sent it twice.
+    private var deliveries: [UInt64: Task<Void, any Error>] = [:]
+    private var recorded: Set<UInt64> = []
 
     init(app: AppModel) {
         self.app = app
@@ -81,6 +87,8 @@ final class PremiumStore {
     func stop() {
         updates?.cancel()
         updates = nil
+        // What was recorded was recorded for that account.
+        recorded = []
     }
 
     func load() async {
@@ -167,8 +175,15 @@ final class PremiumStore {
     /// unfinished transaction comes back through `Transaction.updates`.
     private func deliver(_ result: VerificationResult<Transaction>) async throws {
         guard app.isSignedIn else { return }
-        guard Self.productIDs.contains(result.unsafePayloadValue.productID) else { return }
-        try await app.recordApplePurchase(result.jwsRepresentation)
+        let payload = result.unsafePayloadValue
+        guard Self.productIDs.contains(payload.productID), !recorded.contains(payload.id) else { return }
+        // Already on its way: wait for that answer instead of asking twice.
+        if let running = deliveries[payload.id] { return try await running.value }
+        let sending = Task { [app] in try await app.recordApplePurchase(result.jwsRepresentation) }
+        deliveries[payload.id] = sending
+        defer { deliveries[payload.id] = nil }
+        try await sending.value
+        recorded.insert(payload.id)
         if case let .verified(transaction) = result { await transaction.finish() }
     }
 
