@@ -1,0 +1,45 @@
+{
+  "_synthetic": "Written by hand from the contract (Settings). Labels and choices follow the site's lists; the player is invented.",
+  "profile": { "name": "Sam Rivera", "email": "player@example.com", "nameLocked": false },
+  "board": {
+    "theme": { "pieceSet": "cburnett", "boardTexture": "default", "lightSquare": "#f0d9b5", "darkSquare": "#b58863" },
+    "saved": true,
+    "sound": { "enabled": true, "volume": 0.35 },
+    "pieceSets": [
+      { "value": "cburnett", "label": "CBurnett", "preview": null },
+      { "value": "kaneo", "label": "Kaneo", "preview": null },
+      { "value": "kaneo-midnight", "label": "Kaneo Midnight", "preview": null },
+      { "value": "fantasy", "label": "Fantasy", "preview": null },
+      { "value": "spatial", "label": "Spatial", "preview": null },
+      { "value": "kiwen-suwi", "label": "Kiwen Suwi", "preview": null },
+      { "value": "chessnut", "label": "Chessnut", "preview": null }
+    ],
+    "textures": [
+      { "value": "default", "label": "Linen", "thumbnail": "/board/linen.jpg" },
+      { "value": "plain", "label": "Plain", "thumbnail": "" },
+      { "value": "canvas", "label": "Fabric", "thumbnail": "/board/canvas.jpg" },
+      { "value": "wood", "label": "Wood", "thumbnail": "/board/wood.jpg" }
+    ],
+    "colorSchemes": [
+      { "value": "brown", "label": "Brown", "lightSquare": "#f0d9b5", "darkSquare": "#b58863" },
+      { "value": "green", "label": "Green", "lightSquare": "#eeeed2", "darkSquare": "#769656" }
+    ]
+  },
+  "preferences": { "engineLines": 3, "engineDepth": 22, "newLinesPerDay": 5, "newLinesPerDayChoices": [3, 5, 10, 20], "autoReview": true },
+  "privacy": { "showRating": true },
+  "notifications": [
+    { "key": "mistakes_due", "label": "Mistakes to fix", "description": "When positions from your games are due again.", "inApp": true, "email": false, "push": false, "cadence": "daily" }
+  ],
+  "emailConsents": [
+    { "type": "marketing", "title": "Offers and promotions", "hint": "Discounts and special offers on ChessDesk plans.", "on": true },
+    { "type": "newsletter", "title": "News and tips", "hint": "New features, training tips and chess content.", "on": true }
+  ],
+  "reminder": { "channel": "off", "hour": null, "timezone": "Europe/Paris" },
+  "ratings": {
+    "primary": { "source": "LICHESS", "format": "blitz", "value": 1342, "label": "Lichess blitz" },
+    "available": [
+      { "source": "LICHESS", "format": "blitz", "value": 1342, "label": "Lichess blitz" },
+      { "source": "LICHESS", "format": "rapid", "value": 1415, "label": "Lichess rapid" }
+    ]
+  }
+}

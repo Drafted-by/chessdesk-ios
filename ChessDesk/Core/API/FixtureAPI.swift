@@ -5,10 +5,13 @@ import Foundation
 /// is served in production, and what previews and tests always use.
 ///
 /// It plays a guest: routes that need an account answer `unauthorized`, and a
-/// Premium line answers `premium_required`, as the server does.
+/// Premium line answers `premium_required`, as the server does. With a
+/// `player`, it plays that signed-in player instead (synthetic data).
 nonisolated struct FixtureAPI: ChessDeskAPI {
     /// Simulated latency, so loading states are visible while developing.
     var delay: Duration = .milliseconds(250)
+    /// The signed-in player it plays, or nil for a guest.
+    var player: FixturePlayer?
 
     private static let detailedSlugs = ["practical-caro-kann", "aggressive-1e4", "practical-london-system"]
 
@@ -62,7 +65,7 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
 
     func recordApplePurchase(signedTransaction: String, token: String) async throws -> Me { throw signInNeeded }
     func refresh(token: String) async throws -> AuthSession { throw signInNeeded }
-    func me(token: String) async throws -> Me { throw signInNeeded }
+    func me(token: String) async throws -> Me { try signedInPlayer().me() }
 
     func courses(token: String?) async throws -> [CourseCard] {
         let response: CoursesResponse = try await load("courses")
@@ -96,21 +99,32 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
     func setEnrollment(slug: String, status: EnrollmentStatus, token: String) async throws { throw signInNeeded }
     func importLocalProgress(slug: String, grades: [MoveGrade], token: String) async throws -> Int { throw signInNeeded }
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws { throw signInNeeded }
-    func due(token: String) async throws -> DueSummary { throw signInNeeded }
+    func due(token: String) async throws -> DueSummary {
+        _ = try signedInPlayer()
+        return DueSummary(totalDue: 0, decks: [], top: nil, learnNext: nil)
+    }
 
     // MARK: The player's own games (an account is needed)
 
-    func accounts(token: String) async throws -> [LinkedAccount] { throw signInNeeded }
-    func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount { throw signInNeeded }
-    func unlinkAccount(_ provider: GameProvider, token: String) async throws { throw signInNeeded }
-    func importGames(_ provider: GameProvider, mode: ImportMode, cursor: String?, token: String) async throws -> ImportChunk { throw signInNeeded }
-    func games(cursor: String?, token: String) async throws -> GamesPage { throw signInNeeded }
-    func game(id: String, token: String) async throws -> GameDetail { throw signInNeeded }
-    func setStar(game: String, starred: Bool, token: String) async throws { throw signInNeeded }
-    func saveReview(game: String, review: GameReview, token: String) async throws { throw signInNeeded }
-    func mistakes(token: String) async throws -> MistakeQueue { throw signInNeeded }
+    func accounts(token: String) async throws -> [LinkedAccount] { try signedInPlayer().accounts() }
+    func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount {
+        try await Task.sleep(for: delay)
+        return try signedInPlayer().link(provider, username: username)
+    }
+    func unlinkAccount(_ provider: GameProvider, token: String) async throws { try signedInPlayer().unlink(provider) }
+    func importGames(_ provider: GameProvider, mode: ImportMode, cursor: String?, token: String) async throws -> ImportChunk {
+        _ = try signedInPlayer()
+        try await Task.sleep(for: delay)
+        return ImportChunk(imported: 0, totalSoFar: 0, nextCursor: nil, done: true)
+    }
+    func games(cursor: String?, token: String) async throws -> GamesPage { try signedInPlayer().games() }
+    func game(id: String, token: String) async throws -> GameDetail { try signedInPlayer().game(id: id) }
+    func setStar(game: String, starred: Bool, token: String) async throws { _ = try signedInPlayer() }
+    func saveReview(game: String, review: GameReview, token: String) async throws { _ = try signedInPlayer() }
+    func mistakes(token: String) async throws -> MistakeQueue { try signedInPlayer().mistakes() }
     func recordMistakeAttempt(_ mistake: String, result: MistakeResult, token: String) async throws -> MistakeAttempt {
-        throw signInNeeded
+        _ = try signedInPlayer()
+        return MistakeAttempt(intervalDays: result == .solved ? 3 : 1)
     }
 
     // MARK: Learning paths

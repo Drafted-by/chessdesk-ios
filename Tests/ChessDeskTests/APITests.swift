@@ -103,16 +103,20 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         return try #require(object as? [String: Any])
     }
 
-    private static func example(_ schema: [String: Any], _ schemas: [String: Any]) -> Any {
+    /// `unknownEnums`: every enumerated string is one the contract does not
+    /// list, as a value added on the site after the app was built.
+    private static func example(_ schema: [String: Any], _ schemas: [String: Any], unknownEnums: Bool = false) -> Any {
         if let reference = schema["$ref"] as? String, let name = reference.split(separator: "/").last,
            let target = schemas[String(name)] as? [String: Any] {
-            return example(target, schemas)
+            return example(target, schemas, unknownEnums: unknownEnums)
         }
         if let options = schema["anyOf"] as? [[String: Any]] {
             let chosen = options.first { ($0["type"] as? String) != "null" } ?? options[0]
-            return example(chosen, schemas)
+            return example(chosen, schemas, unknownEnums: unknownEnums)
         }
-        if let values = schema["enum"] as? [Any], let first = values.first { return first }
+        if let values = schema["enum"] as? [Any], let first = values.first {
+            return unknownEnums && first is String ? "added-on-the-site-later" : first
+        }
         if let constant = schema["const"] { return constant }
         let type = (schema["type"] as? String) ?? (schema["type"] as? [String])?.first { $0 != "null" } ?? "object"
         switch type {
@@ -122,22 +126,22 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         case "boolean": return true
         case "array":
             let items = schema["items"] as? [String: Any] ?? [:]
-            return [example(items, schemas)]
+            return [example(items, schemas, unknownEnums: unknownEnums)]
         default:
             let properties = schema["properties"] as? [String: [String: Any]] ?? [:]
             let required = schema["required"] as? [String] ?? []
             var object: [String: Any] = [:]
-            for name in required { object[name] = properties[name].map { example($0, schemas) } }
+            for name in required { object[name] = properties[name].map { example($0, schemas, unknownEnums: unknownEnums) } }
             return object
         }
     }
 
-    private func decodeExample<Value: Decodable>(_ name: String, as type: Value.Type) throws {
+    private func decodeExample<Value: Decodable>(_ name: String, as type: Value.Type, unknownEnums: Bool = false) throws {
         let contract = try Self.contract()
         let components = try #require(contract["components"] as? [String: Any])
         let schemas = try #require(components["schemas"] as? [String: Any])
         let schema = try #require(schemas[name] as? [String: Any], "schema \(name) is in the contract")
-        var example = Self.example(schema, schemas)
+        var example = Self.example(schema, schemas, unknownEnums: unknownEnums)
         // Dates are plain strings in the contract; give the known ones a date.
         if var object = example as? [String: Any], object["expiresAt"] != nil {
             object["expiresAt"] = "2027-01-25T16:29:15.210Z"
@@ -147,7 +151,7 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         do {
             _ = try APICoding.decoder.decode(Value.self, from: data)
         } catch {
-            Issue.record("\(name) no longer decodes from its contract example: \(error)")
+            Issue.record("\(name) no longer decodes from its contract example\(unknownEnums ? " with unknown values" : ""): \(error)")
         }
     }
 
@@ -273,6 +277,62 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
             "/api/v1/play/bots", "/api/v1/play/games",
         ]
         for path in used { #expect(paths[path] != nil, "\(path) is in the contract") }
+    }
+
+    /// The home, Daily 5 and settings models decode the contract's examples,
+    /// and still decode when every enumerated value is one added later.
+    @Test func homeAndSettingsModelsDecodeContractExamples() throws {
+        for unknown in [false, true] {
+            try decodeExample("Home", as: PlayerHome.self, unknownEnums: unknown)
+            try decodeExample("ProgressPage", as: ProgressPage.self, unknownEnums: unknown)
+            try decodeExample("Daily", as: DailyPlan.self, unknownEnums: unknown)
+            try decodeExample("DailySession", as: DailySessionStart.self, unknownEnums: unknown)
+            try decodeExample("DailyCompletion", as: DailyCompletion.self, unknownEnums: unknown)
+            try decodeExample("Reminder", as: DailyReminder.self, unknownEnums: unknown)
+            try decodeExample("RatingGoal", as: RatingGoal.self, unknownEnums: unknown)
+            try decodeExample("Settings", as: AccountSettings.self, unknownEnums: unknown)
+            try decodeExample("Ratings", as: AccountRatings.self, unknownEnums: unknown)
+            try decodeExample("Ok", as: OkResponse.self, unknownEnums: unknown)
+        }
+        // Its positions are `Mistake`s, whose classification is read strictly
+        // (an existing model of the mistakes trainer).
+        try decodeExample("PatternDrill", as: PatternDrill.self)
+    }
+
+    @Test func contractServesEveryHomeRouteTheAppCalls() throws {
+        let contract = try Self.contract()
+        let paths = try #require(contract["paths"] as? [String: [String: Any]])
+        let used: [(String, String)] = [
+            ("get", "/api/v1/home"), ("get", "/api/v1/progress"), ("get", "/api/v1/progress/patterns/{key}"),
+            ("get", "/api/v1/daily"), ("post", "/api/v1/daily/session"), ("post", "/api/v1/daily/completion"),
+            ("put", "/api/v1/habit/reminder"), ("post", "/api/v1/habit/reminder/dismiss"), ("put", "/api/v1/habit/goal"),
+            ("post", "/api/v1/onboarding/complete"), ("post", "/api/v1/onboarding/first-report/dismiss"),
+            ("get", "/api/v1/settings"), ("patch", "/api/v1/settings"), ("put", "/api/v1/settings/primary-rating"),
+        ]
+        for (method, path) in used { #expect(paths[path]?[method] != nil, "\(method.uppercased()) \(path) is in the contract") }
+    }
+
+    /// The home and settings request bodies hold every field the contract requires.
+    @Test func homeRequestsCarryWhatTheContractRequires() throws {
+        let contract = try Self.contract()
+        let components = try #require(contract["components"] as? [String: Any])
+        let schemas = try #require(components["schemas"] as? [String: Any])
+        func keys(_ body: some Encodable) throws -> Set<String> {
+            let object = try JSONSerialization.jsonObject(with: APICoding.encoder.encode(body))
+            return Set(try #require(object as? [String: Any]).keys)
+        }
+        func required(_ name: String) throws -> Set<String> {
+            let schema = try #require(schemas[name] as? [String: Any], "schema \(name) is in the contract")
+            return Set(schema["required"] as? [String] ?? [])
+        }
+        #expect(try required("DailySessionRequest").isSubset(of: keys(DailySessionRequest(tz: "UTC", source: .mistakes, total: 5))))
+        #expect(try required("DailyCompletionRequest").isSubset(
+            of: keys(DailyCompletionRequest(tz: "UTC", source: .puzzles, total: 5, solved: 3))
+        ))
+        #expect(try required("ReminderRequest").isSubset(of: keys(ReminderRequest(channel: .off, hour: nil, tz: nil))))
+        #expect(try required("RatingGoalRequest").isSubset(of: keys(RatingGoalRequest(rating: nil, timeClass: nil))))
+        #expect(try required("PrimaryRatingRequest").isSubset(of: keys(PrimaryRatingRequest(source: "LICHESS", format: "blitz"))))
+        #expect(try required("UpdateSettingsRequest").isEmpty)
     }
 
     /// The request bodies the app sends hold every field the contract requires.

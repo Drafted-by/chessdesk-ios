@@ -1,0 +1,35 @@
+{
+  "_synthetic": "Written by hand from the contract (ProgressPage). Invented figures. See FixturePlayer.swift.",
+  "day": "2026-11-28",
+  "streak": { "current": 4, "longest": 9, "freezes": 1, "doneToday": false, "coveredByFreeze": 0, "nextFreezeIn": 3 },
+  "line": "Day 4 · next freeze day in 3 days",
+  "calendar": [0,0,0,0,0,0,0, 0,0,0,0,0,0,0, 0,0,1,0,0,0,0, 1,1,0,0,1,0,0, 1,1,1,0,0,0,1, 1,0,0,1,1,1,1, 1,1,1,0,1,1,0, 0,1,1,1,1,1,1, 1,1,1,1,0,0,1, 1,1,0,1,1,1,1, 1,1,1,1,1,0,1, 1,0,1,1,1,1,0],
+  "progress": {
+    "mastered": {
+      "current": 6, "total": 23, "inProgress": 11, "delta30": 4,
+      "series": [
+        { "day": "2026-09-05", "mastered": 0 }, { "day": "2026-09-12", "mastered": 0 }, { "day": "2026-09-19", "mastered": 1 },
+        { "day": "2026-09-26", "mastered": 1 }, { "day": "2026-10-03", "mastered": 1 }, { "day": "2026-10-10", "mastered": 2 },
+        { "day": "2026-10-17", "mastered": 2 }, { "day": "2026-10-24", "mastered": 2 }, { "day": "2026-10-31", "mastered": 3 },
+        { "day": "2026-11-07", "mastered": 4 }, { "day": "2026-11-14", "mastered": 5 }, { "day": "2026-11-21", "mastered": 6 }
+      ]
+    },
+    "patterns": [
+      { "key": "hanging", "kind": "hanging", "title": "Pieces left hanging", "detail": "In 6 of your last 40 games a piece was left where it could be taken for free.", "count": 6, "positions": 2, "action": "drill", "gameId": null, "cta": "Drill them" },
+      { "key": "time", "kind": "time", "title": "Time trouble", "detail": "4 losses on time or after a move played with under 10 seconds left.", "count": 4, "positions": 0, "action": "review", "gameId": "g-1", "cta": "Review a game" },
+      { "key": "opening:caro-kann", "kind": "opening", "title": "Caro-Kann Defence as Black", "detail": "2 wins in 9 games: most of your losses with Black start here.", "count": 9, "positions": 0, "action": "games", "gameId": null, "cta": "See the games" }
+    ],
+    "goal": {
+      "timeClass": "blitz", "set": true, "suggested": 1500,
+      "summary": { "current": 1342, "goal": 1500, "distance": 158, "delta30": 38, "paceLine": "About 4 months at the last 30 days' pace", "reached": false },
+      "samples": [
+        { "at": "2026-06-02T18:00:00.000Z", "rating": 1268 }, { "at": "2026-06-20T18:00:00.000Z", "rating": 1281 },
+        { "at": "2026-07-08T18:00:00.000Z", "rating": 1259 }, { "at": "2026-07-29T18:00:00.000Z", "rating": 1290 },
+        { "at": "2026-08-15T18:00:00.000Z", "rating": 1302 }, { "at": "2026-09-03T18:00:00.000Z", "rating": 1288 },
+        { "at": "2026-09-22T18:00:00.000Z", "rating": 1297 }, { "at": "2026-10-10T18:00:00.000Z", "rating": 1311 },
+        { "at": "2026-10-29T18:00:00.000Z", "rating": 1304 }, { "at": "2026-11-12T18:00:00.000Z", "rating": 1326 },
+        { "at": "2026-11-26T18:00:00.000Z", "rating": 1342 }
+      ]
+    }
+  }
+}
