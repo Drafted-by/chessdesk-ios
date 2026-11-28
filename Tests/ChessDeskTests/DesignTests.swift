@@ -79,3 +79,33 @@ struct TrainHubTests {
         #expect(TrainRow.mistakes.figure(state) == .init(value: "Nothing due"))
     }
 }
+
+/// The username given on first launch waits for the account, once.
+struct PendingGameAccountTests {
+    @Test func itIsKeptThenForgotten() throws {
+        let defaults = try #require(UserDefaults(suiteName: "PendingGameAccountTests"))
+        defaults.removePersistentDomain(forName: "PendingGameAccountTests")
+        #expect(PendingGameAccount.load(from: defaults) == nil)
+
+        PendingGameAccount(provider: .lichess, username: "sam_rivera").save(to: defaults)
+        #expect(PendingGameAccount.load(from: defaults) == PendingGameAccount(provider: .lichess, username: "sam_rivera"))
+
+        PendingGameAccount.clear(in: defaults)
+        #expect(PendingGameAccount.load(from: defaults) == nil)
+    }
+}
+
+/// Learn puts forward the courses the player follows; a guest follows none.
+struct LearnLeadTests {
+    @Test func aGuestFollowsNoCourse() async throws {
+        let courses = try await FixtureAPI().courses(token: nil)
+        #expect(LearnView.followed(courses).isEmpty)
+    }
+
+    @Test func theSamplePlayerFollowsTheirCourseWithItsMovesDue() async throws {
+        let courses = FixturePlayer().courses(try await FixtureAPI().courses(token: nil))
+        let mine = LearnView.followed(courses)
+        #expect(mine.map(\.slug) == [FixturePlayer.courseSlug])
+        #expect(LearnView.dueLine(mine) == "4 moves to review today.")
+    }
+}

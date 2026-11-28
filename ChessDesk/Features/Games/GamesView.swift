@@ -372,9 +372,18 @@ struct LinkAccountField: View {
     let provider: GameProvider
     let model: GamesModel
 
-    @State private var username = ""
+    @State private var username: String
     @State private var error: String?
     @State private var isWorking = false
+
+    /// `prefill`: a username already given elsewhere that could not be
+    /// linked, back in its field with what went wrong.
+    init(provider: GameProvider, model: GamesModel, prefill: String? = nil, prefillError: String? = nil) {
+        self.provider = provider
+        self.model = model
+        _username = State(initialValue: prefill ?? "")
+        _error = State(initialValue: prefillError)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s6) {

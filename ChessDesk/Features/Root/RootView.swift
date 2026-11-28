@@ -14,6 +14,8 @@ struct RootView: View {
     @State private var navigator: AppNavigator
     @State private var home: HomeNavigator
     @State private var accountSettings = AccountSettingsModel()
+    @AppStorage(FirstLaunchView.seenKey) private var firstLaunchSeen = false
+    @State private var showsFirstLaunch = false
     #if DEBUG
         @State private var debugBoardSettings = false
     #endif
@@ -65,6 +67,22 @@ struct RootView: View {
         .environment(navigator)
         .environment(home)
         .homeCovers(home)
+        .fullScreenCover(isPresented: $showsFirstLaunch) {
+            FirstLaunchView {
+                firstLaunchSeen = true
+                showsFirstLaunch = false
+            }
+        }
+        // Once, to someone who has never opened the app and has no session.
+        .task {
+            #if DEBUG
+                if let route = DebugLaunch.route {
+                    showsFirstLaunch = route.first == "firstlaunch"
+                    return
+                }
+            #endif
+            if !firstLaunchSeen, app.token == nil { showsFirstLaunch = true } else { firstLaunchSeen = true }
+        }
         // The account's settings, its board included, follow who is signed in.
         .environment(accountSettings)
         .task(id: app.accountRevision) { await accountSettings.attach(api: app.api, token: app.isSignedIn ? app.token : nil) }
@@ -79,6 +97,7 @@ struct RootView: View {
         /// simulator. A route names a section, or a screen and what it shows:
         ///
         /// - `today`, `learn` (or `courses`), `play`, `train`, `games`: a section.
+        /// - `firstlaunch`: the first-launch screen, which no other route shows.
         /// - `you` (or `account`), `account/signin`, `account/signup`,
         ///   `account/delete`, `boardsettings`; `progress`, `daily`,
         ///   `drill/<key>`, `game/<id>` and `deck/<deck>` (the review of a

@@ -412,6 +412,8 @@ private struct WelcomeQuestion: View {
     @Environment(HomeNavigator.self) private var navigator
     @State private var games: GamesModel?
     @State private var isFinishing = false
+    @State private var refused: PendingGameAccount?
+    @State private var refusedMessage: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s16) {
@@ -431,7 +433,12 @@ private struct WelcomeQuestion: View {
             OrnamentRule()
             if let games {
                 ForEach(GameProvider.allCases) { provider in
-                    LinkAccountField(provider: provider, model: games)
+                    LinkAccountField(
+                        provider: provider, model: games,
+                        prefill: refused?.provider == provider ? refused?.username : nil,
+                        prefillError: refused?.provider == provider ? refusedMessage : nil
+                    )
+                    .id(refused?.provider == provider ? "refused" : provider.rawValue)
                 }
                 if let importing = games.importing {
                     HStack(spacing: CD.Space.s12) {
@@ -462,7 +469,20 @@ private struct WelcomeQuestion: View {
         .plate()
         .task {
             guard games == nil else { return }
-            games = GamesModel(app: app)
+            let model = GamesModel(app: app)
+            games = model
+            // The username given on first launch, before the account existed:
+            // linked now, once. Refused (a typo), it comes back in its field.
+            guard let pending = PendingGameAccount.load() else { return }
+            PendingGameAccount.clear()
+            do {
+                try await model.link(pending.provider, username: pending.username)
+            } catch {
+                refusedMessage = (error as? APIError)?.code == "not_found"
+                    ? "No \(pending.provider.name) player has this username."
+                    : (error as? APIError)?.message ?? APIError.unreadable.message
+                refused = pending
+            }
         }
         // A linked account answers the question; its games keep coming in.
         .onChange(of: games?.accounts.count ?? 0) { _, count in

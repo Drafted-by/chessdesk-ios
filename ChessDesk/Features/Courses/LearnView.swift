@@ -41,13 +41,31 @@ struct LearnView: View {
         .cdPage()
     }
 
+    /// The courses the player follows, the ones with moves due first, then
+    /// the most advanced (the site's "Your courses").
+    static func followed(_ courses: [CourseCard]) -> [CourseCard] {
+        courses
+            .filter { $0.enrollment == .active }
+            .sorted { first, second in
+                let due = (first.progress?.dueMoves ?? 0, second.progress?.dueMoves ?? 0)
+                if (due.0 > 0) != (due.1 > 0) { return due.0 > 0 }
+                return (first.progress?.learned ?? 0) > (second.progress?.learned ?? 0)
+            }
+    }
+
+    static func dueLine(_ courses: [CourseCard]) -> String {
+        let due = courses.reduce(0) { $0 + ($1.progress?.dueMoves ?? 0) }
+        return due > 0 ? "\(CDFormat.plural(due, "move")) to review today." : "Nothing to review today. Learn a new line."
+    }
+
     private func repertoires() async -> RepertoireList? {
         guard let token = app.playerToken else { return nil }
         return try? await app.api.repertoires(token: token)
     }
 
     private func catalogue(_ content: Content) -> some View {
-        let courses = content.courses
+        let mine = Self.followed(content.courses)
+        let courses = content.courses.filter { course in !mine.contains { $0.slug == course.slug } }
         let path = content.path
         let shown = courses.filter { course in
             switch filter {
@@ -63,14 +81,34 @@ struct LearnView: View {
                     .foregroundStyle(CD.ink)
                     .accessibilityAddTraits(.isHeader)
 
-                MyRepertoiresRow(list: content.repertoires, isSignedIn: app.isSignedIn)
-
-                if let path {
-                    PathBanner(path: path)
+                // One thing leads: the courses the player follows, or, for
+                // someone who follows none, the flagship course (the site's
+                // course spotlight: with emphasis for a newcomer, quiet where
+                // another course leads).
+                if !mine.isEmpty {
+                    VStack(alignment: .leading, spacing: CD.Space.s12) {
+                        SectionHeader(title: "Your courses", detail: Self.dueLine(mine))
+                        LazyVGrid(
+                            columns: [GridItem(.adaptive(minimum: 330), spacing: CD.Space.s12, alignment: .top)],
+                            spacing: CD.Space.s12
+                        ) {
+                            ForEach(mine) { course in
+                                NavigationLink(value: CourseRoute.course(slug: course.slug)) {
+                                    CourseCardView(course: course)
+                                }
+                                .buttonStyle(CDPressStyle())
+                            }
+                        }
+                    }
+                    if let path, !path.isFinished { PathBanner(path: path) }
+                } else if let path, !path.isFinished {
+                    FeaturedPathPlate(path: path, guest: app.isSignedIn ? nil : app.guestProgress, showsBoard: false)
                 }
 
+                MyRepertoiresRow(list: content.repertoires, isSignedIn: app.isSignedIn)
+
                 SectionHeader(
-                    title: "Opening courses",
+                    title: mine.isEmpty ? "Opening courses" : "More opening courses",
                     detail: "Complete repertoires, taught move by move. The first line of every course is free."
                 )
                 .padding(.top, CD.Space.s8)
@@ -212,10 +250,17 @@ struct CourseCardView: View {
                     if let progress = course.progress, course.enrollment == .active, progress.learned > 0 {
                         VStack(alignment: .leading, spacing: CD.Space.s4) {
                             CDMeter(value: Double(progress.learned) / Double(max(1, course.totals.lines)))
-                            Text("\(CDFormat.count(progress.learned)) of \(CDFormat.plural(course.totals.lines, "line")) learned")
-                                .cdFont(.meta)
-                                .foregroundStyle(CD.ink3)
-                                .cdNumber()
+                            HStack(spacing: CD.Space.s6) {
+                                Text("\(CDFormat.count(progress.learned)) of \(CDFormat.plural(course.totals.lines, "line")) learned")
+                                    .foregroundStyle(CD.ink3)
+                                if progress.dueMoves > 0 {
+                                    Text("· \(CDFormat.count(progress.dueMoves)) due")
+                                        .foregroundStyle(CD.accentStrong)
+                                }
+                            }
+                            .cdFont(.meta)
+                            .cdNumber()
+                            .lineLimit(1)
                         }
                     } else {
                         Text("\(CDFormat.plural(course.totals.lines, "line")) · \(CDFormat.plural(course.totals.moves, "move"))")
@@ -237,6 +282,10 @@ struct CourseCardView: View {
             "\(course.title). \(course.color == .white ? "White" : "Black"), \(course.level). \(course.totals.lines) lines."
         )
     }
+}
+
+extension PathCard {
+    var isFinished: Bool { totals.exercises > 0 && learned >= totals.exercises }
 }
 
 extension CourseCard {

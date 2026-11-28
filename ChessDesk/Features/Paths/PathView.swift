@@ -359,6 +359,9 @@ private struct StageRow: View {
 struct FeaturedPathPlate: View {
     let path: PathCard
     let guest: GuestProgress?
+    /// Above a catalogue the plate goes without its board on a phone, so
+    /// what follows is still in sight.
+    var showsBoard = true
 
     @Environment(\.horizontalSizeClass) private var sizeClass
 
@@ -410,8 +413,10 @@ struct FeaturedPathPlate: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                StaticBoardView(fen: path.previewFen, orientation: path.color.side, cornerRadius: CD.Radius.md)
-                    .frame(maxWidth: sizeClass == .regular ? 260 : .infinity)
+                if showsBoard || sizeClass == .regular {
+                    StaticBoardView(fen: path.previewFen, orientation: path.color.side, cornerRadius: CD.Radius.md)
+                        .frame(maxWidth: sizeClass == .regular ? 260 : .infinity)
+                }
             }
         }
         .plate()
