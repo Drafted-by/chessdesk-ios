@@ -397,6 +397,7 @@ nonisolated enum TimeClass: String, CaseIterable, Identifiable, Sendable {
 
     /// "Blitz" for "blitz"; an unknown class keeps its own name.
     static func label(_ raw: String) -> String {
-        TimeClass(rawValue: raw)?.label ?? raw
+        // The server spells it "BLITZ"; an unknown class is at least set in sentence case.
+        TimeClass(rawValue: raw.lowercased())?.label ?? (raw.prefix(1).uppercased() + raw.dropFirst().lowercased())
     }
 }

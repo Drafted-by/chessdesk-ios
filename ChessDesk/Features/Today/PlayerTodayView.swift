@@ -262,89 +262,212 @@ private struct FormSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s12) {
             SectionHeader(title: "Your form")
-            CDCard(padding: CD.Space.s20) {
-                VStack(alignment: .leading, spacing: CD.Space.s16) {
-                    if let rating = home.pulse.rating { ratingBlock(rating) }
-                    Grid(alignment: .leading, horizontalSpacing: CD.Space.s16, verticalSpacing: CD.Space.s16) {
-                        GridRow {
-                            figure("This week", weekText, detail: CDFormat.plural(home.stats.gamesThisWeek, "game"))
-                            figure("Accuracy", home.stats.accuracy.map { String(format: "%.1f%%", $0) } ?? "–",
-                                   detail: "\(CDFormat.plural(home.stats.reviewedGames, "game")) reviewed")
-                        }
-                        GridRow {
-                            figure("Daily 5 streak", CDFormat.plural(home.daily.streak.current, "day"),
-                                   detail: home.daily.streak.doneToday ? "Done today" : "Open today")
-                            figure("Errors per game", home.stats.errorsPerGame.map { String(format: "%.1f", $0) } ?? "–",
-                                   detail: "Mistakes and blunders")
-                        }
-                    }
-                    if let best = home.pulse.bestWin {
-                        CDHairline()
-                        HomeRouteLink(route: .game(id: best.gameId)) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: CD.Space.s2) {
-                                    Text("Best win").cdFont(.meta).foregroundStyle(CD.ink3)
-                                    Text("\(best.opponent) · \(CDFormat.count(best.elo))")
-                                        .cdFont(.bodyStrong)
+            VStack(alignment: .leading, spacing: 0) {
+                if let rating = home.pulse.rating {
+                    ratingBlock(rating)
+                        .padding(CD.Space.s20)
+                    CDHairline()
+                }
+                // Four figures in two rows, ruled like a score sheet.
+                HStack(alignment: .top, spacing: 0) {
+                    week
+                    rule
+                    accuracy
+                }
+                CDHairline()
+                HStack(alignment: .top, spacing: 0) {
+                    figure(
+                        "Daily 5 streak", CDFormat.plural(home.daily.streak.current, "day"),
+                        detail: home.daily.streak.doneToday ? "Done today" : "Open today",
+                        detailTone: home.daily.streak.doneToday ? CD.ink4 : CD.accentStrong
+                    )
+                    rule
+                    figure(
+                        "Errors per game", home.stats.errorsPerGame.map { String(format: "%.1f", $0) } ?? "–",
+                        detail: "Mistakes and blunders"
+                    )
+                }
+                if let best = home.pulse.bestWin {
+                    CDHairline()
+                    HomeRouteLink(route: .game(id: best.gameId)) {
+                        HStack(spacing: CD.Space.s12) {
+                            Emblem(kind: .games, size: 36)
+                            VStack(alignment: .leading, spacing: CD.Space.s2) {
+                                Text("Best win").cdFont(.meta).foregroundStyle(CD.ink3)
+                                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s6) {
+                                    Text(best.opponent)
+                                        .cdFont(.serifCard)
                                         .foregroundStyle(CD.ink)
+                                        .lineLimit(1)
+                                    Text(CDFormat.count(best.elo))
+                                        .cdFont(.small)
+                                        .foregroundStyle(CD.ink3)
                                         .cdNumber()
                                 }
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(CD.ink4)
                             }
-                            .frame(minHeight: 44)
-                            .contentShape(Rectangle())
+                            Spacer(minLength: CD.Space.s8)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(CD.ink4)
                         }
+                        .padding(.horizontal, CD.Space.s20)
+                        .frame(minHeight: 64)
+                        .contentShape(Rectangle())
                     }
                 }
             }
+            .cardSurface()
+            .hairline()
         }
     }
 
-    private var weekText: String {
-        let week = home.pulse.week
-        return "\(week.wins)W \(week.draws)D \(week.losses)L"
+    private var rule: some View {
+        Rectangle().fill(CD.line).frame(width: 1)
     }
 
+    // MARK: Rating
+
+    /// The label, the big number and its delta, then the line with its
+    /// scale: the highest and lowest rating of the period on the right, the
+    /// last game marked.
     private func ratingBlock(_ rating: PlayerHome.Pulse.Rating) -> some View {
-        VStack(alignment: .leading, spacing: CD.Space.s8) {
-            Text("\(TimeClass.label(rating.timeClass)) rating")
-                .cdFont(.meta)
-                .foregroundStyle(CD.ink3)
-            HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                Text(CDFormat.count(rating.current))
-                    .cdFont(.metric)
-                    .foregroundStyle(CD.ink)
-                    .cdNumber()
-                if let delta = rating.delta, delta != 0 {
-                    DeltaText(value: delta, suffix: "in 30 days")
+        let low = rating.series.min() ?? rating.current
+        let high = rating.series.max() ?? rating.current
+        let span = max(40, high - low)
+        let floor = low - span / 5
+        return VStack(alignment: .leading, spacing: CD.Space.s12) {
+            HStack(alignment: .top, spacing: CD.Space.s12) {
+                VStack(alignment: .leading, spacing: CD.Space.s2) {
+                    Text("\(TimeClass.label(rating.timeClass)) rating")
+                        .cdFont(.small)
+                        .foregroundStyle(CD.ink3)
+                    HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
+                        Text(CDFormat.count(rating.current))
+                            .cdFont(.metric)
+                            .foregroundStyle(CD.ink)
+                            .cdNumber()
+                        if let delta = rating.delta, delta != 0 {
+                            DeltaText(value: delta, suffix: "in 30 days")
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
                 }
+                Spacer(minLength: CD.Space.s8)
+                Emblem(kind: .insights, size: 44)
             }
-            .accessibilityElement(children: .combine)
             if rating.series.count > 1 {
-                Chart(Array(rating.series.enumerated()), id: \.offset) { index, value in
-                    LineMark(x: .value("Game", index), y: .value("Rating", value))
-                        .foregroundStyle(CD.accent)
-                        .interpolationMethod(.monotone)
+                Chart {
+                    ForEach(Array(rating.series.enumerated()), id: \.offset) { index, value in
+                        AreaMark(x: .value("Game", index), yStart: .value("Floor", floor), yEnd: .value("Rating", value))
+                            .foregroundStyle(
+                                LinearGradient(colors: [CD.accent.opacity(0.22), CD.accent.opacity(0)], startPoint: .top, endPoint: .bottom)
+                            )
+                            .interpolationMethod(.monotone)
+                        LineMark(x: .value("Game", index), y: .value("Rating", value))
+                            .foregroundStyle(CD.accent)
+                            .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                            .interpolationMethod(.monotone)
+                    }
+                    PointMark(x: .value("Game", rating.series.count - 1), y: .value("Rating", rating.series[rating.series.count - 1]))
+                        .foregroundStyle(CD.accentStrong)
+                        .symbolSize(48)
                 }
                 .chartXAxis(.hidden)
-                .chartYAxis(.hidden)
-                .chartYScale(domain: (rating.series.min() ?? 0) - 10...(rating.series.max() ?? 0) + 10)
-                .frame(height: 56)
-                .accessibilityLabel("Rating over the last \(rating.series.count) games")
+                .chartYAxis {
+                    AxisMarks(position: .trailing, values: [low, high]) { mark in
+                        AxisGridLine(stroke: StrokeStyle(lineWidth: 1, dash: [2, 3])).foregroundStyle(CD.lineStrong)
+                        AxisValueLabel {
+                            // "1,342", as ratings are written everywhere else.
+                            if let value = mark.as(Int.self) {
+                                Text(CDFormat.count(value))
+                                    .font(CDFont.meta.font)
+                                    .foregroundStyle(CD.ink4)
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+                }
+                .chartYScale(domain: floor...(high + span / 5))
+                .frame(height: 96)
+                .accessibilityLabel("Rating over the last \(rating.series.count) games, from \(low) to \(high)")
+                Text("Last \(CDFormat.plural(rating.series.count, "game"))")
+                    .cdFont(.meta)
+                    .foregroundStyle(CD.ink4)
+                    .cdNumber()
             }
         }
     }
 
-    private func figure(_ label: String, _ value: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: CD.Space.s2) {
-            Text(label).cdFont(.meta).foregroundStyle(CD.ink3)
-            Text(value).cdFont(.cardTitle).foregroundStyle(CD.ink).cdNumber()
-            Text(detail).cdFont(.meta).foregroundStyle(CD.ink4).cdNumber()
+    // MARK: Figures
+
+    /// The week as a bar of results (won, drawn, lost), with its counts.
+    private var week: some View {
+        let week = home.pulse.week
+        let total = week.wins + week.draws + week.losses
+        return cell("This week") {
+            Text(CDFormat.plural(home.stats.gamesThisWeek, "game"))
+                .cdFont(.sectionTitle)
+                .foregroundStyle(CD.ink)
+                .cdNumber()
+            if total > 0 {
+                GeometryReader { proxy in
+                    let width = proxy.size.width - CGFloat(max(0, [week.wins, week.draws, week.losses].filter { $0 > 0 }.count - 1)) * 2
+                    HStack(spacing: 2) {
+                        segment(week.wins, of: total, width: width, CD.win)
+                        segment(week.draws, of: total, width: width, CD.draw)
+                        segment(week.losses, of: total, width: width, CD.loss)
+                    }
+                }
+                .frame(height: 4)
+                .accessibilityHidden(true)
+            }
+            Text("\(week.wins) won · \(week.draws) drawn · \(week.losses) lost")
+                .cdFont(.meta)
+                .foregroundStyle(CD.ink4)
+                .cdNumber()
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder private func segment(_ count: Int, of total: Int, width: CGFloat, _ color: Color) -> some View {
+        if count > 0 {
+            Capsule().fill(color).frame(width: max(4, width * CGFloat(count) / CGFloat(total)))
+        }
+    }
+
+    /// The accuracy over the reviewed games, on a meter of 100.
+    private var accuracy: some View {
+        cell("Accuracy") {
+            Text(home.stats.accuracy.map { String(format: "%.1f%%", $0) } ?? "–")
+                .cdFont(.sectionTitle)
+                .foregroundStyle(CD.ink)
+                .cdNumber()
+            if let value = home.stats.accuracy {
+                CDMeter(value: value / 100)
+            }
+            Text("\(CDFormat.plural(home.stats.reviewedGames, "game")) reviewed")
+                .cdFont(.meta)
+                .foregroundStyle(CD.ink4)
+                .cdNumber()
+        }
+    }
+
+    private func figure(_ label: String, _ value: String, detail: String, detailTone: Color = CD.ink4) -> some View {
+        cell(label) {
+            Text(value).cdFont(.sectionTitle).foregroundStyle(CD.ink).cdNumber()
+            Text(detail).cdFont(.meta).foregroundStyle(detailTone).cdNumber()
+        }
+    }
+
+    private func cell(_ label: String, @ViewBuilder content: () -> some View) -> some View {
+        VStack(alignment: .leading, spacing: CD.Space.s6) {
+            Text(label).cdFont(.meta).foregroundStyle(CD.ink3)
+            content()
+        }
+        .padding(.horizontal, CD.Space.s20)
+        .padding(.vertical, CD.Space.s16)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
         .accessibilityElement(children: .combine)
     }
 }

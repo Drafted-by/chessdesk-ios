@@ -209,7 +209,8 @@ private extension View {
                 GeometryReader { proxy in
                     let scale = min(proxy.size.width / canvas.width, proxy.size.height / canvas.height)
                     self
-                        .environment(\.horizontalSizeClass, .regular)
+                        // A canvas narrower than 600 pt is a phone, however tall: a way to see a whole long page.
+                        .environment(\.horizontalSizeClass, canvas.width < 600 ? .compact : .regular)
                         .frame(width: canvas.width, height: canvas.height)
                         .scaleEffect(scale, anchor: .topLeading)
                         // The layout keeps the size of the canvas: pin its corner, then centre what is drawn.
