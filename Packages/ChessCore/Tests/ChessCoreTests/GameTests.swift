@@ -162,6 +162,30 @@ import Testing
         #expect(try #require(Position(fen: fen)).hasInsufficientMaterial == expected)
     }
 
+    // MARK: Setups
+
+    @Test(arguments: [
+        (Position.startFEN, true),
+        ("4k3/8/8/8/8/8/4P3/4K3 b - - 0 1", true),
+        ("4k3/8/8/8/8/8/8/4KK2 w - - 0 1", false),            // two white kings
+        ("4k2P/8/8/8/8/8/8/4K3 w - - 0 1", false),            // a pawn on the last rank
+        ("4k3/8/8/8/8/8/8/p3K3 w - - 0 1", false),            // a pawn on the first rank
+        ("4k3/8/8/8/8/8/8/4K2r b - - 0 1", false),            // White is in check and Black is to move
+        ("4k3/8/8/8/8/8/8/4K2r w - - 0 1", true),             // the same check, White to answer it
+        ("4k3/8/8/8/8/3n4/4q3/r3K2r w - - 0 1", false),       // more than two pieces give check
+    ])
+    func playableSetups(fen: String, expected: Bool) throws {
+        #expect(try #require(Position(fen: fen)).isPlayableSetup == expected)
+    }
+
+    @Test func attackersAreListedBySquare() throws {
+        let position = try #require(Position(fen: "4k3/8/8/8/8/3n4/4q3/r3K2r w - - 0 1"))
+        let king = try #require(position.kingSquare(of: .white))
+        #expect(Set(position.attackers(of: king, by: .black).map(\.description)) == ["a1", "h1", "e2", "d3"])
+        #expect(Position.start.attackers(of: try #require(Square("e4")), by: .white).isEmpty)
+        #expect(Position.start.attackers(of: try #require(Square("f3")), by: .white).map(\.description).sorted() == ["e2", "g1", "g2"])
+    }
+
     // MARK: PGN
 
     @Test func writesAGameTheWayTheSiteDoes() throws {

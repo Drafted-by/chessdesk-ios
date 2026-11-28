@@ -204,6 +204,48 @@ public struct Position: Sendable, Hashable {
             || slides(from: square, Self.straights, hitting: side, .rook)
     }
 
+    /// The squares from which `side` attacks `square`.
+    public func attackers(of square: Square, by side: Side) -> [Square] {
+        var found: [Square] = []
+        let file = square.file
+        let rank = square.rank
+        func check(_ file: Int, _ rank: Int, _ kind: PieceKind) {
+            if let from = Square(file: file, rank: rank), board[from.index] == Piece(side, kind) { found.append(from) }
+        }
+        let pawnRank = rank - (side == .white ? 1 : -1)
+        check(file - 1, pawnRank, .pawn)
+        check(file + 1, pawnRank, .pawn)
+        for (df, dr) in Self.knightSteps { check(file + df, rank + dr, .knight) }
+        for (df, dr) in Self.kingSteps { check(file + df, rank + dr, .king) }
+        for (directions, kind) in [(Self.diagonals, PieceKind.bishop), (Self.straights, .rook)] {
+            for (df, dr) in directions {
+                var file = file + df
+                var rank = rank + dr
+                while let from = Square(file: file, rank: rank) {
+                    if let piece = board[from.index] {
+                        if piece.side == side, piece.kind == kind || piece.kind == .queen { found.append(from) }
+                        break
+                    }
+                    file += df
+                    rank += dr
+                }
+            }
+        }
+        return found
+    }
+
+    /// Whether a game can start from this position: one king each, no pawn
+    /// on a back rank, the side that is not to move not in check, and at most
+    /// two pieces giving check (no legal game reaches three). The checks of
+    /// the site's `isPlayableSetup`.
+    public var isPlayableSetup: Bool {
+        for side in Side.allCases where board.count(where: { $0 == Piece(side, .king) }) != 1 { return false }
+        for file in 0..<8 where board[file]?.kind == .pawn || board[56 + file]?.kind == .pawn { return false }
+        guard let waiting = kingSquare(of: turn.opposite), let moving = kingSquare(of: turn) else { return false }
+        if isAttacked(waiting, by: turn) { return false }
+        return attackers(of: moving, by: turn.opposite).count <= 2
+    }
+
     private func slides(
         from square: Square,
         _ directions: [(Int, Int)],
