@@ -23,55 +23,55 @@ nonisolated protocol HomeAPI {
 
 extension LiveAPI: HomeAPI {
     func home(token: String) async throws -> PlayerHome {
-        try await exchange("GET", "home", token: token)
+        try await homeExchange("GET", "home", token: token)
     }
 
     func progress(token: String) async throws -> ProgressPage {
-        try await exchange("GET", "progress", token: token)
+        try await homeExchange("GET", "progress", token: token)
     }
 
     func patternDrill(key: String, token: String) async throws -> PatternDrill {
-        try await exchange("GET", "progress/patterns/\(key)", token: token)
+        try await homeExchange("GET", "progress/patterns/\(key)", token: token)
     }
 
     func daily(again: Bool, token: String) async throws -> DailyPlan {
         let query = again ? [URLQueryItem(name: "again", value: "1")] : []
-        return try await exchange("GET", "daily", query: query, token: token)
+        return try await homeExchange("GET", "daily", query: query, token: token)
     }
 
     func startDaily(_ request: DailySessionRequest, token: String) async throws -> DailySessionStart {
-        try await exchange("POST", "daily/session", token: token, body: request)
+        try await homeExchange("POST", "daily/session", token: token, body: request)
     }
 
     func completeDaily(_ request: DailyCompletionRequest, token: String) async throws -> DailyCompletion {
-        try await exchange("POST", "daily/completion", token: token, body: request)
+        try await homeExchange("POST", "daily/completion", token: token, body: request)
     }
 
     func setReminder(_ request: ReminderRequest, token: String) async throws -> DailyReminder {
-        try await exchange("PUT", "habit/reminder", token: token, body: request)
+        try await homeExchange("PUT", "habit/reminder", token: token, body: request)
     }
 
     func dismissReminderOffer(token: String) async throws {
-        let _: OkResponse = try await exchange("POST", "habit/reminder/dismiss", token: token)
+        let _: OkResponse = try await homeExchange("POST", "habit/reminder/dismiss", token: token)
     }
 
     func setRatingGoal(_ request: RatingGoalRequest, token: String) async throws -> RatingGoal {
-        try await exchange("PUT", "habit/goal", token: token, body: request)
+        try await homeExchange("PUT", "habit/goal", token: token, body: request)
     }
 
     func completeOnboarding(token: String) async throws {
-        let _: OkResponse = try await exchange("POST", "onboarding/complete", token: token)
+        let _: OkResponse = try await homeExchange("POST", "onboarding/complete", token: token)
     }
 
     func dismissFirstReport(token: String) async throws {
-        let _: OkResponse = try await exchange("POST", "onboarding/first-report/dismiss", token: token)
+        let _: OkResponse = try await homeExchange("POST", "onboarding/first-report/dismiss", token: token)
     }
 }
 
 extension LiveAPI {
     /// The transport of `LiveAPI` is private to its file; this is the same
     /// exchange, for the routes of the home and the settings.
-    func exchange<Response: Decodable>(
+    func homeExchange<Response: Decodable>(
         _ method: String,
         _ path: String,
         query: [URLQueryItem] = [],

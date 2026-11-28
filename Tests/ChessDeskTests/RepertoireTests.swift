@@ -371,7 +371,7 @@ import Testing
         trainer.onFinished = { graded = $0 }
         trainer.start()
         while graded == nil {
-            await eventually { trainer.isOurTurn || graded != nil }
+            await settled { trainer.isOurTurn || graded != nil }
             guard graded == nil, let step = trainer.currentStep else { break }
             #expect(trainer.play(try #require(Move(uci: step.uci))))
         }
@@ -519,7 +519,7 @@ import Testing
         // Nothing else is played until the server has answered.
         #expect(model.movableSide == nil)
         #expect(!model.play(move("e2e4")))
-        await eventually { !model.isWriting && model.pending == nil }
+        await settled { !model.isWriting && model.pending == nil }
         #expect(model.movableSide == .black)
         #expect(server.log.count { $0.hasPrefix("add") } == 1)
         #expect(model.path == ["d2d4"])

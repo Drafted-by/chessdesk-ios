@@ -376,7 +376,7 @@ extension Trait where Self == SamplePlayerTrait {
 }
 
 /// Waits for a condition that scheduled work brings about.
-func eventually(_ done: () -> Bool) async {
+func settled(_ done: () -> Bool) async {
     for _ in 0..<600 where !done() {
         await Task.yield()
         try? await Task.sleep(for: .milliseconds(2))

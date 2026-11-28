@@ -80,7 +80,7 @@ private struct TreeRow: View {
 
     var body: some View {
         let depth = CGFloat(min(row.depth, 6))
-        FlowLayout(spacing: 0) {
+        RepertoireFlowLayout(spacing: 0) {
             ForEach(row.moves) { move in
                 let isCurrent = move.path == current
                 let onPath = current.starts(with: move.path)
@@ -129,7 +129,7 @@ private struct TreeRow: View {
 }
 
 /// Lays its children out in rows, wrapping like words.
-struct FlowLayout: Layout {
+struct RepertoireFlowLayout: Layout {
     var spacing: CGFloat = 4
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {

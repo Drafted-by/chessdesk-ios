@@ -44,7 +44,7 @@ struct ExplorerFiltersSheet: View {
                 }
 
                 group("Time control", detail: draft.timeClasses.isEmpty ? "All" : nil) {
-                    FlowLayout(spacing: CD.Space.s8) {
+                    RepertoireFlowLayout(spacing: CD.Space.s8) {
                         ForEach(ExplorerFilters.timeClasses, id: \.self) { timeClass in
                             let isOn = draft.timeClasses.contains(timeClass)
                             Button {
