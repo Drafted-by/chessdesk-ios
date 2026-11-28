@@ -30,6 +30,19 @@ nonisolated protocol ChessDeskAPI: Sendable {
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws
     func due(token: String) async throws -> DueSummary
 
+    func accounts(token: String) async throws -> [LinkedAccount]
+    func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount
+    func unlinkAccount(_ provider: GameProvider, token: String) async throws
+    /// One chunk of an import; call again with `nextCursor` until `done`.
+    func importGames(_ provider: GameProvider, mode: ImportMode, cursor: String?, token: String) async throws -> ImportChunk
+    func games(cursor: String?, token: String) async throws -> GamesPage
+    func game(id: String, token: String) async throws -> GameDetail
+    func setStar(game: String, starred: Bool, token: String) async throws
+    /// Stores the review the device computed; its mistakes join the practice queue.
+    func saveReview(game: String, review: GameReview, token: String) async throws
+    func mistakes(token: String) async throws -> MistakeQueue
+    func recordMistakeAttempt(_ mistake: String, result: MistakeResult, token: String) async throws -> MistakeAttempt
+
     func paths(token: String?) async throws -> [PathCard]
     func path(slug: String, token: String?) async throws -> PathDetail
     /// The exercises of a stage; nil asks for the next stage to do.
@@ -50,7 +63,15 @@ nonisolated enum APICoding {
         return decoder
     }()
 
-    static let encoder = JSONEncoder()
+    static let encoder: JSONEncoder = {
+        let encoder = JSONEncoder()
+        // JavaScript's ISO form, with milliseconds: what the server's schema reads.
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            try container.encode(date.formatted(Date.ISO8601FormatStyle(includingFractionalSeconds: true)))
+        }
+        return encoder
+    }()
 
     /// The server writes JavaScript ISO strings, with milliseconds.
     static func parseDate(_ text: String) -> Date? {
@@ -146,6 +167,53 @@ nonisolated struct LiveAPI: ChessDeskAPI {
         try await send("GET", "training/due", token: token)
     }
 
+    func accounts(token: String) async throws -> [LinkedAccount] {
+        let response: LinkedAccountsResponse = try await send("GET", "accounts", token: token)
+        return response.accounts
+    }
+
+    func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount {
+        try await send("PUT", "accounts/\(provider.slug)", token: token, body: LinkAccountRequest(username: username))
+    }
+
+    func unlinkAccount(_ provider: GameProvider, token: String) async throws {
+        let _: OkResponse = try await send("DELETE", "accounts/\(provider.slug)", token: token)
+    }
+
+    func importGames(_ provider: GameProvider, mode: ImportMode, cursor: String?, token: String) async throws -> ImportChunk {
+        // A chunk reads a month of games from the provider: give it time.
+        try await send(
+            "POST", "accounts/\(provider.slug)/import", token: token,
+            body: ImportRequest(cursor: cursor, mode: mode), timeout: 60
+        )
+    }
+
+    func games(cursor: String?, token: String) async throws -> GamesPage {
+        var query = [URLQueryItem(name: "limit", value: "30")]
+        if let cursor { query.append(URLQueryItem(name: "cursor", value: cursor)) }
+        return try await send("GET", "games", query: query, token: token)
+    }
+
+    func game(id: String, token: String) async throws -> GameDetail {
+        try await send("GET", "games/\(id)", token: token)
+    }
+
+    func setStar(game: String, starred: Bool, token: String) async throws {
+        let _: OkResponse = try await send("PUT", "games/\(game)/star", token: token, body: StarRequest(starred: starred))
+    }
+
+    func saveReview(game: String, review: GameReview, token: String) async throws {
+        let _: OkResponse = try await send("PUT", "games/\(game)/review", token: token, body: SaveReviewRequest(review: review))
+    }
+
+    func mistakes(token: String) async throws -> MistakeQueue {
+        try await send("GET", "mistakes", token: token)
+    }
+
+    func recordMistakeAttempt(_ mistake: String, result: MistakeResult, token: String) async throws -> MistakeAttempt {
+        try await send("POST", "mistakes/\(mistake)/attempts", token: token, body: MistakeAttemptRequest(result: result))
+    }
+
     func paths(token: String?) async throws -> [PathCard] {
         let response: PathsResponse = try await send("GET", "paths", token: token)
         return response.paths
@@ -183,9 +251,11 @@ nonisolated struct LiveAPI: ChessDeskAPI {
         _ path: String,
         query: [URLQueryItem] = [],
         token: String? = nil,
-        body: some Encodable
+        body: some Encodable,
+        timeout: TimeInterval = 20
     ) async throws -> Response {
         var request = request(method, path, query: query, token: token)
+        request.timeoutInterval = timeout
         request.httpBody = try APICoding.encoder.encode(body)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         return try await perform(request)

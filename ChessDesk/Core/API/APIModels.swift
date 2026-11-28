@@ -338,6 +338,181 @@ nonisolated enum APIError: Error, Equatable, Sendable {
     }
 }
 
+// MARK: The player's own games
+
+nonisolated enum GameProvider: String, Codable, Hashable, Sendable, CaseIterable, Identifiable {
+    case chesscom = "CHESSCOM", lichess = "LICHESS"
+
+    var id: String { rawValue }
+    /// The path segment of the API.
+    var slug: String { self == .chesscom ? "chesscom" : "lichess" }
+    var name: String { self == .chesscom ? "Chess.com" : "Lichess" }
+}
+
+nonisolated struct LinkedAccount: Codable, Hashable, Sendable {
+    let provider: GameProvider
+    let username: String
+    let lastSyncedAt: Date?
+    let historyComplete: Bool
+    let ratings: [String: Int]
+}
+
+nonisolated struct LinkedAccountsResponse: Codable, Sendable {
+    let accounts: [LinkedAccount]
+}
+
+nonisolated struct LinkAccountRequest: Codable, Sendable {
+    let username: String
+}
+
+/// `full`: the first import, newest games first. `sync`: new games only.
+/// `history`: older games, from where the last import stopped.
+nonisolated enum ImportMode: String, Codable, Sendable {
+    case full, sync, history
+}
+
+nonisolated struct ImportRequest: Codable, Sendable {
+    let cursor: String?
+    let mode: ImportMode
+}
+
+nonisolated struct ImportChunk: Codable, Hashable, Sendable {
+    let imported: Int
+    let totalSoFar: Int
+    let nextCursor: String?
+    let done: Bool
+}
+
+nonisolated struct GameSummary: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let source: String
+    let white: String
+    let black: String
+    let whiteElo: Int?
+    let blackElo: Int?
+    let result: String
+    let timeClass: String
+    let timeControl: String?
+    let eco: String?
+    let opening: String?
+    /// The side the player had: "white", "black", or nil when unknown.
+    let userColor: String?
+    let playedAt: Date
+    let ply: Int
+    let rated: Bool
+    let starred: Bool
+    let reviewed: Bool
+}
+
+nonisolated struct GamesPage: Codable, Hashable, Sendable {
+    let games: [GameSummary]
+    let nextCursor: String?
+}
+
+nonisolated struct ReviewedMove: Codable, Hashable, Sendable {
+    let ply: Int
+    let san: String
+    /// "w" or "b".
+    let color: String
+    /// White's view, after the move.
+    let evalCp: Double?
+    let mate: Int?
+    let bestSan: String
+    let cpl: Double
+    let winLoss: Double
+    let classification: MoveClass
+
+    /// The server requires `evalCp` and `mate` to be present, null included.
+    func encode(to encoder: any Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(ply, forKey: .ply)
+        try container.encode(san, forKey: .san)
+        try container.encode(color, forKey: .color)
+        try container.encode(evalCp, forKey: .evalCp)
+        try container.encode(mate, forKey: .mate)
+        try container.encode(bestSan, forKey: .bestSan)
+        try container.encode(cpl, forKey: .cpl)
+        try container.encode(winLoss, forKey: .winLoss)
+        try container.encode(classification, forKey: .classification)
+    }
+}
+
+nonisolated struct GameReview: Codable, Hashable, Sendable {
+    let version: Int
+    let depth: Int
+    let computedAt: Date
+    let whiteAccuracy: Double
+    let blackAccuracy: Double
+    let moves: [ReviewedMove]
+}
+
+nonisolated struct GameDetail: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let source: String
+    let white: String
+    let black: String
+    let whiteElo: Int?
+    let blackElo: Int?
+    let result: String
+    let timeClass: String
+    let opening: String?
+    let userColor: String?
+    let playedAt: Date
+    let ply: Int
+    let starred: Bool
+    let reviewed: Bool
+    let pgn: String
+    let url: String?
+    let review: GameReview?
+}
+
+nonisolated struct SaveReviewRequest: Codable, Sendable {
+    let review: GameReview
+}
+
+nonisolated struct StarRequest: Codable, Sendable {
+    let starred: Bool
+}
+
+nonisolated struct Mistake: Codable, Hashable, Identifiable, Sendable {
+    let id: String
+    let fen: String
+    let bestUci: String
+    let bestSan: String
+    let playedSan: String
+    let classification: MoveClass
+    let winLoss: Double
+    let moveLabel: String
+    let gameId: String
+    let opponent: String
+    let streak: Int
+    let firstTime: Bool
+}
+
+nonisolated struct MistakeQueue: Codable, Hashable, Sendable {
+    struct Counts: Codable, Hashable, Sendable {
+        let due: Int
+        let total: Int
+        let mastered: Int
+        let nextDueAt: Date?
+    }
+
+    let counts: Counts
+    let due: [Mistake]
+}
+
+nonisolated enum MistakeResult: String, Codable, Sendable {
+    case solved, missed, revealed
+}
+
+nonisolated struct MistakeAttemptRequest: Codable, Sendable {
+    let result: MistakeResult
+}
+
+nonisolated struct MistakeAttempt: Codable, Hashable, Sendable {
+    let intervalDays: Int
+}
+
 // MARK: Learning paths
 
 nonisolated enum StageState: String, Codable, Hashable, Sendable {

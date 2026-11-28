@@ -98,6 +98,21 @@ nonisolated struct FixtureAPI: ChessDeskAPI {
     func sendGrades(deck: String, grades: [MoveGrade], token: String) async throws { throw signInNeeded }
     func due(token: String) async throws -> DueSummary { throw signInNeeded }
 
+    // MARK: The player's own games (an account is needed)
+
+    func accounts(token: String) async throws -> [LinkedAccount] { throw signInNeeded }
+    func linkAccount(_ provider: GameProvider, username: String, token: String) async throws -> LinkedAccount { throw signInNeeded }
+    func unlinkAccount(_ provider: GameProvider, token: String) async throws { throw signInNeeded }
+    func importGames(_ provider: GameProvider, mode: ImportMode, cursor: String?, token: String) async throws -> ImportChunk { throw signInNeeded }
+    func games(cursor: String?, token: String) async throws -> GamesPage { throw signInNeeded }
+    func game(id: String, token: String) async throws -> GameDetail { throw signInNeeded }
+    func setStar(game: String, starred: Bool, token: String) async throws { throw signInNeeded }
+    func saveReview(game: String, review: GameReview, token: String) async throws { throw signInNeeded }
+    func mistakes(token: String) async throws -> MistakeQueue { throw signInNeeded }
+    func recordMistakeAttempt(_ mistake: String, result: MistakeResult, token: String) async throws -> MistakeAttempt {
+        throw signInNeeded
+    }
+
     // MARK: Learning paths
 
     /// The three free stages of Reach 1000 Elo are captured.

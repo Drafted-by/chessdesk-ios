@@ -91,6 +91,53 @@ public actor StockfishEngine {
         }
     }
 
+    /// Searches a position and returns its best lines, best first: what a
+    /// game review needs (the runner-up tells an "only move" from a choice).
+    /// A position with one legal move has one line; a finished one has none.
+    public func analyse(
+        fen: String,
+        depth: Int,
+        maxTime: Duration,
+        lines: Int = 2
+    ) async throws -> [EngineEvaluation] {
+        guard isReady else { throw EngineError.notStarted }
+        await acquire()
+        defer { release() }
+        let parts = maxTime.components
+        let milliseconds = max(50, Int(parts.seconds) * 1000 + Int(parts.attoseconds / 1_000_000_000_000_000))
+        send("setoption name MultiPV value \(max(1, lines))")
+        send("position fen \(fen)")
+        send("go depth \(depth) movetime \(milliseconds)")
+        var latest: [Int: EngineEvaluation] = [:]
+        while true {
+            let line = await mailbox.next()
+            if line.hasPrefix("bestmove") { break }
+            if let parsed = Self.parseInfo(line), !parsed.principalVariation.isEmpty {
+                latest[Self.lineIndex(line)] = parsed
+            }
+        }
+        send("setoption name MultiPV value 1")
+        return latest.keys.sorted().compactMap { latest[$0] }
+    }
+
+    /// More threads and memory for a game review, back to one for the trainer.
+    public func configure(threads: Int, hashMegabytes: Int) async {
+        guard isReady else { return }
+        await acquire()
+        defer { release() }
+        send("setoption name Threads value \(max(1, threads))")
+        send("setoption name Hash value \(max(16, hashMegabytes))")
+        send("isready")
+        await wait(for: "readyok")
+    }
+
+    /// The "multipv 2" of an info line; 1 when the engine prints a single line.
+    static func lineIndex(_ line: String) -> Int {
+        let tokens = line.split(separator: " ")
+        guard let index = tokens.firstIndex(of: "multipv"), index + 1 < tokens.count else { return 1 }
+        return Int(tokens[index + 1]) ?? 1
+    }
+
     /// Reads one "info … score cp 31 … pv e2e4 e7e5" line. Lines without a
     /// score (currmove, strings) and bounds are skipped.
     static func parseInfo(_ line: String) -> EngineEvaluation? {
