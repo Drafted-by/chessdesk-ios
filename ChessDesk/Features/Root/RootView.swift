@@ -193,7 +193,8 @@ private extension View {
                         .environment(\.horizontalSizeClass, .regular)
                         .frame(width: canvas.width, height: canvas.height)
                         .scaleEffect(scale, anchor: .topLeading)
-                        .frame(width: canvas.width * scale, height: canvas.height * scale)
+                        // The layout keeps the size of the canvas: pin its corner, then centre what is drawn.
+                        .frame(width: canvas.width * scale, height: canvas.height * scale, alignment: .topLeading)
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
                 .background(Color.black.ignoresSafeArea())
@@ -235,6 +236,9 @@ struct Loadable<Value, Content: View>: View {
 
     let id: AnyHashable
     let failureTitle: String
+    /// What shows until the value is there; a spinner unless the screen has
+    /// something of its own to show at once.
+    var placeholder: AnyView = AnyView(LoadingView())
     let load: () async throws -> Value
     @ViewBuilder let content: (Value) -> Content
 
@@ -245,7 +249,7 @@ struct Loadable<Value, Content: View>: View {
         Group {
             switch phase {
             case .loading:
-                LoadingView()
+                placeholder
             case let .loaded(value):
                 content(value)
             case let .failed(error):

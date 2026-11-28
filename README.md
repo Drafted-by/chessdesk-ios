@@ -61,8 +61,28 @@ with Stockfish 19 running on the device.
   (`GET /api/v1/play/bots`) and are kept on the device, so a game can be played without a
   connection. A game in progress survives leaving the app. With an account, a finished game
   is saved and opens in the review; a guest plays it out and is told what an account adds.
+- **Puzzles.** A free set to solve without an account; with one, rated puzzles served at
+  your level, and the Woodpecker Method: one set, solved faster each cycle.
+- **Your day.** For a signed-in player, Today is the server's plan for the day: the Daily 5
+  and its streak, the game to review, the lines due. Progress shows what changes as you
+  train.
+- **Your own repertoires.** Build your openings move by move on the board, with what
+  players, masters and your own games play at each position; train them; check your games
+  against them. The explorer walks the opening tree of your own games.
 - **Your board.** Piece sets, board textures, square colours and move sounds, as on the site,
   in You › Board and sound. Every board in the app follows them.
+
+### Where things are
+
+Five tabs:
+
+| Tab | What is there |
+|---|---|
+| **Today** | A guest's first screen, or the signed-in plan and what is due for review. The profile button at the top right opens **You**: the account, Premium, Progress, the settings, the board, about |
+| **Learn** | My repertoires, the learning path, the opening courses |
+| **Play** | The bots, with the game in progress on top |
+| **Train** | Puzzles, Woodpecker, Daily 5, Your mistakes, Coordinates |
+| **Games** | Your games, and the ways to the Explorer, the Analysis board and the tools (best move, Elo calculator) |
 
 ## How it is built
 
@@ -73,10 +93,10 @@ the app shows it.
 
 | Part | What it is |
 |---|---|
-| `ChessDesk/` | The SwiftUI app: Today, Courses, the trainer, the account, the board |
+| `ChessDesk/` | The SwiftUI app: the five tabs and their screens, the trainers, the board |
 | `Packages/ChessCore` | Chess rules in Swift, no dependency: legal moves, FEN, SAN, checked by perft |
 | `Packages/StockfishEngine` | Stockfish 19 as a library: the official source unmodified (without `main.cpp`), an in-process UCI bridge and a Swift client |
-| `Fixtures/api-v1` | Sample data: answers of the API as a guest sees them, used by Debug builds, previews and tests |
+| `Fixtures/api-v1` | Sample data: answers of the API as a guest sees them, and an invented signed-in player; used by Debug builds, previews and tests, left out of Release |
 | `contracts/openapi-v1.json` | The contract of the app API; a test checks that the app's models decode it |
 
 A few rules hold the code together:
@@ -110,42 +130,70 @@ scripts/sim.sh iphone          # build, install and launch
 ```
 
 A Debug build starts on **sample data**, so it works offline and without an account. The
-backend can be changed in the app (tab You, section Developer) or at launch:
+backend can be changed in the app (Today › profile button › You, section Developer) or at
+launch:
 
 | Launch argument | Backend |
 |---|---|
-| none (Debug) | Sample data from `Fixtures/api-v1` |
+| none (Debug) | Sample data from `Fixtures/api-v1`, as a guest |
 | `-CDBackend local` | `http://localhost:3000` |
 | `-CDBackend production` | `https://chessdesk.app` (what a Release build uses) |
 
-Debug launch arguments also open a screen directly:
+On sample data a guest is a guest everywhere. `-CDFixturePlayer YES` signs in the **sample
+player** instead: one invented person whose home, games, repertoire, explorer, mistakes and
+puzzles speak of the same 52 games (`FixturePlayer.swift`). `-CDFixturePremium YES` gives
+them Premium, `-CDFixtureWelcome YES` shows the home before any game is in. A Release build
+has neither the sample data nor any of these options.
+
+Debug launch arguments also open a screen directly (the whole list is in `RootView.swift`):
 
 ```bash
+# Sections
+scripts/sim.sh iphone -CDRoute today          # also learn, play, train, games
+scripts/sim.sh iphone -CDRoute you            # also account/signin, account/signup, account/delete, boardsettings
+
+# Learn
 scripts/sim.sh iphone -CDRoute path
 scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
 scripts/sim.sh iphone -CDRoute premium -CDPremiumPreview YES
-scripts/sim.sh iphone -CDRoute games/sample -CDReview YES
-scripts/sim.sh iphone -CDRoute account/signin
-scripts/sim.sh iphone -CDRoute account/signup
-scripts/sim.sh iphone -CDRoute account/delete
 scripts/sim.sh iphone -CDRoute course/practical-caro-kann
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerSteps 5
 scripts/sim.sh iphone -CDRoute trainer/practical-caro-kann -CDTrainerMemory YES
-scripts/sim.sh iphone -CDRoute tools
-scripts/sim.sh iphone -CDRoute analysis -CDAnalysisPGN "1. e4 c5 (1... e5) 2. Nf3" -CDAnalysisPly 3
-scripts/sim.sh iphone -CDRoute analysis -CDCanvas 1180x820    # the iPad layout, shrunk to fit
-scripts/sim.sh iphone -CDRoute bestmove
-scripts/sim.sh iphone -CDRoute coordinates
-scripts/sim.sh iphone -CDRoute elo
-scripts/sim.sh iphone -CDRoute puzzles
-scripts/sim.sh iphone -CDRoute puzzles/free
-scripts/sim.sh iphone -CDRoute woodpecker
+scripts/sim.sh iphone -CDRoute repertoires                                        # a guest's view
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute repertoires/sample-italian    # the builder; also /train and /games
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute repertoires/sample-italian -CDBuilderPath e2e4,e7e5,g1f3
+
+# Play
 scripts/sim.sh iphone -CDRoute play                            # the bots
 scripts/sim.sh iphone -CDRoute play/peru                       # a game against that bot (its id in the catalogue)
 scripts/sim.sh iphone -CDRoute play/peru -CDPlaySide black     # the bot opens
 scripts/sim.sh iphone -CDRoute play/custom -CDPlayRating 1500  # the opponent built at a rating
 scripts/sim.sh iphone -CDRoute play/resume                     # the game in progress on the device
 scripts/sim.sh iphone -CDRoute play/peru -CDPlayEngine stockfish   # without Maia: the fallback engine
+
+# Train
+scripts/sim.sh iphone -CDRoute puzzles                         # also puzzles/free, puzzles/rated
+scripts/sim.sh iphone -CDRoute woodpecker
+scripts/sim.sh iphone -CDRoute coordinates
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute daily      # also mistakes, drill/hanging
+
+# Games
+scripts/sim.sh iphone -CDRoute games/sample -CDReview YES
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute game/sample-game-1
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute explorer -CDExplorerPath e4,e5,Nf3
+scripts/sim.sh iphone -CDRoute tools
+scripts/sim.sh iphone -CDRoute analysis -CDAnalysisPGN "1. e4 c5 (1... e5) 2. Nf3" -CDAnalysisPly 3
+scripts/sim.sh iphone -CDRoute bestmove
+scripts/sim.sh iphone -CDRoute elo
+
+# The signed-in home
+scripts/sim.sh iphone -CDFixturePlayer YES                     # Today with the plan
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute progress
+scripts/sim.sh iphone -CDFixturePlayer YES -CDRoute "deck/course:practical-caro-kann"   # the review of a deck; also deck/repertoire:sample-italian
+
+# The iPad layouts, on a phone simulator: the whole app laid out for another size and shrunk to fit
+scripts/sim.sh iphone -CDCanvas 1180x820
+scripts/sim.sh iphone -CDCanvas 820x1180 -CDRoute analysis
 ```
 
 `play/<bot id>` with a game already in progress starts a new one; `-CDPlayAutopilot engine`

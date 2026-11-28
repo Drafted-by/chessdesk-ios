@@ -24,6 +24,9 @@ struct TodayView: View {
                 Loadable(
                     id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)]),
                     failureTitle: "Today did not load",
+                    // The first frame of the app: the greeting and the way to
+                    // You are there before the server has answered.
+                    placeholder: AnyView(waiting),
                     load: load,
                     content: { content in page(content) }
                 )
@@ -40,20 +43,40 @@ struct TodayView: View {
         return Content(courses: courses, path: await paths?.first { $0.slug == FeaturedPath.slug })
     }
 
+    private var header: some View {
+        VStack(alignment: .leading, spacing: CD.Space.s6) {
+            TodayTopBar()
+                .padding(.bottom, CD.Space.s16)
+            Text(greeting)
+                .cdFont(.display)
+                .foregroundStyle(CD.ink)
+                .accessibilityAddTraits(.isHeader)
+            Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "en_US"))))
+                .cdFont(.small)
+                .foregroundStyle(CD.ink3)
+        }
+    }
+
+    /// The page while its content is on the way: the header where it will
+    /// stay, and a spinner where the content comes.
+    private var waiting: some View {
+        VStack(alignment: .leading, spacing: CD.Space.s32) {
+            header
+            ProgressView()
+                .tint(CD.ink3)
+                .frame(maxWidth: .infinity, minHeight: 240)
+            Spacer(minLength: 0)
+        }
+        .pageGutter()
+        .padding(.top, CD.Space.s16)
+        .frame(maxWidth: CD.pageMaxWidth)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+
     private func page(_ content: Content) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s32) {
-                VStack(alignment: .leading, spacing: CD.Space.s6) {
-                    TodayTopBar()
-                        .padding(.bottom, CD.Space.s16)
-                    Text(greeting)
-                        .cdFont(.display)
-                        .foregroundStyle(CD.ink)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(Date.now.formatted(.dateTime.weekday(.wide).day().month(.wide).locale(Locale(identifier: "en_US"))))
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                }
+                header
 
                 if let path = content.path {
                     FeaturedPathPlate(path: path, guest: app.isSignedIn ? nil : app.guestProgress)

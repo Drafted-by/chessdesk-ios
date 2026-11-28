@@ -87,6 +87,8 @@ targets:
         excludes:
           - "**/.DS_Store"
       # Captured API answers: the offline data set of Debug builds and previews.
+      # Left out of Release (EXCLUDED_SOURCE_FILE_NAMES below): a Release
+      # build only talks to the server.
       - path: Fixtures
         type: folder
         buildPhase: resources
@@ -105,6 +107,9 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         CD_API_BASE_URL: "https://chessdesk.app"
+      configs:
+        Release:
+          EXCLUDED_SOURCE_FILE_NAMES: Fixtures
 
   ChessDeskTests:
     type: bundle.unit-test

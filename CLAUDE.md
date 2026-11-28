@@ -23,7 +23,7 @@ Several agents may build at once on this Mac. Use the simulator named in your ta
 
 ## Architecture
 
-- `ChessDesk/Core/API`: `ChessDeskAPI` is the protocol every screen talks to; `LiveAPI` is the HTTP client, `FixtureAPI` the offline one. `contracts/openapi-v1.json` mirrors the site's contract (`apps/web/docs/api/openapi-v1.json` in `Drafted-by/chessdesk`); `ContractTests` checks the models against it.
+- `ChessDesk/Core/API`: `ChessDeskAPI` is the protocol every screen talks to; `LiveAPI` is the HTTP client (one transport, `send`, in `ChessDeskAPI.swift`: feature files call it, they do not copy it), `FixtureAPI` the offline one. `contracts/openapi-v1.json` mirrors the site's contract (`apps/web/docs/api/openapi-v1.json` in `Drafted-by/chessdesk`); `ContractTests` checks the models against it.
 - `ChessDesk/Core/Session/AppModel.swift`: who is signed in, the token, the client. Views read it from the environment.
 - `ChessDesk/Core/Review`, `Core/Engine`, `Packages/StockfishEngine`: Stockfish on the device. One engine per process, one search at a time.
 - `Packages/ChessCore`: the rules of chess (positions, legal moves, SAN). No UI, no I/O.
@@ -35,7 +35,9 @@ Several agents may build at once on this Mac. Use the simulator named in your ta
 Other branches are adding features at the same time. Keep shared files almost untouched:
 
 - API models of a feature go in `ChessDesk/Core/API/Models+<Feature>.swift`; its client calls in `ChessDesk/Core/API/API+<Feature>.swift` as a protocol `<Feature>API` plus `extension LiveAPI: <Feature>API` and `extension FixtureAPI: <Feature>API`. Then add the protocol to the inheritance list of `ChessDeskAPI` (one line) so `app.api` offers it.
-- A new screen is reached by one line in `RootView.swift` or from an existing hub screen. Do not restructure the tab bar on your own: say in your report where the feature should hang.
+- Navigation: five tabs (Today, Learn, Play, Train, Games), each a stack; `AppNavigator` holds the section and the paths, `AppRoute` names the screens any stack can push, `HomeNavigator` opens what the server's plan points at (trainers as covers over the whole app). A new screen hangs from one of the hubs (`LearnView`, `TrainHubView`, the tiles of `GamesView`, `AccountView`) as a case of `AppRoute`. Do not restructure the tab bar on your own: say in your report where the feature should hang.
+- Sample data: a guest is a guest everywhere; whatever needs an account answers `unauthorized` in `FixtureAPI` unless the sample player is signed in (`-CDFixturePlayer YES`). The sample player is one person: what a new feature shows for them must agree with their 52 games (`FixtureData.games()`), and a test in `SamplePlayerTests` should hold it.
+- The server's opening trees spell castling `e1h1`; the board spells it `e1g1`. Respell an answer when it arrives (`CastlingSpelling`, `boardSpelled`) before comparing a move or a path with one of the board's.
 - Do not reformat or reorder code you are not changing.
 
 ## Product rules
