@@ -7,13 +7,15 @@ enum AppSection: Hashable {
 }
 
 struct RootView: View {
+    @Environment(AppModel.self) private var app
     @State private var section: AppSection = .today
     @State private var coursesPath = NavigationPath()
+    @State private var accountSettings = AccountSettingsModel()
 
     var body: some View {
         TabView(selection: $section) {
             NavigationStack {
-                TodayView(openCourses: { section = .courses })
+                TodayView(openCourses: { section = .courses }, openGames: { section = .games })
                     .courseDestinations()
                     .playEntry()
             }
@@ -40,6 +42,9 @@ struct RootView: View {
             .tag(AppSection.account)
         }
         .background(CD.canvas)
+        // The account's settings, its board included, follow who is signed in.
+        .environment(accountSettings)
+        .task(id: app.accountRevision) { await accountSettings.attach(api: app.api, token: app.isSignedIn ? app.token : nil) }
         #if DEBUG
             .onAppear(perform: openDebugRoute)
         #endif

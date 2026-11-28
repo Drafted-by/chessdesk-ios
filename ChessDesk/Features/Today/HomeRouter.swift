@@ -15,6 +15,8 @@ nonisolated enum HomeRoute: Hashable, Sendable {
     case courses
     /// The positions from the player's mistakes.
     case mistakes
+    /// The player's games (the Games tab).
+    case games
     /// Rated puzzles. Built on `feat/puzzles`: the pilot wires it at integration.
     case puzzles
     /// One repertoire's lines due for review. Built on `feat/repertoires`: wired at integration.
@@ -61,10 +63,10 @@ nonisolated enum HomeRouter {
 
     /// The destinations this branch has a screen for. The others are built on
     /// other branches; the pilot adds them here when it connects their screens
-    /// in `TodayDestinations` (see `HomeDestinations.swift`).
+    /// in `HomeDestinations` (`HomeNavigation.swift`).
     static func opens(_ route: HomeRoute) -> Bool {
         switch route {
-        case .daily, .game, .path, .course, .courses, .mistakes, .play, .patternDrill, .progress: true
+        case .daily, .game, .path, .course, .courses, .mistakes, .games, .play, .patternDrill, .progress: true
         case .puzzles, .repertoire, .repertoires: false
         }
     }

@@ -4,10 +4,10 @@ import Observation
 import SwiftUI
 
 /// How every board in the app looks and sounds: the choices of You › Board
-/// and sound. Stored on this device for now, in the site's own shapes
-/// (`apps/web/lib/board-theme/index.ts` and `lib/board-sound/settings.ts`),
-/// so a later change can read and write them in the account's settings
-/// (`settings.preferences.boardTheme` and `.boardSound`) as they are.
+/// and sound. Stored on this device in the site's own shapes
+/// (`apps/web/lib/board-theme/index.ts` and `lib/board-sound/settings.ts`);
+/// signed in, `AccountSettingsModel` keeps them in step with the account's
+/// settings (`board.theme` and `board.sound` of `GET /api/v1/settings`).
 @Observable
 final class BoardPreferences {
     /// The site's `BoardTheme`: field names and values as the site stores them.

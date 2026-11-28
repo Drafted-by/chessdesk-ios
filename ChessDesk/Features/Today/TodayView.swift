@@ -1,9 +1,11 @@
 import SwiftUI
 
-/// The first screen: what to do now. For a signed-in player, the reviews
-/// that are due; for everyone, the course to continue or to start.
+/// The first screen: what to do now. A signed-in player gets the server's
+/// plan for the day (`PlayerTodayView`); a guest, the course to continue or
+/// to start.
 struct TodayView: View {
     let openCourses: () -> Void
+    var openGames: () -> Void = {}
 
     @Environment(AppModel.self) private var app
 
@@ -18,12 +20,18 @@ struct TodayView: View {
     private static let starters = ["first-1e4-repertoire", "practical-caro-kann", "practical-london-system"]
 
     var body: some View {
-        Loadable(
-            id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)]),
-            failureTitle: "Today did not load",
-            load: load,
-            content: { content in page(content) }
-        )
+        Group {
+            if app.isSignedIn {
+                PlayerTodayView(openCourses: openCourses, openGames: openGames)
+            } else {
+                Loadable(
+                    id: AnyHashable([AnyHashable(app.backend), AnyHashable(app.accountRevision)]),
+                    failureTitle: "Today did not load",
+                    load: load,
+                    content: { content in page(content) }
+                )
+            }
+        }
         .toolbar(.hidden, for: .navigationBar)
         .cdPage()
     }

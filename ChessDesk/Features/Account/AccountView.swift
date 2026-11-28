@@ -27,6 +27,7 @@ struct AccountView: View {
                 } else {
                     GuestCard { signIn = $0 }
                 }
+                if app.isSignedIn { AccountSettingsSection() }
                 BoardSettingsSection()
                 #if DEBUG
                     DeveloperSection()
@@ -39,6 +40,7 @@ struct AccountView: View {
             .frame(maxWidth: 720)
             .frame(maxWidth: .infinity)
         }
+        .debugScrollAnchor()
         .navigationTitle("You")
         .toolbar(.hidden, for: .navigationBar)
         .cdPage()

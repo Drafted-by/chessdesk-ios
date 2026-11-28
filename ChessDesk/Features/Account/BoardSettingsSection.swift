@@ -2,17 +2,24 @@ import ChessCore
 import SwiftUI
 
 /// You › Board and sound: the site's board appearance and sound choices
-/// (`apps/web/components/board-theme/board-appearance.tsx`), kept on this
-/// device. Every board in the app follows them at once.
+/// (`apps/web/components/board-theme/board-appearance.tsx`). Every board in
+/// the app follows them at once. A guest keeps them on this device; signed
+/// in, they are the account's and a change is saved to it.
 struct BoardSettingsSection: View {
     @Bindable private var preferences = BoardPreferences.shared
+    @Environment(AccountSettingsModel.self) private var account: AccountSettingsModel?
 
     /// After 1. e4 e5 2. Nf3 Nc6 3. Bb5: every piece kind on both sides.
     private static let sampleFEN = "r1bqkbnr/pppp1ppp/2n5/1B2p3/4P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3"
 
     var body: some View {
         VStack(alignment: .leading, spacing: CD.Space.s12) {
-            SectionHeader(title: "Board and sound", detail: "Kept on this device. Every board in the app follows it.")
+            SectionHeader(
+                title: "Board and sound",
+                detail: account?.isSignedIn == true
+                    ? "Saved to your account. Every board in the app follows it."
+                    : "Kept on this device. Every board in the app follows it."
+            )
             CDCard {
                 VStack(alignment: .leading, spacing: CD.Space.s20) {
                     StaticBoardView(fen: Self.sampleFEN, highlight: (Square("f1")!, Square("b5")!))
@@ -34,6 +41,8 @@ struct BoardSettingsSection: View {
                 }
             }
         }
+        .onChange(of: preferences.theme) { account?.boardChanged() }
+        .onChange(of: preferences.sound) { account?.boardChanged() }
     }
 
     private func group(_ title: String, @ViewBuilder content: () -> some View) -> some View {

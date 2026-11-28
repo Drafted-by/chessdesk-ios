@@ -41,7 +41,7 @@ struct MistakeTrainerScreen: View {
     }
 }
 
-private struct MistakeSession: View {
+struct MistakeSession: View {
     let mistakes: [Mistake]
     let close: () -> Void
 

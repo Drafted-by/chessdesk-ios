@@ -11,7 +11,7 @@ import Foundation
 /// It keeps what the player changes (the Daily 5 done, settings, the goal,
 /// the onboarding answered) for the life of the client, like a server would.
 nonisolated final class FixturePlayer: @unchecked Sendable {
-    /// The token the debug launch option stores; any token works with the fixture client.
+    /// The token of the debug launch option; any token works with the fixture client.
     static let token = "fixture-player"
 
     private struct State {

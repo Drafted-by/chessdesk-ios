@@ -135,7 +135,8 @@ final class AppModel {
     /// token the server no longer accepts is dropped; being offline keeps it.
     func restoreSession() async {
         #if DEBUG
-            if FixturePlayer.atLaunch != nil, backend == .sampleData, token == nil { tokens.write(FixturePlayer.token) }
+            // The fixture player's token lives in memory: the Keychain is left as it is.
+            if FixturePlayer.atLaunch != nil, backend == .sampleData { tokens = MemoryTokenStore(FixturePlayer.token) }
         #endif
         guard let token else { return }
         do {
