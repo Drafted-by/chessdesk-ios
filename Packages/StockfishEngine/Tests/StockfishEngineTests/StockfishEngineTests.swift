@@ -55,3 +55,84 @@ private let network = URL(fileURLWithPath: #filePath)
         #expect(two.mate == nil)
     }
 }
+
+/// The live search of the analysis board. Nested in the suite above, so they
+/// share its order: one engine, one test at a time.
+extension StockfishEngineTests {
+    @Suite struct LiveSearchTests {
+        private func startedEngine() async throws -> StockfishEngine {
+            try #require(FileManager.default.fileExists(atPath: network.path), "run scripts/fetch-nnue.sh first")
+            let engine = StockfishEngine.shared
+            try await engine.start(network: network)
+            return engine
+        }
+
+        @Test func reportsEachDepthWithItsLinesBestFirst() async throws {
+            let engine = try await startedEngine()
+            var depths: [Int] = []
+            var last: LiveSearchUpdate?
+            for try await update in engine.liveSearch(fen: Position.italian, lines: 3, maxDepth: 10) {
+                depths.append(update.depth)
+                last = update
+            }
+            let final = try #require(last)
+            #expect(final.depth == 10)
+            #expect(final.lines.count == 3)
+            #expect(final.lines.map(\.comparable) == final.lines.map(\.comparable).sorted(by: >))
+            #expect(depths == depths.sorted())
+            #expect(Set(depths).count >= 5)
+        }
+
+        @Test func endingTheStreamStopsAnInfiniteSearchAndFreesTheEngine() async throws {
+            let engine = try await startedEngine()
+            let clock = ContinuousClock()
+            let reader = Task {
+                var count = 0
+                for try await _ in engine.liveSearch(fen: Position.italian, lines: 2) {
+                    count += 1
+                }
+                return count
+            }
+            try await Task.sleep(for: .milliseconds(600))
+            let stopped = clock.now
+            reader.cancel()
+            // The next search gets the engine without waiting for the infinite one.
+            let mate = try await engine.evaluate(fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1", depth: 6)
+            #expect(mate.mate == 1)
+            #expect(clock.now - stopped < .seconds(2))
+            #expect(try await reader.value > 0)
+        }
+
+        @Test func aStreamEndedBeforeItStartsNeverSearches() async throws {
+            let engine = try await startedEngine()
+            // Several positions in a row, as when a player steps through moves:
+            // only the last one matters, and each earlier one gives way.
+            for fen in [Position.italian, "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1"] {
+                let reader = Task { for try await _ in engine.liveSearch(fen: fen) {} }
+                reader.cancel()
+                _ = try? await reader.value
+            }
+            var mates: [Int?] = []
+            for try await update in engine.liveSearch(fen: "6k1/5ppp/8/8/8/8/5PPP/4R1K1 w - - 0 1", lines: 1, maxDepth: 4) {
+                mates.append(update.lines.first?.mate)
+            }
+            #expect(mates.last == 1)
+        }
+
+        @Test func stopSearchEndsAOneShotSearchEarly() async throws {
+            let engine = try await startedEngine()
+            let clock = ContinuousClock()
+            let started = clock.now
+            async let long = engine.evaluate(fen: Position.italian, depth: 60, maxTime: .seconds(20))
+            try await Task.sleep(for: .milliseconds(400))
+            await engine.stopSearch()
+            let result = try await long
+            #expect(result.depth > 0)
+            #expect(clock.now - started < .seconds(5))
+        }
+    }
+}
+
+private enum Position {
+    static let italian = "r1bqk1nr/pppp1ppp/2n5/2b1p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+}
