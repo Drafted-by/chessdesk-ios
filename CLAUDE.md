@@ -51,6 +51,7 @@ Other branches are adding features at the same time. Keep shared files almost un
 
 The design system is the site's `apps/web/docs/design.md`. In short: warm graphite surfaces, one brass accent, Newsreader for titles and prose, Geist for interface text. Use the tokens (`CD.*`), `cdFont(...)`, and the components of `ChessDesk/UI/Components.swift`; never a raw colour or font in a screen.
 
+- A feature is named by its emblem (`Emblem(kind:)`, the site's engraved set in `ChessDesk/UI/Emblems.swift`), never by a system symbol: SF Symbols are for controls (chevron, close, share). A feature offered in a hub is a `FeatureRow` (emblem, serif name, one line, the server's figure). One thing leads each hub, as its plate, with the screen's one primary action. To add an emblem, copy its drawing from the site's `components/ui/emblems.tsx`.
 - Ornaments (`.plate()`, `OrnamentRule`, `Emblem`, the `.lead` button) are for brand moments: the one plate of a screen, the thing being sold. Never on a working screen (a trainer, a board, a list, a form of settings).
 - One `primary` button per view. Sentence case everywhere. English only, plain words.
 - Semantic colours carry meaning only: `CD.win`, `CD.loss`, `CD.caution`, `CD.danger`.

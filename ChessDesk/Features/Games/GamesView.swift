@@ -194,17 +194,17 @@ private extension View {
 private struct GamesTools: View {
     private struct Tile {
         let title: String
-        let symbol: String
+        let emblem: Emblem.Kind
         let route: AppRoute
         let label: String
     }
 
     private let tiles = [
-        Tile(title: "Explorer", symbol: "point.3.connected.trianglepath.dotted", route: .explorer,
+        Tile(title: "Explorer", emblem: .explorer, route: .explorer,
              label: "Explorer: your openings, from your own games"),
-        Tile(title: "Analysis", symbol: "magnifyingglass", route: .tool(.analysis),
+        Tile(title: "Analysis", emblem: .analysis, route: .tool(.analysis),
              label: "Analysis board"),
-        Tile(title: "Tools", symbol: "wrench.and.screwdriver", route: .tools,
+        Tile(title: "Tools", emblem: .tools, route: .tools,
              label: "Tools: best move in a position, Elo calculator"),
     ]
 
@@ -214,14 +214,12 @@ private struct GamesTools: View {
                 if index > 0 { Rectangle().fill(CD.line).frame(width: 1) }
                 NavigationLink(value: tile.route) {
                     VStack(spacing: CD.Space.s6) {
-                        Image(systemName: tile.symbol)
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundStyle(CD.accent)
-                            .frame(height: 22)
+                        Emblem(kind: tile.emblem, size: 36)
                         Text(tile.title)
                             .cdFont(.small)
                             .foregroundStyle(CD.ink)
                     }
+                    .padding(.vertical, CD.Space.s12)
                     .frame(maxWidth: .infinity, minHeight: 68)
                     .contentShape(Rectangle())
                 }

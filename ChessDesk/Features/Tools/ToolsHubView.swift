@@ -10,36 +10,14 @@ struct ToolsHubView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: CD.Space.s16) {
                 Text("Both run on this phone. No account needed.")
-                    .cdFont(.body)
+                    .cdFont(.ledeSmall)
                     .foregroundStyle(CD.ink2)
                     .fixedSize(horizontal: false, vertical: true)
                 VStack(spacing: 0) {
                     ForEach(Array(tools.enumerated()), id: \.element) { index, tool in
                         if index > 0 { CDHairline() }
                         NavigationLink(value: AppRoute.tool(tool)) {
-                            HStack(spacing: CD.Space.s12) {
-                                Image(systemName: tool.symbol)
-                                    .font(.system(size: 18, weight: .medium))
-                                    .foregroundStyle(CD.accent)
-                                    .frame(width: 32)
-                                VStack(alignment: .leading, spacing: CD.Space.s2) {
-                                    Text(tool.title)
-                                        .cdFont(.bodyStrong)
-                                        .foregroundStyle(CD.ink)
-                                    Text(tool.summary)
-                                        .cdFont(.small)
-                                        .foregroundStyle(CD.ink3)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(CD.ink4)
-                            }
-                            .padding(.horizontal, CD.Space.s16)
-                            .padding(.vertical, CD.Space.s12)
-                            .frame(minHeight: 64)
-                            .contentShape(Rectangle())
+                            FeatureRow(emblem: tool.emblem, title: tool.title, detail: tool.summary)
                         }
                         .buttonStyle(CDPressStyle())
                     }
@@ -83,12 +61,12 @@ enum ToolRoute: String, Hashable, CaseIterable {
         }
     }
 
-    var symbol: String {
+    var emblem: Emblem.Kind {
         switch self {
-        case .analysis: "magnifyingglass"
-        case .bestMove: "scope"
-        case .coordinates: "square.grid.3x3"
-        case .elo: "function"
+        case .analysis: .analysis
+        case .bestMove: .nextMove
+        case .coordinates: .coordinates
+        case .elo: .rating
         }
     }
 

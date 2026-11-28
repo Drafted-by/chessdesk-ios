@@ -32,13 +32,13 @@ enum TrainRow: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var symbol: String {
+    var emblem: Emblem.Kind {
         switch self {
-        case .puzzles: "puzzlepiece"
-        case .woodpecker: "arrow.triangle.2.circlepath"
-        case .daily: "calendar"
-        case .mistakes: "arrow.uturn.backward"
-        case .coordinates: "square.grid.3x3"
+        case .puzzles: .puzzles
+        case .woodpecker: .woodpecker
+        case .daily: .schedule
+        case .mistakes: .mistakes
+        case .coordinates: .coordinates
         }
     }
 
@@ -69,31 +69,62 @@ enum TrainRow: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// The figure of the row, when the server gave one.
-    func state(_ state: TrainState?) -> (text: String, isDue: Bool)? {
+    func figure(_ state: TrainState?) -> FeatureRow.Figure? {
         guard let state else { return nil }
         switch self {
         case .puzzles:
-            return state.puzzleRating.map { ("Rating \(CDFormat.count($0))", false) }
+            return state.puzzleRating.map { .init(value: CDFormat.count($0), caption: "rating") }
         case .woodpecker:
             return state.woodpecker.map {
-                ("Cycle \($0.cycleNumber) · \(CDFormat.count($0.solved)) of \(CDFormat.count($0.total))", false)
+                .init(value: "Cycle \($0.cycleNumber)", caption: "\(CDFormat.count($0.solved)) of \(CDFormat.count($0.total))")
             }
         case .daily:
             guard let daily = state.daily else { return nil }
-            let streak = daily.streak.current > 0 ? " · \(CDFormat.count(daily.streak.current))-day streak" : ""
-            return daily.doneToday ? ("Done today\(streak)", false) : ("Open today\(streak)", true)
+            let streak = daily.streak.current > 0 ? "\(CDFormat.count(daily.streak.current))-day streak" : nil
+            return daily.doneToday
+                ? .init(value: "Done today", caption: streak)
+                : .init(value: "Open today", caption: streak, isDue: true)
         case .mistakes:
             guard let mistakes = state.mistakes, mistakes.total > 0 else { return nil }
-            return mistakes.due > 0 ? ("\(CDFormat.count(mistakes.due)) due", true) : ("Nothing due", false)
+            return mistakes.due > 0
+                ? .init(value: CDFormat.count(mistakes.due), caption: "due", isDue: true)
+                : .init(value: "Nothing due")
         case .coordinates:
             return nil
         }
     }
+
+    /// The one way to train that leads the hub: what waits for the player
+    /// today (the Daily 5 still open, then the mistakes due), and puzzles
+    /// when nothing does or for a guest.
+    static func lead(_ state: TrainState?) -> TrainRow {
+        guard let state else { return .puzzles }
+        if let daily = state.daily, !daily.doneToday { return .daily }
+        if let mistakes = state.mistakes, mistakes.due > 0 { return .mistakes }
+        return .puzzles
+    }
+
+    /// The lead, said as today's work: a line above the name, the number
+    /// that matters with what it counts, and the action.
+    func leadCopy(_ state: TrainState?) -> (eyebrow: String, metric: (value: String, caption: String)?, action: String) {
+        switch self {
+        case .daily:
+            let streak = state?.daily?.streak.current ?? 0
+            return ("Open today", streak > 0 ? (CDFormat.count(streak), "day streak") : nil, "Start today's five")
+        case .mistakes:
+            let due = state?.mistakes?.due ?? 0
+            return ("Due today", (CDFormat.count(due), due == 1 ? "position to solve" : "positions to solve"), "Practise")
+        default:
+            // A guest has the free set; a player is rated.
+            return (state == nil ? "Free to start" : "Rated", state?.puzzleRating.map { (CDFormat.count($0), "puzzle rating") }, "Solve puzzles")
+        }
+    }
 }
 
-/// "Train": the ways to practise, as a list. A working screen: rows, no
-/// ornament. A row says in one line what it is and shows its state when the
-/// server gave one; a row that needs an account says so to a guest, and
+/// "Train": the ways to practise. One of them leads, framed as the plate of
+/// the screen: what waits for the player today. The others follow as the
+/// chapters of a book, each under its emblem, with its figure when the
+/// server gave one. A row that needs an account says so to a guest, and
 /// opens a screen that offers one.
 struct TrainHubView: View {
     @Environment(AppModel.self) private var app
@@ -101,16 +132,32 @@ struct TrainHubView: View {
     @State private var state: TrainState?
 
     var body: some View {
+        let lead = TrainRow.lead(state)
         ScrollView {
-            VStack(alignment: .leading, spacing: CD.Space.s20) {
-                Text("Train")
-                    .cdFont(.display)
-                    .foregroundStyle(CD.ink)
-                    .accessibilityAddTraits(.isHeader)
+            VStack(alignment: .leading, spacing: CD.Space.s24) {
+                VStack(alignment: .leading, spacing: CD.Space.s6) {
+                    Text("Train")
+                        .cdFont(.display)
+                        .foregroundStyle(CD.ink)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("A few minutes a day, on the positions that teach you most.")
+                        .cdFont(.ledeSmall)
+                        .foregroundStyle(CD.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                leadPlate(lead)
                 VStack(spacing: 0) {
-                    ForEach(Array(TrainRow.allCases.enumerated()), id: \.element) { index, row in
-                        if index > 0 { CDHairline() }
-                        entry(row)
+                    let rest = TrainRow.allCases.filter { $0 != lead }
+                    ForEach(Array(rest.enumerated()), id: \.element) { index, row in
+                        if index > 0 { CDHairline().padding(.leading, CD.Space.s16 + 40 + CD.Space.s12) }
+                        entry(row, style: CDPressStyle()) {
+                            FeatureRow(
+                                emblem: row.emblem,
+                                title: row.title,
+                                detail: row.line(isSignedIn: app.isSignedIn),
+                                figure: row.figure(state)
+                            )
+                        }
                     }
                 }
                 .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
@@ -130,6 +177,44 @@ struct TrainHubView: View {
         .task(id: [app.accountRevision, home.revision]) { await load() }
     }
 
+    /// The plate: the emblem large, the name as a title, the number that
+    /// matters, and the one primary action of the screen.
+    private func leadPlate(_ row: TrainRow) -> some View {
+        let copy = row.leadCopy(state)
+        return VStack(alignment: .leading, spacing: CD.Space.s20) {
+            HStack(alignment: .top, spacing: CD.Space.s16) {
+                VStack(alignment: .leading, spacing: CD.Space.s4) {
+                    Text(copy.eyebrow)
+                        .cdFont(.small)
+                        .foregroundStyle(CD.accentStrong)
+                    Text(row.title)
+                        .cdFont(.pageTitle)
+                        .foregroundStyle(CD.ink)
+                    Text(row.summary)
+                        .cdFont(.ledeSmall)
+                        .foregroundStyle(CD.ink2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                Emblem(kind: row.emblem, size: 64)
+            }
+            if let metric = copy.metric {
+                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
+                    Text(metric.value)
+                        .cdFont(.metric)
+                        .foregroundStyle(CD.ink)
+                        .cdNumber()
+                    Text(metric.caption)
+                        .cdFont(.body)
+                        .foregroundStyle(CD.ink3)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            entry(row, style: .cd(.primary, size: .large, fullWidth: true)) { Text(copy.action) }
+        }
+        .plate()
+    }
+
     private func load() async {
         guard let token = app.playerToken else {
             state = nil
@@ -141,19 +226,19 @@ struct TrainHubView: View {
         if !Task.isCancelled { state = fresh }
     }
 
-    /// A row leads to its screen; for a guest, the two that have no screen
-    /// of their own without an account lead to what an account brings.
-    @ViewBuilder private func entry(_ row: TrainRow) -> some View {
+    /// A way to train leads to its screen; for a guest, the two that have
+    /// no screen of their own without an account lead to what an account brings.
+    @ViewBuilder private func entry(_ row: TrainRow, style: some ButtonStyle, @ViewBuilder label: () -> some View) -> some View {
         switch row {
         case .puzzles:
-            NavigationLink(value: AppRoute.puzzles) { label(row) }.buttonStyle(CDPressStyle())
+            NavigationLink(value: AppRoute.puzzles, label: label).buttonStyle(style)
         case .woodpecker:
-            NavigationLink(value: AppRoute.woodpecker) { label(row) }.buttonStyle(CDPressStyle())
+            NavigationLink(value: AppRoute.woodpecker, label: label).buttonStyle(style)
         case .coordinates:
-            NavigationLink(value: AppRoute.coordinates) { label(row) }.buttonStyle(CDPressStyle())
+            NavigationLink(value: AppRoute.coordinates, label: label).buttonStyle(style)
         case .daily:
             if app.isSignedIn {
-                Button { home.open(.daily) } label: { label(row) }.buttonStyle(CDPressStyle())
+                Button { home.open(.daily) } label: { label() }.buttonStyle(style)
             } else {
                 NavigationLink {
                     TrainAccountScreen(
@@ -161,12 +246,12 @@ struct TrainHubView: View {
                         heading: "Five positions a day, from your own games",
                         message: "Each day, five positions where one of your games went wrong, and a streak that grows with the days you train. It is built from the games of an account."
                     )
-                } label: { label(row) }
-                    .buttonStyle(CDPressStyle())
+                } label: { label() }
+                    .buttonStyle(style)
             }
         case .mistakes:
             if app.isSignedIn {
-                Button { home.open(.mistakes) } label: { label(row) }.buttonStyle(CDPressStyle())
+                Button { home.open(.mistakes) } label: { label() }.buttonStyle(style)
             } else {
                 NavigationLink {
                     TrainAccountScreen(
@@ -174,49 +259,10 @@ struct TrainHubView: View {
                         heading: "Your own mistakes, until they are gone",
                         message: "Bring in your games from Chess.com or Lichess, have the engine on this phone review them, and the positions where you went wrong come back until you find the better move. It needs an account."
                     )
-                } label: { label(row) }
-                    .buttonStyle(CDPressStyle())
+                } label: { label() }
+                    .buttonStyle(style)
             }
         }
-    }
-
-    private func label(_ row: TrainRow) -> some View {
-        let figure = row.state(state)
-        return HStack(spacing: CD.Space.s12) {
-            Image(systemName: row.symbol)
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(CD.accent)
-                .frame(width: 32)
-                .accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: CD.Space.s2) {
-                HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
-                    Text(row.title)
-                        .cdFont(.bodyStrong)
-                        .foregroundStyle(CD.ink)
-                    Spacer(minLength: CD.Space.s4)
-                    if let figure {
-                        Text(figure.text)
-                            .cdFont(.small)
-                            .foregroundStyle(figure.isDue ? CD.accentStrong : CD.ink3)
-                            .cdNumber()
-                            .lineLimit(1)
-                    }
-                }
-                Text(row.line(isSignedIn: app.isSignedIn))
-                    .cdFont(.small)
-                    .foregroundStyle(CD.ink3)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Image(systemName: "chevron.right")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(CD.ink4)
-        }
-        .padding(.horizontal, CD.Space.s16)
-        .padding(.vertical, CD.Space.s12)
-        .frame(minHeight: 64)
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
     }
 }
 

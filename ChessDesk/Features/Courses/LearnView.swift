@@ -122,36 +122,12 @@ private struct MyRepertoiresRow: View {
 
     var body: some View {
         NavigationLink(value: AppRoute.repertoires) {
-            HStack(spacing: CD.Space.s12) {
-                Image(systemName: "list.bullet.indent")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(CD.accent)
-                    .frame(width: 32)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: CD.Space.s2) {
-                    Text("My repertoires")
-                        .cdFont(.bodyStrong)
-                        .foregroundStyle(CD.ink)
-                    Text(detail)
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: CD.Space.s8)
-                if let due = list?.totalDue, due > 0 {
-                    Text("\(CDFormat.count(due)) due")
-                        .cdFont(.small)
-                        .foregroundStyle(CD.accentStrong)
-                        .cdNumber()
-                }
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CD.ink4)
-            }
-            .padding(.horizontal, CD.Space.s16)
-            .padding(.vertical, CD.Space.s12)
-            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            FeatureRow(
+                emblem: .repertoire,
+                title: "My repertoires",
+                detail: detail,
+                figure: (list?.totalDue).flatMap { $0 > 0 ? .init(value: CDFormat.count($0), caption: "due", isDue: true) : nil }
+            )
             .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
             .hairline()
             .contentShape(Rectangle())

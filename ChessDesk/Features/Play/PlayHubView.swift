@@ -152,28 +152,13 @@ struct PlayHubView: View {
         Button {
             pick = .custom(custom)
         } label: {
-            CDCard(padding: CD.Space.s16) {
-                HStack(spacing: CD.Space.s12) {
-                    Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 17, weight: .medium))
-                        .foregroundStyle(CD.ink2)
-                        .frame(width: 28)
-                    VStack(alignment: .leading, spacing: CD.Space.s2) {
-                        Text("Build your own opponent")
-                            .cdFont(.cardTitle)
-                            .foregroundStyle(CD.ink)
-                        Text("Set the exact rating, from \(CDFormat.count(custom.rating.min)) to \(CDFormat.count(custom.rating.max)), and start from any position.")
-                            .cdFont(.small)
-                            .foregroundStyle(CD.ink3)
-                            .multilineTextAlignment(.leading)
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(CD.ink4)
-                }
-                .frame(minHeight: 44)
-            }
+            FeatureRow(
+                emblem: .settings,
+                title: "Build your own opponent",
+                detail: "Set the exact rating, from \(CDFormat.count(custom.rating.min)) to \(CDFormat.count(custom.rating.max)), and start from any position."
+            )
+            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .hairline()
         }
         .buttonStyle(CDPressStyle())
     }

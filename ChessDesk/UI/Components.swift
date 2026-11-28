@@ -97,6 +97,73 @@ struct CDPressStyle: ButtonStyle {
     }
 }
 
+// MARK: Features
+
+/// A feature offered as a row of a hub: its emblem, its name set in the
+/// serif like a chapter of a book, one line of what it is, the figure the
+/// server gave for it, and the way in. The emblem is the feature's identity
+/// (`docs/design.md`, section 10): a hub never names a feature with a
+/// system symbol.
+struct FeatureRow: View {
+    /// What the player has there: "1,388" over "rating", "9" over "due".
+    struct Figure: Equatable, Sendable {
+        let value: String
+        var caption: String?
+        /// Something waits for the player: the figure takes the brass.
+        var isDue = false
+    }
+
+    let emblem: Emblem.Kind
+    let title: String
+    let detail: String
+    var figure: Figure?
+    /// The surface the row sits on, which the emblem knocks out to.
+    var surface = CD.surface1
+
+    var body: some View {
+        HStack(spacing: CD.Space.s12) {
+            Emblem(kind: emblem, size: 40, surface: surface)
+            VStack(alignment: .leading, spacing: CD.Space.s2) {
+                Text(title)
+                    .cdFont(.serifCard)
+                    .foregroundStyle(CD.ink)
+                    .multilineTextAlignment(.leading)
+                Text(detail)
+                    .cdFont(.small)
+                    .foregroundStyle(CD.ink3)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: CD.Space.s4)
+            if let figure {
+                VStack(alignment: .trailing, spacing: 0) {
+                    Text(figure.value)
+                        .cdFont(.cardTitle)
+                        .foregroundStyle(figure.isDue ? CD.accentStrong : CD.ink)
+                        .cdNumber()
+                    if let caption = figure.caption {
+                        Text(caption)
+                            .cdFont(.meta)
+                            .foregroundStyle(CD.ink3)
+                            .cdNumber()
+                    }
+                }
+                .lineLimit(1)
+                .fixedSize()
+            }
+            Image(systemName: "chevron.right")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(CD.ink4)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, CD.Space.s16)
+        .padding(.vertical, CD.Space.s16)
+        .frame(maxWidth: .infinity, minHeight: 76, alignment: .leading)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
 // MARK: Surfaces
 
 struct CDCard<Content: View>: View {

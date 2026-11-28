@@ -73,30 +73,11 @@ private struct ProgressEntry: View {
 
     var body: some View {
         Button(action: open) {
-            HStack(spacing: CD.Space.s12) {
-                Image(systemName: "chart.line.uptrend.xyaxis")
-                    .font(.system(size: 18, weight: .medium))
-                    .foregroundStyle(CD.accent)
-                    .frame(width: 32)
-                    .accessibilityHidden(true)
-                VStack(alignment: .leading, spacing: CD.Space.s2) {
-                    Text("Your progress")
-                        .cdFont(.bodyStrong)
-                        .foregroundStyle(CD.ink)
-                    Text("Your streak, the mistakes you no longer make, your rating goal.")
-                        .cdFont(.small)
-                        .foregroundStyle(CD.ink3)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: CD.Space.s8)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(CD.ink4)
-            }
-            .padding(.horizontal, CD.Space.s16)
-            .padding(.vertical, CD.Space.s12)
-            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+            FeatureRow(
+                emblem: .insights,
+                title: "Your progress",
+                detail: "Your streak, the mistakes you no longer make, your rating goal."
+            )
             .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
             .hairline()
             .contentShape(Rectangle())
