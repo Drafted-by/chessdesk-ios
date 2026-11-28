@@ -9,6 +9,11 @@ import SwiftUI
 /// `primary` is brass and there is one per view. `lead` is the same action
 /// on the screen's plate, with the moving edge. `secondary` is the neutral
 /// action, `ghost` the quiet one, `danger` the one that cannot be undone.
+///
+/// A button is an object on the desk, lit from above like the rest of the
+/// app: brass that is brighter at its top and catches a line of light on its
+/// upper edge, a neutral key cut from the surface ramp, both casting a short
+/// shade and sinking into it when pressed. Depth, never a glow.
 struct CDButtonStyle: ButtonStyle {
     enum Variant { case primary, lead, secondary, ghost, danger }
     enum Size { case small, medium, large }
@@ -23,25 +28,43 @@ struct CDButtonStyle: ButtonStyle {
         let height: CGFloat = switch size {
         case .small: 34
         case .medium: 44
-        case .large: 52
+        case .large: 54
         }
+        let pressed = configuration.isPressed
         return configuration.label
-            .cdFont(.button)
+            .cdFont(size == .large && isRaised ? .buttonLarge : .button)
             .foregroundStyle(foreground)
             .lineLimit(1)
             .padding(.horizontal, variant == .ghost ? 10 : size == .small ? 12 : 18)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: height)
-            .background(background(pressed: configuration.isPressed), in: shape)
+            .background {
+                shape.fill(background(pressed: pressed))
+                    .shadow(color: shadow(pressed: pressed), radius: pressed ? 1 : size == .small ? 3 : 7, y: pressed ? 0 : size == .small ? 2 : 4)
+            }
             .overlay(shape.strokeBorder(border, lineWidth: 1))
+            .overlay { if isRaised, !pressed { shape.strokeBorder(edge, lineWidth: 1) } }
             .overlay { if variant == .lead { MovingEdge(radius: radius) } }
             .shadow(color: variant == .lead ? CD.accent.opacity(0.22) : .clear, radius: 10, y: 6)
             .opacity(isEnabled ? 1 : 0.45)
-            .scaleEffect(configuration.isPressed ? 0.985 : 1)
-            .animation(CD.Motion.press, value: configuration.isPressed)
+            .scaleEffect(pressed ? 0.985 : 1)
+            .offset(y: pressed && isRaised ? 1 : 0)
+            .animation(CD.Motion.press, value: pressed)
             .contentShape(shape)
+            .sensoryFeedback(trigger: pressed) { _, isDown in
+                isDown && (variant == .primary || variant == .lead) ? .impact(weight: .light) : nil
+            }
     }
 
-    private var radius: CGFloat { size == .large ? 10 : CD.Radius.md }
+    /// Brass and the neutral key stand above the surface; ghost and danger lie in it.
+    private var isRaised: Bool { variant == .primary || variant == .lead || variant == .secondary }
+
+    private var radius: CGFloat {
+        switch size {
+        case .small: CD.Radius.md
+        case .medium: 10
+        case .large: CD.Radius.lg
+        }
+    }
 
     private var shape: RoundedRectangle {
         RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -58,12 +81,22 @@ struct CDButtonStyle: ButtonStyle {
 
     private func background(pressed: Bool) -> AnyShapeStyle {
         switch variant {
-        case .primary: AnyShapeStyle(pressed ? CD.accentStrong : CD.accent)
-        case .lead:
+        case .primary, .lead:
             pressed
-                ? AnyShapeStyle(CD.accentStrong)
-                : AnyShapeStyle(LinearGradient(colors: [CD.accent, CD.accentStrong], startPoint: .top, endPoint: .bottom))
-        case .secondary, .danger: AnyShapeStyle(pressed ? CD.surface3 : CD.surface2)
+                ? AnyShapeStyle(CD.accentDeep)
+                : AnyShapeStyle(LinearGradient(
+                    stops: [
+                        .init(color: CD.accentStrong, location: 0),
+                        .init(color: CD.accent, location: 0.5),
+                        .init(color: CD.accentDeep, location: 1),
+                    ],
+                    startPoint: .top, endPoint: .bottom
+                ))
+        case .secondary:
+            pressed
+                ? AnyShapeStyle(CD.surface2)
+                : AnyShapeStyle(LinearGradient(colors: [CD.surface3, CD.surface2], startPoint: .top, endPoint: .bottom))
+        case .danger: AnyShapeStyle(pressed ? CD.loss.opacity(0.12) : Color.clear)
         case .ghost: AnyShapeStyle(pressed ? CD.surface2 : Color.clear)
         }
     }
@@ -75,6 +108,26 @@ struct CDButtonStyle: ButtonStyle {
         case .secondary: CD.lineStrong
         case .danger: CD.loss.opacity(0.45)
         }
+    }
+
+    /// The line of light along the upper edge, and on brass the dark foot
+    /// that sets it on the surface.
+    private var edge: LinearGradient {
+        let brass = variant != .secondary
+        return LinearGradient(
+            stops: [
+                .init(color: brass ? CD.glint.opacity(0.6) : CD.edgeLight, location: 0),
+                .init(color: .clear, location: 0.4),
+                .init(color: .clear, location: 0.7),
+                .init(color: brass ? CD.accentInk.opacity(0.28) : .clear, location: 1),
+            ],
+            startPoint: .top, endPoint: .bottom
+        )
+    }
+
+    private func shadow(pressed: Bool) -> Color {
+        guard isRaised, isEnabled else { return .clear }
+        return pressed ? CD.shade.opacity(0.5) : CD.shade
     }
 }
 
@@ -164,6 +217,57 @@ struct FeatureRow: View {
     }
 }
 
+// MARK: Results
+
+/// The result of a game as chess writes it (`docs/design.md`, section 7):
+/// the side the player had, then the crosstable score with the player's half
+/// in the tone of the outcome. Never a W, L or D in a coloured box. Without
+/// the side, the word: "Won", "Lost", "Drawn".
+struct ResultMark: View {
+    enum Outcome: Sendable { case win, loss, draw, unknown }
+
+    let outcome: Outcome
+    var side: Side?
+
+    var body: some View {
+        HStack(spacing: CD.Space.s6) {
+            if let side { SideSwatch(side: side) }
+            score
+                .cdFont(.san)
+                .cdNumber()
+                .lineLimit(1)
+        }
+        .frame(width: side == nil ? 48 : 52, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(word)
+    }
+
+    var word: String {
+        switch outcome {
+        case .win: "Won"
+        case .loss: "Lost"
+        case .draw: "Drawn"
+        case .unknown: "Game"
+        }
+    }
+
+    private var tone: Color {
+        switch outcome {
+        case .win: CD.win
+        case .loss: CD.loss
+        case .draw, .unknown: CD.ink
+        }
+    }
+
+    private var score: Text {
+        guard let side, outcome != .unknown else { return Text(outcome == .unknown ? "–" : word).foregroundStyle(tone) }
+        let mine = Text(outcome == .win ? "1" : outcome == .loss ? "0" : "½").foregroundStyle(tone)
+        let theirs = Text(outcome == .win ? "0" : outcome == .loss ? "1" : "½").foregroundStyle(CD.ink3)
+        let dash = Text("–").foregroundStyle(CD.ink4)
+        return side == .white ? mine + dash + theirs : theirs + dash + mine
+    }
+}
+
 // MARK: Surfaces
 
 struct CDCard<Content: View>: View {
@@ -177,7 +281,13 @@ struct CDCard<Content: View>: View {
         content
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(fill, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .background {
+                if tone == .standard {
+                    Color.clear.cardSurface()
+                } else {
+                    RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous).fill(fill)
+                }
+            }
             .hairline(tone == .raised ? CD.lineStrong : CD.line)
     }
 

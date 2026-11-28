@@ -128,7 +128,7 @@ private struct MyRepertoiresRow: View {
                 detail: detail,
                 figure: (list?.totalDue).flatMap { $0 > 0 ? .init(value: CDFormat.count($0), caption: "due", isDue: true) : nil }
             )
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
             .contentShape(Rectangle())
         }

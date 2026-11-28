@@ -120,7 +120,7 @@ struct RepertoireAdherenceScreen: View {
                             .buttonStyle(CDPressStyle())
                         }
                     }
-                    .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                    .cardSurface()
                     .hairline()
                 }
             }
@@ -196,11 +196,7 @@ private struct AdherenceRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: CD.Space.s12) {
-            Text(mark.letter)
-                .font(.custom("Geist-SemiBold", size: 12.5, relativeTo: .caption))
-                .foregroundStyle(mark.color)
-                .frame(width: 26, height: 26)
-                .background(mark.color.opacity(0.14), in: RoundedRectangle(cornerRadius: CD.Radius.sm, style: .continuous))
+            mark
             VStack(alignment: .leading, spacing: CD.Space.s4) {
                 HStack(alignment: .firstTextBaseline, spacing: CD.Space.s8) {
                     Text(game.opponent.isEmpty ? "?" : game.opponent)
@@ -231,12 +227,12 @@ private struct AdherenceRow: View {
         .accessibilityLabel("\(mark.word) against \(game.opponent). \(verdict.text)")
     }
 
-    private var mark: (letter: String, word: String, color: Color) {
+    private var mark: ResultMark {
         switch game.result {
-        case "win": ("W", "Win", CD.win)
-        case "loss": ("L", "Loss", CD.loss)
-        case "draw": ("D", "Draw", CD.draw)
-        default: ("·", "Game", CD.ink3)
+        case "win": ResultMark(outcome: .win)
+        case "loss": ResultMark(outcome: .loss)
+        case "draw": ResultMark(outcome: .draw)
+        default: ResultMark(outcome: .unknown)
         }
     }
 

@@ -78,7 +78,7 @@ private struct ProgressEntry: View {
                 title: "Your progress",
                 detail: "Your streak, the mistakes you no longer make, your rating goal."
             )
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
             .contentShape(Rectangle())
         }
@@ -324,7 +324,7 @@ private struct AboutSection: View {
                         .buttonStyle(CDPressStyle())
                     }
                 }
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
             }
         }

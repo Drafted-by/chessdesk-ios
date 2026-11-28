@@ -206,7 +206,7 @@ private struct CourseFacts: View {
             fact(course.voiced ? "Voiced" : "Text", course.voiced ? "notes read aloud" : "notes on every move")
         }
         .padding(.vertical, CD.Space.s16)
-        .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+        .cardSurface()
         .hairline()
     }
 
@@ -291,7 +291,7 @@ private struct ChapterSection: View {
                     .buttonStyle(CDPressStyle())
                 }
             }
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
         }
     }

@@ -166,7 +166,7 @@ struct GamesView: View {
                     }
                 }
             }
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
 
             if model.isLoadingMore {
@@ -228,7 +228,7 @@ private struct GamesTools: View {
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-        .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+        .cardSurface()
         .hairline()
     }
 }
@@ -239,11 +239,7 @@ private struct GameRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: CD.Space.s12) {
-            Text(mark.letter)
-                .font(.custom("Geist-SemiBold", size: 12.5, relativeTo: .caption))
-                .foregroundStyle(mark.color)
-                .frame(width: 26, height: 26)
-                .background(mark.color.opacity(0.14), in: RoundedRectangle(cornerRadius: CD.Radius.sm, style: .continuous))
+            mark
             VStack(alignment: .leading, spacing: CD.Space.s2) {
                 HStack(spacing: CD.Space.s6) {
                     Text(game.opponent)
@@ -263,11 +259,18 @@ private struct GameRow: View {
                     .lineLimit(1)
             }
             Spacer(minLength: CD.Space.s8)
-            if game.reviewed {
-                Text("Reviewed")
+            VStack(alignment: .trailing, spacing: CD.Space.s2) {
+                Text(day)
                     .cdFont(.meta)
-                    .foregroundStyle(CD.accentStrong)
+                    .foregroundStyle(CD.ink3)
+                    .cdNumber()
+                if game.reviewed {
+                    Text("Reviewed")
+                        .cdFont(.meta)
+                        .foregroundStyle(CD.accentStrong)
+                }
             }
+            .fixedSize()
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(CD.ink4)
@@ -276,21 +279,28 @@ private struct GameRow: View {
         .frame(minHeight: 60)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(mark.word) against \(game.opponent), \(detail)\(game.reviewed ? ", reviewed" : "")")
+        .accessibilityLabel("\(mark.word) against \(game.opponent), \(detail), \(day)\(game.reviewed ? ", reviewed" : "")")
     }
 
-    private var mark: (letter: String, word: String, color: Color) {
-        switch game.outcome {
-        case .win: ("W", "Win", CD.win)
-        case .loss: ("L", "Loss", CD.loss)
-        case .draw: ("D", "Draw", CD.draw)
-        case .unknown: ("·", "Game", CD.ink3)
+    private var mark: ResultMark {
+        let outcome: ResultMark.Outcome = switch game.outcome {
+        case .win: .win
+        case .loss: .loss
+        case .draw: .draw
+        case .unknown: .unknown
         }
+        return ResultMark(outcome: outcome, side: game.userColor == "white" ? .white : game.userColor == "black" ? .black : nil)
+    }
+
+    /// "Nov 27", with the year once it is not this one.
+    private var day: String {
+        let sameYear = Calendar.current.isDate(game.playedAt, equalTo: .now, toGranularity: .year)
+        let format = sameYear ? Date.FormatStyle.dateTime.day().month(.abbreviated) : .dateTime.day().month(.abbreviated).year()
+        return game.playedAt.formatted(format.locale(Locale(identifier: "en_US")))
     }
 
     private var detail: String {
-        let day = game.playedAt.formatted(.dateTime.day().month(.abbreviated).year().locale(Locale(identifier: "en_US")))
-        return [game.timeClassLabel, game.opening, day].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
+        [game.timeClassLabel, game.opening].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " · ")
     }
 }
 

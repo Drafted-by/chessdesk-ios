@@ -22,7 +22,7 @@ struct ToolsHubView: View {
                         .buttonStyle(CDPressStyle())
                     }
                 }
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
             }
             .pageGutter()

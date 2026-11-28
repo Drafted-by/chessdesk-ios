@@ -215,7 +215,7 @@ private struct GameReplay: View {
             }
             .padding(.horizontal, CD.Space.s16)
             .frame(minHeight: 56)
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
         }
     }
@@ -357,7 +357,7 @@ private struct MoveStrip: View {
                 .padding(.horizontal, CD.Space.s8)
             }
             .frame(minHeight: 44)
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
             .onChange(of: ply) { _, new in
                 withAnimation(CD.Motion.state) { proxy.scrollTo(max(1, new), anchor: .center) }

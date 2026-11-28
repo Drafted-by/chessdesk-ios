@@ -157,7 +157,7 @@ struct PlayHubView: View {
                 title: "Build your own opponent",
                 detail: "Set the exact rating, from \(CDFormat.count(custom.rating.min)) to \(CDFormat.count(custom.rating.max)), and start from any position."
             )
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
         }
         .buttonStyle(CDPressStyle())

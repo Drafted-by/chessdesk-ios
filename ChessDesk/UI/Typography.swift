@@ -23,6 +23,7 @@ enum CDFont {
     case metricMedium   // Geist 24 semibold, tabular
     case san            // Geist 15.5 medium, tabular
     case button         // Geist 15.5 medium
+    case buttonLarge    // Geist 16.5 semibold, the label of a large action
     case mono           // Geist Mono 13.5
 
     var font: Font {
@@ -58,6 +59,7 @@ enum CDFont {
         case .sectionTitle: -0.2
         case .metric: -1
         case .metricMedium: -0.6
+        case .buttonLarge: -0.15
         default: 0
         }
     }
@@ -87,6 +89,7 @@ enum CDFont {
         case .metricMedium: Spec(name: "Geist-SemiBold", size: 24, style: .title2, uiStyle: .title2)
         case .san: Spec(name: "Geist-Medium", size: 15.5, style: .body, uiStyle: .body)
         case .button: Spec(name: "Geist-Medium", size: 15.5, style: .body, uiStyle: .body)
+        case .buttonLarge: Spec(name: "Geist-SemiBold", size: 16.5, style: .body, uiStyle: .body)
         case .mono: Spec(name: "GeistMono-Regular", size: 13.5, style: .footnote, uiStyle: .footnote)
         }
     }

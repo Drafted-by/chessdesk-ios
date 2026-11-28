@@ -87,7 +87,7 @@ struct EngineLinesPanel: View {
                 .frame(minHeight: CGFloat(rows) * 44, alignment: .top)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+        .cardSurface()
         .hairline()
     }
 
@@ -231,7 +231,7 @@ struct MoveListView: View {
                 withAnimation(CD.Motion.state) { proxy.scrollTo(cursor, anchor: .center) }
             }
         }
-        .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+        .cardSurface()
         .hairline()
     }
 

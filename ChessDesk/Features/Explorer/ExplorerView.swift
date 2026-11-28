@@ -289,7 +289,7 @@ private struct ExplorerContent: View {
                         .buttonStyle(CDPressStyle())
                     }
                 }
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
             }
         }
@@ -319,7 +319,7 @@ private struct ExplorerContent: View {
                         }
                     }
                 }
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
                 .opacity(model.isCurrent ? 1 : 0.55)
                 .allowsHitTesting(model.isCurrent)
@@ -365,7 +365,7 @@ private struct ExplorerContent: View {
                         .buttonStyle(CDPressStyle())
                     }
                 }
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
             }
         }
@@ -581,11 +581,7 @@ private struct ExplorerGameRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: CD.Space.s12) {
-            Text(mark.letter)
-                .font(.custom("Geist-SemiBold", size: 12.5, relativeTo: .caption))
-                .foregroundStyle(mark.color)
-                .frame(width: 26, height: 26)
-                .background(mark.color.opacity(0.14), in: RoundedRectangle(cornerRadius: CD.Radius.sm, style: .continuous))
+            mark
             VStack(alignment: .leading, spacing: CD.Space.s2) {
                 HStack(spacing: CD.Space.s6) {
                     Text(game.opponent)
@@ -613,13 +609,14 @@ private struct ExplorerGameRow: View {
         .accessibilityLabel("\(mark.word) against \(game.opponent), \(detail)")
     }
 
-    private var mark: (letter: String, word: String, color: Color) {
-        switch game.outcome {
-        case .win: ("W", "Win", CD.win)
-        case .loss: ("L", "Loss", CD.loss)
-        case .draw: ("D", "Draw", CD.draw)
-        case .unknown: ("·", "Game", CD.ink3)
+    private var mark: ResultMark {
+        let outcome: ResultMark.Outcome = switch game.outcome {
+        case .win: .win
+        case .loss: .loss
+        case .draw: .draw
+        case .unknown: .unknown
         }
+        return ResultMark(outcome: outcome, side: game.userColor == "white" ? .white : game.userColor == "black" ? .black : nil)
     }
 
     private var detail: String {

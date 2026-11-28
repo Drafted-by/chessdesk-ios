@@ -264,7 +264,7 @@ private struct PlayMoveStrip: View {
                 .padding(.horizontal, CD.Space.s8)
             }
             .frame(minHeight: 44)
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
             .onChange(of: moves.count, initial: true) { _, count in
                 guard count > 0 else { return }

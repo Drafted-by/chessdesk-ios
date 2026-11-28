@@ -25,9 +25,16 @@ nonisolated enum CD {
     static let surface3 = Color(hex: 0x282521)
     static let surface4 = Color(hex: 0x33302B)
 
+    /// The top of a card, a shade above surface-1: cards are lit from above.
+    static let surfaceLit = Color(hex: 0x1C1A17)
+
     static let line = Color(hex: 0xEFEAE2, opacity: 0.08)
     static let lineStrong = Color(hex: 0xEFEAE2, opacity: 0.14)
     static let lineHover = Color(hex: 0xEFEAE2, opacity: 0.24)
+    /// The light a raised edge catches along its top (`--cd-shadow-raise`, the inset part).
+    static let edgeLight = Color(hex: 0xEFEAE2, opacity: 0.10)
+    /// The shade under a raised surface. Depth, never a glow.
+    static let shade = Color(hex: 0x000000, opacity: 0.38)
 
     // MARK: Ink
 
@@ -41,6 +48,8 @@ nonisolated enum CD {
 
     static let accent = Color(hex: 0xE0B676)
     static let accentStrong = Color(hex: 0xEDCC95)
+    /// The foot of a brass control: brass in its own shadow.
+    static let accentDeep = Color(hex: 0xCDA162)
     static let accentInk = Color(hex: 0x23190A)
     static let accentSoft = Color(hex: 0xE0B676, opacity: 0.12)
     static let accentLine = Color(hex: 0xE0B676, opacity: 0.38)
@@ -127,9 +136,31 @@ nonisolated enum CD {
 }
 
 extension View {
-    /// A 1 px hairline border on a rounded shape.
+    /// A 1 px hairline border on a rounded shape, catching the light along
+    /// its top like every raised edge of the app.
     func hairline(_ color: Color = CD.line, radius: CGFloat = CD.Radius.lg) -> some View {
-        overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(color, lineWidth: 1))
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        return overlay(shape.strokeBorder(color, lineWidth: 1))
+            .overlay(
+                shape.strokeBorder(
+                    LinearGradient(
+                        stops: [.init(color: CD.edgeLight, location: 0), .init(color: .clear, location: 0.35)],
+                        startPoint: .top, endPoint: .bottom
+                    ),
+                    lineWidth: 1
+                )
+                .allowsHitTesting(false)
+            )
+    }
+
+    /// The surface of a card: surface-1, a shade lighter at its top, with
+    /// the shade it casts on the canvas. Follow it with `.hairline()`.
+    func cardSurface(radius: CGFloat = CD.Radius.lg) -> some View {
+        background {
+            RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(LinearGradient(colors: [CD.surfaceLit, CD.surface1], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.6)))
+                .shadow(color: CD.shade, radius: 10, y: 6)
+        }
     }
 
     /// Page gutter: 16 pt on phones, 32 pt in a regular-width layout.

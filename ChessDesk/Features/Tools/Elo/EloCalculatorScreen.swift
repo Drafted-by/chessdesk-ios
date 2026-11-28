@@ -206,7 +206,7 @@ private struct ResultTiles: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(CD.Space.s12)
-                .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+                .cardSurface()
                 .hairline()
                 .accessibilityElement(children: .combine)
             }

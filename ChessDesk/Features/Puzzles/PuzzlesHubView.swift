@@ -170,7 +170,7 @@ private struct EntryRow: View {
             }
             .padding(CD.Space.s16)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
-            .background(CD.surface1, in: RoundedRectangle(cornerRadius: CD.Radius.lg, style: .continuous))
+            .cardSurface()
             .hairline()
         }
         .buttonStyle(CDPressStyle())
