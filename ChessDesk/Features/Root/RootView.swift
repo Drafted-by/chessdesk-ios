@@ -15,6 +15,7 @@ struct RootView: View {
             NavigationStack {
                 TodayView(openCourses: { section = .courses })
                     .courseDestinations()
+                    .playEntry()
             }
             .tabItem { Label("Today", systemImage: "sun.max") }
             .tag(AppSection.today)
