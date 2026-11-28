@@ -48,7 +48,24 @@ private func evaluation(_ cp: Int?, mate: Int? = nil, depth: Int = 12, _ pv: [St
 @MainActor
 @Suite struct AnalysisBoardTests {
     private func board(_ engine: StubLiveEngine = StubLiveEngine()) -> AnalysisBoardModel {
-        AnalysisBoardModel(engine: LiveAnalysisModel(engine: engine))
+        let model = AnalysisBoardModel(engine: LiveAnalysisModel(engine: engine))
+        model.start()
+        return model
+    }
+
+    @Test func searchesOnlyOnceStartedAndLetsGoWhenStopped() async throws {
+        let engine = StubLiveEngine()
+        let model = AnalysisBoardModel(engine: LiveAnalysisModel(engine: engine))
+        // SwiftUI makes models it throws away: they must not search.
+        #expect(model.play(try #require(model.position.move(san: "e4"))))
+        #expect(engine.searches.isEmpty)
+        model.start()
+        #expect(engine.searches.map(\.fen) == [model.fen])
+        model.stop()
+        await eventually { engine.ended.count == 1 }
+        #expect(engine.ended == [model.fen])
+        model.back()
+        #expect(engine.searches.count == 1)
     }
 
     private func play(_ model: AnalysisBoardModel, _ sans: String...) throws {

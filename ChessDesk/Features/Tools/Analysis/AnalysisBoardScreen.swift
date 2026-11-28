@@ -50,9 +50,9 @@ struct AnalysisBoardScreen: View {
         .task { await model.loadOpenings() }
         .onAppear {
             model.onMovePlayed = { BoardSounds.shared.play(capture: $0) }
-            model.engine.resume()
+            model.start()
         }
-        .onDisappear { model.engine.stop() }
+        .onDisappear { model.stop() }
         #if DEBUG
             // `-CDAnalysisPGN "1. e4 e5 (1... c5) 2. Nf3" -CDAnalysisPly 3`: a tree on the board.
             .task {
@@ -64,7 +64,7 @@ struct AnalysisBoardScreen: View {
             }
         #endif
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active { model.engine.resume() } else { model.engine.stop() }
+            if phase == .active { model.start() } else { model.stop() }
         }
     }
 
@@ -156,7 +156,7 @@ struct AnalysisBoardScreen: View {
         let engine = model.engine
         let showsEngine = engine.isOn && engine.position == model.position
         return HStack(spacing: 6) {
-            EvalBar(line: showsEngine ? engine.best : nil, orientation: model.orientation)
+            EvalBar(line: showsEngine ? engine.best : nil, orientation: model.orientation, winner: winner)
                 .frame(height: side)
                 .opacity(engine.isOn ? 1 : 0.35)
             BoardView(
@@ -169,6 +169,11 @@ struct AnalysisBoardScreen: View {
             )
             .frame(width: side, height: side)
         }
+    }
+
+    private var winner: Side? {
+        if case let .checkmate(side) = model.position.outcome { return side }
+        return nil
     }
 
     /// The first move of each line: the best in green, the others in blue (the site's "best" and "alt").

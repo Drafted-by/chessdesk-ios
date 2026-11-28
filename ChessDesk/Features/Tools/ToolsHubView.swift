@@ -109,6 +109,7 @@ extension View {
 private struct ToolsEntry: ViewModifier {
     @State private var opensHub = false
     @State private var debugTool: ToolRoute?
+    @State private var opensBoardSettings = false
 
     func body(content: Content) -> some View {
         content
@@ -122,6 +123,13 @@ private struct ToolsEntry: ViewModifier {
                     .accessibilityLabel("Tools")
                 }
             }
+        #if DEBUG
+            // `-CDRoute boardsettings`: You › Board and sound on its own, to look at it whole.
+            .navigationDestination(isPresented: $opensBoardSettings) {
+                ScrollView { BoardSettingsSection().pageGutter().padding(.vertical, CD.Space.s16) }
+                    .cdPage()
+            }
+        #endif
             .navigationDestination(isPresented: $opensHub) {
                 ToolsHubView()
                     .navigationDestination(for: ToolRoute.self) { $0.screen }
@@ -131,7 +139,9 @@ private struct ToolsEntry: ViewModifier {
             // `-CDRoute tools | analysis | bestmove | coordinates | elo`.
             .onAppear {
                 guard let first = DebugLaunch.route?.first, !opensHub else { return }
-                if first == "tools" {
+                if first == "boardsettings" {
+                    opensBoardSettings = true
+                } else if first == "tools" {
                     opensHub = true
                 } else if let tool = ToolRoute(rawValue: first) {
                     opensHub = true

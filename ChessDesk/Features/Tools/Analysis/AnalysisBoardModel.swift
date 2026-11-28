@@ -19,6 +19,9 @@ final class AnalysisBoardModel {
 
     @ObservationIgnored var onMovePlayed: (_ capture: Bool) -> Void = { _ in }
     @ObservationIgnored private var book: OpeningBook?
+    /// The engine runs only between `start()` and `stop()`: a model made and
+    /// thrown away by SwiftUI must not search.
+    @ObservationIgnored private var isActive = false
 
     init(
         tree: MoveTree = MoveTree(),
@@ -33,6 +36,19 @@ final class AnalysisBoardModel {
         self.engine = engine
         self.book = book
         follow()
+    }
+
+    /// The screen is on: the engine follows the position from now on.
+    func start() {
+        isActive = true
+        engine.show(position)
+        engine.resume()
+    }
+
+    /// The screen went away: the engine lets go.
+    func stop() {
+        isActive = false
+        engine.stop()
     }
 
     // MARK: The position on screen
@@ -158,7 +174,7 @@ final class AnalysisBoardModel {
     }
 
     private func follow() {
-        engine.show(position)
+        if isActive { engine.show(position) }
         opening = currentOpening()
     }
 

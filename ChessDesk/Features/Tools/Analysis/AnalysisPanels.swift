@@ -7,10 +7,13 @@ import SwiftUI
 struct EvalBar: View {
     let line: EngineLine?
     let orientation: Side
+    /// A checkmate on the board: the bar is the winner's, whatever the engine says.
+    var winner: Side?
 
     var body: some View {
-        let share = EngineScore.whiteShare(whiteCentipawns: line?.whiteCentipawns, whiteMate: line?.whiteMate) / 100
-        let whiteLeads = line.map { ($0.whiteMate ?? $0.whiteCentipawns ?? 0) >= 0 } ?? true
+        let share = winner.map { $0 == .white ? 1 : 0 }
+            ?? EngineScore.whiteShare(whiteCentipawns: line?.whiteCentipawns, whiteMate: line?.whiteMate) / 100
+        let whiteLeads = winner.map { $0 == .white } ?? line.map { ($0.whiteMate ?? $0.whiteCentipawns ?? 0) >= 0 } ?? true
         let whiteAtBottom = orientation == .white
         let labelAtBottom = whiteLeads == whiteAtBottom
         GeometryReader { proxy in
@@ -37,11 +40,12 @@ struct EvalBar: View {
         .clipShape(RoundedRectangle(cornerRadius: CD.Radius.xs, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: CD.Radius.xs, style: .continuous).strokeBorder(CD.line, lineWidth: 1))
         .accessibilityElement()
-        .accessibilityLabel("Evaluation \(line?.displayScore ?? "even")")
+        .accessibilityLabel(winner.map { "\($0 == .white ? "White" : "Black") has mated" } ?? "Evaluation \(line?.displayScore ?? "even")")
     }
 
     /// The score without its sign: its place says who leads. "0.0" when even.
     private var label: String {
+        if winner != nil { return "#" }
         guard let line else { return "0.0" }
         if let mate = line.whiteMate { return "#\(abs(mate))" }
         let pawns = Double(abs(line.whiteCentipawns ?? 0)) / 100
