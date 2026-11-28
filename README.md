@@ -44,8 +44,11 @@ with Stockfish 19 running on the device.
 - **Premium in the app.** An App Store subscription (StoreKit 2), yearly or monthly. The
   ChessDesk server verifies each purchase with Apple and opens Premium on the account; the
   app never unlocks anything on its own.
-
-Not built yet: reviewing your own games with the engine.
+- **Your own games.** Link a Chess.com or Lichess username, bring your games in, replay them,
+  and have Stockfish review them on the phone: accuracy for each side, every move named, the
+  better move drawn where one was missed. Same arithmetic as the site.
+- **Your mistakes.** The positions where your reviewed games went wrong come back to solve,
+  spaced over time.
 
 ## How it is built
 
@@ -107,6 +110,7 @@ Debug launch arguments also open a screen directly:
 scripts/sim.sh iphone -CDRoute path
 scripts/sim.sh iphone -CDRoute stage/castle-early -CDExercise 4
 scripts/sim.sh iphone -CDRoute premium -CDPremiumPreview YES
+scripts/sim.sh iphone -CDRoute games/sample -CDReview YES
 scripts/sim.sh iphone -CDRoute account/signin
 scripts/sim.sh iphone -CDRoute account/signup
 scripts/sim.sh iphone -CDRoute account/delete

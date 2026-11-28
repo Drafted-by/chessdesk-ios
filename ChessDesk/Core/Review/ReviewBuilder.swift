@@ -149,13 +149,21 @@ nonisolated struct GameReviewer: Sendable {
     static let perPosition = Duration.milliseconds(1500)
 
     /// Evaluates one position; the app's is Stockfish, tests pass a stub.
-    var analyse: @Sendable (String) async throws -> PositionEval = { fen in
-        guard let network = DeviceEngine.networkURL else { throw EngineError.networkMissing(StockfishEngine.networkName) }
-        try await StockfishEngine.shared.start(network: network)
-        let lines = try await StockfishEngine.shared.analyse(
-            fen: fen, depth: GameReviewer.depth, maxTime: GameReviewer.perPosition, lines: 2
-        )
-        return ReviewBuilder.eval(lines: lines, fen: fen)
+    var analyse: @Sendable (String) async throws -> PositionEval = GameReviewer.engine()
+
+    /// Stockfish on the device, two lines per position.
+    static func engine(
+        depth: Int = GameReviewer.depth,
+        maxTime: Duration = GameReviewer.perPosition
+    ) -> @Sendable (String) async throws -> PositionEval {
+        { fen in
+            guard let network = DeviceEngine.networkURL else {
+                throw EngineError.networkMissing(StockfishEngine.networkName)
+            }
+            try await StockfishEngine.shared.start(network: network)
+            let lines = try await StockfishEngine.shared.analyse(fen: fen, depth: depth, maxTime: maxTime, lines: 2)
+            return ReviewBuilder.eval(lines: lines, fen: fen)
+        }
     }
 
     /// `progress` is called with the number of positions done, out of `line.fens.count`.

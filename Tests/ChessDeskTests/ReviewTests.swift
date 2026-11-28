@@ -189,6 +189,23 @@ extension ChessDeskAPI {
         #expect(review.depth == 18)
     }
 
+    /// The real engine, shallow: the two lines are read, the runner-up is
+    /// kept, and a queen given away for nothing is called what it is.
+    @Test func stockfishReviewsAGameOnTheDevice() async throws {
+        let line = GameLine(pgn: "1. e4 e5 2. Qh5 Nc6 3. Qxf7+ Kxf7 4. Nf3 d6")
+        let analyse = GameReviewer.engine(depth: 10, maxTime: .milliseconds(400))
+        let opening = try await analyse(line.startFEN)
+        #expect(!opening.bestSAN.isEmpty)
+        #expect(opening.secondCentipawns != nil || opening.secondMate != nil)
+        let review = try await GameReviewer(analyse: analyse).review(line)
+        #expect(review.moves.count == 8)
+        let queenAway = review.moves[4]
+        #expect(queenAway.san == "Qxf7+")
+        #expect(queenAway.classification == .blunder)
+        #expect(queenAway.bestSan != "Qxf7+")
+        #expect(review.whiteAccuracy < review.blackAccuracy)
+    }
+
     @Test func aReviewIsEncodedAsTheContractRequires() throws {
         let line = GameLine(pgn: GameLineTests.scholars)
         let review = ReviewBuilder.build(line: line, evals: agreeing(line), depth: 18, now: Date(timeIntervalSince1970: 1_800_000_000))

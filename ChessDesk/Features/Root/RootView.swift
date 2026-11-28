@@ -3,7 +3,7 @@ import SwiftUI
 /// The app's sections. A section appears here when it works end to end;
 /// there are no "coming soon" tabs.
 enum AppSection: Hashable {
-    case today, courses, account
+    case today, courses, games, account
 }
 
 struct RootView: View {
@@ -27,6 +27,12 @@ struct RootView: View {
             .tag(AppSection.courses)
 
             NavigationStack {
+                GamesView()
+            }
+            .tabItem { Label("Games", systemImage: "flag.checkered") }
+            .tag(AppSection.games)
+
+            NavigationStack {
                 AccountView()
             }
             .tabItem { Label("You", systemImage: "person") }
@@ -45,6 +51,7 @@ struct RootView: View {
             guard let route = DebugLaunch.route else { return }
             switch route.first {
             case "courses": section = .courses
+            case "games": section = .games
             case "account": section = .account
             case "course", "trainer":
                 guard route.count > 1 else { return }

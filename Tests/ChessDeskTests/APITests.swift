@@ -160,6 +160,12 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
         try decodeExample("DueSummary", as: DueSummary.self)
         try decodeExample("LocalProgress", as: LocalProgressResult.self)
         try decodeExample("ApiError", as: APIErrorBody.self)
+        try decodeExample("LinkedAccounts", as: LinkedAccountsResponse.self)
+        try decodeExample("ImportChunk", as: ImportChunk.self)
+        try decodeExample("GamesPage", as: GamesPage.self)
+        try decodeExample("GameDetail", as: GameDetail.self)
+        try decodeExample("MistakeQueue", as: MistakeQueue.self)
+        try decodeExample("MistakeAttempt", as: MistakeAttempt.self)
     }
 
     @Test func contractServesEveryRouteTheAppCalls() throws {
@@ -169,6 +175,9 @@ private func fixture<Value: Decodable>(_ name: String, as type: Value.Type = Val
             "/api/v1/auth/login", "/api/v1/auth/refresh", "/api/v1/me",
             "/api/v1/auth/signup", "/api/v1/auth/apple", "/api/v1/auth/verification",
             "/api/v1/purchases/apple",
+            "/api/v1/accounts", "/api/v1/accounts/{provider}", "/api/v1/accounts/{provider}/import",
+            "/api/v1/games", "/api/v1/games/{gameId}", "/api/v1/games/{gameId}/star", "/api/v1/games/{gameId}/review",
+            "/api/v1/mistakes", "/api/v1/mistakes/{mistakeId}/attempts",
             "/api/v1/courses", "/api/v1/courses/{slug}", "/api/v1/courses/{slug}/session",
             "/api/v1/courses/{slug}/enrollment", "/api/v1/courses/{slug}/local-progress",
             "/api/v1/training/grades", "/api/v1/training/due",
