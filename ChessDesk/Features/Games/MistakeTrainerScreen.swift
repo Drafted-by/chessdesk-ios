@@ -132,7 +132,7 @@ struct MistakeSession: View {
 
     private var detail: String {
         let against = mistake.opponent.isEmpty ? "" : " against \(mistake.opponent)"
-        return "You played \(mistake.moveLabel)\(against). It comes back \(outcome == .solved ? "later" : "soon"), until it is yours."
+        return "You played \(mistake.moveLabel) \(mistake.playedSan)\(against). It comes back \(outcome == .solved ? "later" : "soon"), until it is yours."
     }
 
     /// The engine's move is right; so is a move the engine finds as good.

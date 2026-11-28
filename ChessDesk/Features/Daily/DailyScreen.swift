@@ -169,7 +169,7 @@ private struct PositionTrainerView: View {
                         .cdFont(.cardTitle)
                         .foregroundStyle(CD.ink)
                     if let played = item.playedSan, let label = item.moveLabel {
-                        Text("In the game you played \(label)\(label.hasSuffix("…") ? "" : " ")\(played) here.")
+                        Text("In the game you played \(label) \(played) here.")
                             .cdFont(.small)
                             .foregroundStyle(CD.ink2)
                             .fixedSize(horizontal: false, vertical: true)
